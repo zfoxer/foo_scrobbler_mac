@@ -1,41 +1,94 @@
-# Prerequisites
-*.d
+# ───── macOS metadata ─────
+.DS_Store
+.AppleDouble
+.LSOverride
 
-# Compiled Object files
-*.slo
-*.lo
+# ───── Xcode / CLion / IDE ─────
+xcuserdata/
+*.xcworkspace
+*.xcuserstate
+.idea/
+.vscode/
+
+# ───── Build outputs ─────
+build/
+bin/
+out/
+dist/
+release/
+Debug/
+Release/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# ───── Object & binary files ─────
 *.o
 *.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
 *.so
-*.dylib
 *.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
+*.dylib
 *.a
 *.lib
+*.exp
+*.pdb
 
-# Executables
-*.exe
-*.out
-*.app
+# ───── Dependency / cache ─────
+*.lock
+*.log
+.cache/
+*.tmp
 
-# debug information files
-*.dwo
+# ───── Generated files ─────
+*.rsp
+*.generated.*
+*.ipdb
+*.iobj
+
+# ───── Local SDK paths ─────
+/foobar2000_SDK/
+/third_party/
+/vendor/
+
+# ───── Temporary tests ─────
+*.test
+*.gcda
+*.gcno
+*.gcov
+*.pytest_cache/
+
+# ───── macOS linker / debug │ profile ─────
+*.dSYM/
+*.profraw
+*.profdata
+
+# ───── Clang tooling ─────
+compile_commands.json
+
+# ───── Local user config ─────
+*.env
+local.config
+config.json
+credentials/
+secrets.*
+
+# ─────-ignore this if using build dir tracking─────
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+
+# ───── Crash / system files ─────
+*.crash
+*.swp
+*.swo
+
+# ───── Binary plugin result (optional)─────
+# Uncomment if you don't want plugin builds committed
+# *.fb2k-component
+
+sdk/**/.DS_Store
+sdk/**/build_universal/
+
+generated/
