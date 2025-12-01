@@ -85,7 +85,7 @@ bool lastfm_begin_auth(std::string& out_auth_url)
 
     if (api_key.empty() || api_secret.empty())
     {
-        LFM_INFO("lastfm_begin_auth(): API key/secret not configured.");
+        LFM_INFO("API key/secret not configured.");
         return false;
     }
 
@@ -133,7 +133,7 @@ bool lastfm_begin_auth(std::string& out_auth_url)
     }
 
     g_lastfm_pending_token.assign(p, end - p);
-    LFM_INFO("Received auth token: " << g_lastfm_pending_token.c_str());
+    LFM_DEBUG("Received auth token: " << g_lastfm_pending_token.c_str());
 
     // Browser URL for user authorization
     out_auth_url = "https://www.last.fm/api/auth/"
@@ -150,7 +150,7 @@ bool lastfm_complete_auth_from_callback_url(const std::string& callback_url, las
 
     if (g_lastfm_pending_token.empty())
     {
-        LFM_INFO("lastfm_complete_auth...(): no pending token – run lastfm_begin_auth() first.");
+        LFM_DEBUG("No pending token – run lastfm_begin_auth() first.");
         return false;
     }
 
@@ -159,7 +159,7 @@ bool lastfm_complete_auth_from_callback_url(const std::string& callback_url, las
 
     if (api_key.empty() || api_secret.empty())
     {
-        LFM_INFO("lastfm_complete_auth...(): API key/secret not configured.");
+        LFM_INFO("API key/secret not configured.");
         return false;
     }
 
@@ -230,7 +230,7 @@ bool lastfm_complete_auth_from_callback_url(const std::string& callback_url, las
 
 void lastfm_logout()
 {
-    LFM_INFO("lastfm_logout(): clearing stored Last.fm session.");
+    LFM_INFO("Clearing stored Last.fm session.");
     lastfm_auth_state state;
     state.is_authenticated = false;
     state.username.clear();

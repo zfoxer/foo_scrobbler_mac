@@ -14,14 +14,14 @@
 #include <foobar2000/SDK/foobar2000.h>
 
 #include <CommonCrypto/CommonDigest.h>
-
-#include <map>
-#include <ctime>
 #include <cctype>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
 #include <thread>
+#include <map>
 
 namespace
 {
@@ -33,7 +33,7 @@ static const GUID guid_cfg_lastfm_pending_scrobbles = {
 static cfg_string cfg_lastfm_pending_scrobbles(guid_cfg_lastfm_pending_scrobbles, "");
 
 // Very simple line-based format:
-// artist \t title \t album \t duration_seconds \t playback_seconds
+// artist \t title \t album \t duration_seconds \t playback_seconds \t start_timestamp
 struct queued_scrobble
 {
     std::string artist;
@@ -41,12 +41,13 @@ struct queued_scrobble
     std::string album;
     double duration_seconds = 0.0;
     double playback_seconds = 0.0;
+    std::time_t start_timestamp = 0;
 };
 
 static std::string serialize_scrobble(const queued_scrobble& q)
 {
     std::string out;
-    out.reserve(128);
+    out.reserve(192);
     out += q.artist;
     out += '\t';
     out += q.title;
@@ -56,6 +57,8 @@ static std::string serialize_scrobble(const queued_scrobble& q)
     out += std::to_string(q.duration_seconds);
     out += '\t';
     out += std::to_string(q.playback_seconds);
+    out += '\t';
+    out += std::to_string(static_cast<long long>(q.start_timestamp));
     return out;
 }
 
@@ -129,6 +132,16 @@ static std::vector<queued_scrobble> load_pending_scrobbles()
         q.duration_seconds = dur;
         q.playback_seconds = pb;
 
+        // Optional 6th field: original start timestamp (absolute, seconds since epoch)
+        q.start_timestamp = 0;
+        if (parts.size() >= 6)
+        {
+            char* end = nullptr;
+            long long ts = std::strtoll(parts[5].c_str(), &end, 10);
+            if (end != parts[5].c_str())
+                q.start_timestamp = static_cast<std::time_t>(ts);
+        }
+
         result.push_back(q);
     }
 
@@ -140,10 +153,10 @@ static void save_pending_scrobbles(const std::vector<queued_scrobble>& items)
     pfc::string8 raw;
     for (size_t i = 0; i < items.size(); ++i)
     {
-        if (i > 0)
-            raw << "\n";
-        std::string line = serialize_scrobble(items[i]);
-        raw << line.c_str();
+        const auto& q = items[i];
+        std::string line = serialize_scrobble(q);
+        raw += line.c_str();
+        raw += "\n";
     }
     cfg_lastfm_pending_scrobbles.set(raw);
 }
@@ -160,10 +173,11 @@ static std::string md5_hex(const std::string& data)
 
     for (int i = 0; i < CC_MD5_DIGEST_LENGTH; ++i)
     {
-        const unsigned char b = digest[i];
-        out.push_back(hex_digits[b >> 4]);
-        out.push_back(hex_digits[b & 0x0F]);
+        unsigned char c = digest[i];
+        out.push_back(hex_digits[c >> 4]);
+        out.push_back(hex_digits[c & 0x0F]);
     }
+
     return out;
 }
 
@@ -179,7 +193,7 @@ static std::string url_encode(const std::string& value)
         if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' ||
             c == '.' || c == '~')
         {
-            out.push_back((char)c);
+            out.push_back(static_cast<char>(c));
         }
         else
         {
@@ -192,15 +206,49 @@ static std::string url_encode(const std::string& value)
     return out;
 }
 
-// Generic helper: run HTTP request with explicit method ("POST")
-// and read entire body into pfc::string8.
-// On error, returns false and fills out_error with the textual reason.
-static bool http_request_to_string(const char* method, const char* url, pfc::string8& out_body, std::string& out_error)
+static bool icontains(const std::string& haystack, const char* needle)
+{
+    if (!needle || !*needle)
+        return false;
+
+    auto lower = [](unsigned char c) { return (unsigned char)std::tolower(c); };
+
+    std::string h;
+    h.reserve(haystack.size());
+    for (unsigned char c : haystack)
+        h.push_back((char)lower(c));
+
+    std::string n;
+    n.reserve(std::strlen(needle));
+    for (const char* p = needle; *p; ++p)
+        n.push_back((char)lower((unsigned char)*p));
+
+    return h.find(n) != std::string::npos;
+}
+
+static bool http_request_to_string(const char* method,
+                                   const char* url,
+                                   pfc::string8& out_body,
+                                   std::string& out_error)
 {
     try
     {
-        auto req = http_client::get()->create_request(method);
+        auto api = standard_api_create_t<http_client>();
+        http_request::ptr req = api->create_request(method);
+        if (url == nullptr || *url == '\0')
+        {
+            out_error = "Invalid URL (empty).";
+            return false;
+        }
+
+        LFM_DEBUG("HTTP " << method << " " << url);
+
         file::ptr stream = req->run(url, fb2k::noAbort);
+        if (!stream.is_valid())
+        {
+            out_error = "No response stream.";
+            return false;
+        }
 
         pfc::string8 line;
         out_body.reset();
@@ -218,45 +266,35 @@ static bool http_request_to_string(const char* method, const char* url, pfc::str
     catch (std::exception const& e)
     {
         const char* what = e.what();
-        out_error = what ? what : "";
+        LFM_INFO("HTTP request exception: " << (what ? what : "(null)"));
+        out_error = what ? what : "HTTP exception";
         return false;
     }
 }
 
+//  XML / JSON parsing helpers
+
 static bool response_has_error(const char* body)
 {
-    return body && std::strstr(body, "\"error\"");
+    if (!body || !*body)
+        return true;
+
+    std::string s(body);
+    return s.find("\"error\"") != std::string::npos;
 }
 
 static bool response_is_invalid_session(const char* body)
 {
-    if (!body)
+    if (!body || !*body)
         return false;
 
-    if (std::strstr(body, "Invalid session key"))
-        return true;
-    if (std::strstr(body, "\"error\":9"))
-        return true;
-
-    return false;
+    std::string s(body);
+    return (s.find("\"error\":9") != std::string::npos) ||
+           (s.find("\"error\": 9") != std::string::npos) ||
+           (s.find("Invalid session key") != std::string::npos);
 }
 
-// Helper: cheap, case-insensitive substring check on std::string
-static bool icontains(const std::string& haystack, const char* needle)
-{
-    if (needle == nullptr || *needle == '\0')
-        return false;
-
-    std::string lower_h = haystack;
-    std::string lower_n = needle;
-
-    for (char& c : lower_h)
-        c = (char)std::tolower((unsigned char)c);
-    for (char& c : lower_n)
-        c = (char)std::tolower((unsigned char)c);
-
-    return lower_h.find(lower_n) != std::string::npos;
-}
+//  Queue processing
 
 // Process all queued scrobbles synchronously.
 // Used by lastfm_retry_queued_scrobbles() and from async wrapper.
@@ -296,7 +334,7 @@ static void process_scrobble_queue()
         t.mbid.clear();
         t.duration_seconds = q.duration_seconds;
 
-        lastfm_scrobble_result res = lastfm_scrobble_track(t, q.playback_seconds);
+        lastfm_scrobble_result res = lastfm_scrobble_track(t, q.playback_seconds, q.start_timestamp);
 
         switch (res)
         {
@@ -354,6 +392,9 @@ void lastfm_queue_scrobble_for_retry(const lastfm_track_info& track, double play
     q.album = track.album;
     q.duration_seconds = track.duration_seconds;
     q.playback_seconds = playback_seconds;
+    std::time_t now = std::time(nullptr);
+    if (now <= 0) now = 0;
+    q.start_timestamp = now - static_cast<std::time_t>(playback_seconds);
 
     std::vector<queued_scrobble> items = load_pending_scrobbles();
     items.push_back(q);
@@ -373,7 +414,9 @@ void lastfm_retry_queued_scrobbles_async()
 }
 
 //  Public low-level scrobble
-lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track, double playback_seconds)
+lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track,
+                                             double playback_seconds,
+                                             std::time_t start_timestamp)
 {
     // 1) Check auth state
     lastfm_auth_state auth_state = lastfm_get_auth_state();
@@ -393,11 +436,19 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track, dou
     }
 
     // 2) Compute timestamp: track start time (UTC)
-    std::time_t now = std::time(nullptr);
-    if (now <= 0)
-        now = 0;
+    std::time_t start_ts = 0;
 
-    const std::time_t start_ts = now - static_cast<std::time_t>(playback_seconds);
+    if (start_timestamp > 0)
+    {
+        start_ts = start_timestamp;
+    }
+    else
+    {
+        std::time_t now = std::time(nullptr);
+        if (now <= 0)
+            now = 0;
+        start_ts = now - static_cast<std::time_t>(playback_seconds);
+    }
 
     // 3) Build raw params for signature (no encoding here).
     std::map<std::string, std::string> params = {
@@ -438,9 +489,9 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track, dou
 
     url << "&api_sig=" << sig.c_str() << "&format=json";
 
-    LFM_DEBUG("Scrobble URL: " << url;);
+    LFM_DEBUG("Scrobble URL: " << url.c_str());
 
-    // 6) Fire the request as POST
+    // 6) HTTP POST
     pfc::string8 body;
     std::string http_error;
 
@@ -459,10 +510,10 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track, dou
     const char* body_c = body.c_str();
     LFM_DEBUG("Scrobble response: " << (body_c ? body_c : "(null)"));
 
-    // 7) Inspect response
+    // 7) Parse JSON for error
     if (!response_has_error(body_c))
     {
-        LFM_DEBUG("Scrobble OK.");
+        LFM_DEBUG("Scrobble OK: " << track.artist.c_str() << " - " << track.title.c_str());
         return lastfm_scrobble_result::success;
     }
 
@@ -485,7 +536,7 @@ void lastfm_submit_scrobble_async(const lastfm_track_info& track, double playbac
     std::thread(
         [t_copy, played_copy]()
         {
-            lastfm_scrobble_result res = lastfm_scrobble_track(t_copy, played_copy);
+            lastfm_scrobble_result res = lastfm_scrobble_track(t_copy, played_copy, 0);
 
             switch (res)
             {
@@ -517,3 +568,9 @@ void lastfm_submit_scrobble_async(const lastfm_track_info& track, double playbac
         })
         .detach();
 }
+
+size_t lastfm_get_pending_scrobble_count()
+{
+    return load_pending_scrobbles().size();
+}
+

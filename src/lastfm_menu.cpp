@@ -164,6 +164,7 @@ void lastfm_menu::execute(t_uint32 index, ctx_t /*callback*/)
                 pfc::string8 msg;
                 msg << "Authenticated as: " << state.username.c_str();
                 popup_message::g_show(msg, "Last.fm Scrobbler");
+                LFM_INFO("Authenticated as: " << state.username.c_str());
             }
             else
             {

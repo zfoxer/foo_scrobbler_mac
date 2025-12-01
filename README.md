@@ -52,5 +52,5 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
-0.7.0    2025-12-08    Initial release.
+0.7.0    2025-12-01    Initial release.
 </pre>

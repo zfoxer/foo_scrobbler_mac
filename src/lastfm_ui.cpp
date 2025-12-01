@@ -7,6 +7,7 @@
 
 #include "lastfm_ui.h"
 #include "lastfm_auth.h"
+#include "lastfm_scrobble.h"
 #include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
@@ -47,7 +48,7 @@ bool lastfm_is_authenticated()
 
 void clear_lastfm_authentication()
 {
-    LFM_INFO("clear_lastfm_authentication(): clearing cfg state.");
+    LFM_INFO("Clearing cfg state.");
 
     cfg_lastfm_authenticated.set(false);
     cfg_lastfm_username.set("");
@@ -55,7 +56,14 @@ void clear_lastfm_authentication()
 
     pfc::string8 user = cfg_lastfm_username.get();
     pfc::string_formatter f;
-    f << "[foo_scrobbler_mac] clear_lastfm_authentication(): now authenticated=" << (lastfm_is_authenticated() ? 1 : 0)
+    f << "Authenticated=" << (lastfm_is_authenticated() ? "yes" : "no")
       << ", user='" << user << "'";
-    LFM_INFO(f);
+
+    size_t pending = lastfm_get_pending_scrobble_count();
+    if (pending > 0)
+    {
+        f << ", pending cached scrobbles=" << pending;
+    }
+
+    LFM_INFO(f.c_str());
 }

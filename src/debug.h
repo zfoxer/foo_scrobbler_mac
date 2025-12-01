@@ -11,8 +11,8 @@
 #define LFM_DEBUG(expr)                                                                                                \
     do                                                                                                                 \
     {                                                                                                                  \
-        console::formatter f;                                                                                          \
-        f << "foo_scrobbler_mac: " << expr;                                                                            \
+        console::formatter lfm_f;                                                                                      \
+        lfm_f << "foo_scrobbler_mac: " << expr;                                                                        \
     } while (0)
 #else
 #define LFM_DEBUG(expr)                                                                                                \
@@ -24,6 +24,6 @@
 #define LFM_INFO(expr)                                                                                                 \
     do                                                                                                                 \
     {                                                                                                                  \
-        console::formatter f;                                                                                          \
-        f << "foo_scrobbler_mac: " << expr;                                                                            \
+        console::formatter lfm_f;                                                                                      \
+        lfm_f << "foo_scrobbler_mac: " << expr;                                                                        \
     } while (0)
