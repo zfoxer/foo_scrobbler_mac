@@ -22,7 +22,7 @@ static const GUID guid_cfg_lastfm_session_key = {
     0xdcf41b90, 0x9d00, 0x44f1, {0xa6, 0x1d, 0xf2, 0x99, 0x95, 0x27, 0x0e, 0x79}};
 
 static const GUID guid_cfg_lastfm_suspended = {
-    0xe09c5dbb, 0x8040, 0x4a89, {0x98,0xc8,0x0e,0x0e,0x42,0x27,0xcb,0x56}};
+    0xe09c5dbb, 0x8040, 0x4a89, {0x98, 0xc8, 0x0e, 0x0e, 0x42, 0x27, 0xcb, 0x56}};
 
 static cfg_bool cfg_lastfm_authenticated(guid_cfg_lastfm_authenticated, false);
 static cfg_string cfg_lastfm_username(guid_cfg_lastfm_username, "");
@@ -54,7 +54,6 @@ bool lastfm_is_authenticated()
     return cfg_lastfm_authenticated.get();
 }
 
-
 void lastfm_clear_authentication()
 {
     LFM_INFO("Clearing cfg state.");
@@ -62,12 +61,11 @@ void lastfm_clear_authentication()
     cfg_lastfm_authenticated.set(false);
     cfg_lastfm_username.set("");
     cfg_lastfm_session_key.set("");
-    cfg_lastfm_suspended.set(false);   // Suspension is also dropped
+    cfg_lastfm_suspended.set(false); // Suspension is also dropped
 
     pfc::string8 user = cfg_lastfm_username.get();
     pfc::string_formatter f;
-    f << "Now authenticated=" << (lastfm_is_authenticated() ? 1 : 0)
-      << ", user='" << user << "'";
+    f << "Now authenticated=" << (lastfm_is_authenticated() ? 1 : 0) << ", user='" << user << "'";
 
     size_t pending = lastfm_get_pending_scrobble_count();
     if (pending > 0)
@@ -78,7 +76,6 @@ void lastfm_clear_authentication()
     LFM_INFO(f.c_str());
 }
 
-
 void lastfm_clear_suspension()
 {
     LFM_INFO("Clearing suspend state.");
@@ -87,8 +84,7 @@ void lastfm_clear_suspension()
 
     pfc::string8 user = cfg_lastfm_username.get();
     pfc::string_formatter f;
-    f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no")
-      << ", user='" << user << "'";
+    f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
 
     size_t pending = lastfm_get_pending_scrobble_count();
     if (pending > 0)
@@ -112,8 +108,7 @@ void lastfm_suspend_current_user()
 
     pfc::string8 user = cfg_lastfm_username.get();
     pfc::string_formatter f;
-    f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no")
-      << ", user='" << user << "'";
+    f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
 
     size_t pending = lastfm_get_pending_scrobble_count();
     if (pending > 0)

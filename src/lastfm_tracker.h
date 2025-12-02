@@ -46,6 +46,10 @@ class lastfm_tracker : public play_callback_static
     bool m_scrobble_sent = false;
     double m_playback_time = 0.0;
     lastfm_track_info m_current;
+    // Effective listening time logic
+    double m_effective_listened_seconds = 0.0;
+    double m_last_reported_time = 0.0;
+    bool m_have_last_reported_time = false;
 
     lastfm_rules m_rules;
 };

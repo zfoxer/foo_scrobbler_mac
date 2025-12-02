@@ -25,7 +25,14 @@ void lastfm_tracker::reset_state()
 {
     m_is_playing = false;
     m_scrobble_sent = false;
+
     m_playback_time = 0.0;
+
+    // Reset effective listening time tracking.
+    m_effective_listened_seconds = 0.0;
+    m_last_reported_time = 0.0;
+    m_have_last_reported_time = false;
+
     m_rules.reset(0.0);
     m_current = lastfm_track_info();
 }
@@ -73,19 +80,39 @@ void lastfm_tracker::on_playback_new_track(metadb_handle_ptr track)
     }
 
     const lastfm_track_info info = m_current; // copy
-    std::thread([info]() {
-        lastfm_send_now_playing(
-            info.artist,
-            info.title,
-            info.album,
-            info.duration_seconds);
-    }).detach();
+    std::thread([info]() { lastfm_send_now_playing(info.artist, info.title, info.album, info.duration_seconds); })
+        .detach();
 }
 
 void lastfm_tracker::on_playback_time(double time)
 {
+    // Update effective listening time based on forward progression only.
+    if (m_is_playing && m_current.duration_seconds > 0.0)
+    {
+        if (!m_have_last_reported_time)
+        {
+            m_last_reported_time = time;
+            m_have_last_reported_time = true;
+        }
+        else
+        {
+            const double delta = time - m_last_reported_time;
+
+            // Only count small positive deltas as "listened" time.
+            // Large jumps (seeks) or backward moves do not increase effective time.
+            if (delta > 0.0 && delta <= 10.0)
+            {
+                m_effective_listened_seconds += delta;
+            }
+
+            m_last_reported_time = time;
+        }
+    }
+
+    // Keep the original absolute position for other logic (rules, timestamp, etc.).
     m_playback_time = time;
     m_rules.playback_time = time;
+
     submit_scrobble_if_needed();
 }
 
@@ -132,13 +159,28 @@ void lastfm_tracker::submit_scrobble_if_needed()
     if (!lastfm_is_authenticated())
         return;
 
-    // Discard while suspended
+    // Discard while suspended.
     if (lastfm_is_suspended())
     {
         return;
     }
 
+    // Keep the existing rules (min length etc.).
     if (!m_rules.should_scrobble())
+        return;
+
+    // Additional guard: require enough *effective* listening time,
+    // not just position (so seeking forward won't trigger scrobble).
+    const double duration = m_current.duration_seconds;
+    const double min_duration = 30.0;
+
+    if (duration < min_duration)
+        return;
+
+    const double threshold = std::min(duration * 0.5, 240.0);
+    const double listened = m_effective_listened_seconds;
+
+    if (listened < threshold)
         return;
 
     LFM_DEBUG("Scrobble candidate.");

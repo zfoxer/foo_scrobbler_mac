@@ -52,6 +52,8 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
-0.7.3    2025-12-XX    Added option to enable/disable current scrobbling while the user remains authenticated.
+0.7.3    2025-12-07    Seeking across the submission mark with the slider (e.g., 50%) doesn’t cheat the scrobble.
+                       Added option to enable/disable scrobbling while the user remains authenticated.
 0.7.0    2025-12-01    Initial release.
 </pre>
+
