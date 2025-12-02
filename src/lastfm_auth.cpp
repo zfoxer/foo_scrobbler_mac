@@ -74,7 +74,7 @@ static bool http_get_to_string(const char* url, pfc::string8& out_body)
     }
 }
 
-// Step 1: Get token & browser URL
+// Get token & browser URL
 bool lastfm_begin_auth(std::string& out_auth_url)
 {
     out_auth_url.clear();
@@ -143,7 +143,7 @@ bool lastfm_begin_auth(std::string& out_auth_url)
     return true;
 }
 
-// Step 2: using the stored token, call auth.getSession
+// Using the stored token, call auth.getSession
 bool lastfm_complete_auth_from_callback_url(const std::string& callback_url, lastfm_auth_state& auth_state)
 {
     (void)callback_url; // unused for this flow

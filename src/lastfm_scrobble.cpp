@@ -294,8 +294,7 @@ static bool response_is_invalid_session(const char* body)
            (s.find("Invalid session key") != std::string::npos);
 }
 
-//  Queue processing
-
+// Queue processing
 // Process all queued scrobbles synchronously.
 // Used by lastfm_retry_queued_scrobbles() and from async wrapper.
 static void process_scrobble_queue()
@@ -359,7 +358,7 @@ static void process_scrobble_queue()
             fb2k::inMainThread(
                 []()
                 {
-                    clear_lastfm_authentication();
+                    lastfm_clear_authentication();
                     popup_message::g_show("Your Last.fm session is no longer valid.\n"
                                           "Please authenticate again from the Last.fm menu.",
                                           "Last.fm Scrobbler");
@@ -418,7 +417,7 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track,
                                              double playback_seconds,
                                              std::time_t start_timestamp)
 {
-    // 1) Check auth state
+    // Check auth state
     lastfm_auth_state auth_state = lastfm_get_auth_state();
     if (!auth_state.is_authenticated || auth_state.session_key.empty())
     {
@@ -435,7 +434,7 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track,
         return lastfm_scrobble_result::other_error;
     }
 
-    // 2) Compute timestamp: track start time (UTC)
+    // Compute timestamp: track start time (UTC)
     std::time_t start_ts = 0;
 
     if (start_timestamp > 0)
@@ -450,7 +449,7 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track,
         start_ts = now - static_cast<std::time_t>(playback_seconds);
     }
 
-    // 3) Build raw params for signature (no encoding here).
+    // Build raw params for signature (no encoding here).
     std::map<std::string, std::string> params = {
         {"api_key", api_key},         {"artist", track.artist},
         {"track", track.title},       {"timestamp", std::to_string(static_cast<long long>(start_ts))},
@@ -462,7 +461,7 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track,
     if (track.duration_seconds > 0.0)
         params["duration"] = std::to_string(static_cast<int>(track.duration_seconds));
 
-    // 4) Calculate API signature.
+    // Calculate API signature.
     std::string sig;
     for (const auto& kv : params)
     {
@@ -472,7 +471,7 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track,
     sig += api_secret;
     sig = md5_hex(sig);
 
-    // 5) Build URL with URL-encoded VALUES
+    // Build URL with URL-encoded VALUES
     pfc::string8 url;
     url << "https://ws.audioscrobbler.com/2.0/?";
 
@@ -491,7 +490,7 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track,
 
     LFM_DEBUG("Scrobble URL: " << url.c_str());
 
-    // 6) HTTP POST
+    // HTTP POST
     pfc::string8 body;
     std::string http_error;
 
@@ -510,7 +509,7 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track,
     const char* body_c = body.c_str();
     LFM_DEBUG("Scrobble response: " << (body_c ? body_c : "(null)"));
 
-    // 7) Parse JSON for error
+    // Parse JSON for error
     if (!response_has_error(body_c))
     {
         LFM_DEBUG("Scrobble OK: " << track.artist.c_str() << " - " << track.title.c_str());
@@ -554,7 +553,7 @@ void lastfm_submit_scrobble_async(const lastfm_track_info& track, double playbac
                 fb2k::inMainThread(
                     []()
                     {
-                        clear_lastfm_authentication();
+                        lastfm_clear_authentication();
                         popup_message::g_show("Your Last.fm session is no longer valid.\n"
                                               "Please authenticate again from the Last.fm menu.",
                                               "Last.fm Scrobbler");

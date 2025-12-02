@@ -63,13 +63,23 @@ void lastfm_tracker::on_playback_new_track(metadb_handle_ptr track)
     if (!lastfm_is_authenticated())
         return;
 
-    // 1) At track start: try to flush any queued scrobbles.
+    // Still flush queued scrobbles even if suspended – they were created earlier.
     lastfm_retry_queued_scrobbles_async();
 
-    // 2) Fire "now playing" in the background so UI doesn't block.
-    const lastfm_track_info info = m_current; // copy for thread
-    std::thread([info]() { lastfm_send_now_playing(info.artist, info.title, info.album, info.duration_seconds); })
-        .detach();
+    // If suspended, do not send new "now playing".
+    if (lastfm_is_suspended())
+    {
+        return;
+    }
+
+    const lastfm_track_info info = m_current; // copy
+    std::thread([info]() {
+        lastfm_send_now_playing(
+            info.artist,
+            info.title,
+            info.album,
+            info.duration_seconds);
+    }).detach();
 }
 
 void lastfm_tracker::on_playback_time(double time)
@@ -122,17 +132,24 @@ void lastfm_tracker::submit_scrobble_if_needed()
     if (!lastfm_is_authenticated())
         return;
 
+    // Discard while suspended
+    if (lastfm_is_suspended())
+    {
+        return;
+    }
+
     if (!m_rules.should_scrobble())
         return;
 
     LFM_DEBUG("Scrobble candidate.");
+
     const double played = m_playback_time;
 
-    // Mark as handled for this playback to avoid repeated submissions.
-    m_scrobble_sent = true;
+    // Keep flushing the cache as before.
+    lastfm_retry_queued_scrobbles_async();
 
-    // Cache this track; it will be submitted when a new track starts.
-    lastfm_queue_scrobble_for_retry(m_current, played);
+    m_scrobble_sent = true;
+    lastfm_submit_scrobble_async(m_current, played);
 }
 
 // Static factory registration

@@ -16,6 +16,7 @@ class lastfm_menu : public mainmenu_commands
     {
         cmd_authenticate = 0,
         cmd_clear_auth,
+        cmd_suspend,
         cmd_count
     };
 
@@ -24,15 +25,8 @@ class lastfm_menu : public mainmenu_commands
     void get_name(t_uint32 index, pfc::string_base& out) override;
     bool get_description(t_uint32 index, pfc::string_base& out) override;
     GUID get_parent() override;
-
-    // NOTE: no parameter here – matches SDK exactly
     t_uint32 get_sort_priority() override;
-
-    // Display/flags (disabled/checked) – matches SDK:
-    // virtual bool get_display(t_uint32 p_index,pfc::string_base & p_text,uint32_t & p_flags)
+    // Display/flags (disabled/checked)
     bool get_display(t_uint32 index, pfc::string_base& text, uint32_t& flags) override;
-
-    // execute signature from your SDK:
-    // virtual void execute(t_uint32 p_index,ctx_t p_callback) = 0;
     void execute(t_uint32 index, ctx_t callback) override;
 };
