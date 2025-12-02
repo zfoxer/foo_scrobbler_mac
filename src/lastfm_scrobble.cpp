@@ -226,10 +226,7 @@ static bool icontains(const std::string& haystack, const char* needle)
     return h.find(n) != std::string::npos;
 }
 
-static bool http_request_to_string(const char* method,
-                                   const char* url,
-                                   pfc::string8& out_body,
-                                   std::string& out_error)
+static bool http_request_to_string(const char* method, const char* url, pfc::string8& out_body, std::string& out_error)
 {
     try
     {
@@ -289,8 +286,7 @@ static bool response_is_invalid_session(const char* body)
         return false;
 
     std::string s(body);
-    return (s.find("\"error\":9") != std::string::npos) ||
-           (s.find("\"error\": 9") != std::string::npos) ||
+    return (s.find("\"error\":9") != std::string::npos) || (s.find("\"error\": 9") != std::string::npos) ||
            (s.find("Invalid session key") != std::string::npos);
 }
 
@@ -392,7 +388,8 @@ void lastfm_queue_scrobble_for_retry(const lastfm_track_info& track, double play
     q.duration_seconds = track.duration_seconds;
     q.playback_seconds = playback_seconds;
     std::time_t now = std::time(nullptr);
-    if (now <= 0) now = 0;
+    if (now <= 0)
+        now = 0;
     q.start_timestamp = now - static_cast<std::time_t>(playback_seconds);
 
     std::vector<queued_scrobble> items = load_pending_scrobbles();
@@ -413,8 +410,7 @@ void lastfm_retry_queued_scrobbles_async()
 }
 
 //  Public low-level scrobble
-lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track,
-                                             double playback_seconds,
+lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track, double playback_seconds,
                                              std::time_t start_timestamp)
 {
     // Check auth state
@@ -572,4 +568,3 @@ size_t lastfm_get_pending_scrobble_count()
 {
     return load_pending_scrobbles().size();
 }
-
