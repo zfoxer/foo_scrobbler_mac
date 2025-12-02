@@ -24,9 +24,12 @@ static const GUID guid_lastfm_clear_auth = {
 static const GUID guid_lastfm_menu_group = {
     0x7f4f3aa1, 0x1b7c, 0x4b6e, {0x9a, 0x23, 0x4e, 0x8d, 0x17, 0x39, 0x52, 0x11}};
 
+static const GUID guid_lastfm_suspend = {
+    0x3b5aca2b, 0x731e, 0x4ac4, {0xa3, 0xc5, 0x59, 0x4f, 0xcd, 0x27, 0xea, 0x49}};
+
 static mainmenu_group_popup_factory g_lastfm_menu_group_factory(guid_lastfm_menu_group, mainmenu_groups::playback,
                                                                 mainmenu_commands::sort_priority_dontcare,
-                                                                "Last.fm Scrobbler");
+                                                                "Last.fm");
 
 namespace
 {
@@ -39,7 +42,7 @@ static void open_browser_url(const std::string& url)
     LFM_INFO("Open manually: " << url.c_str());
 #endif
 }
-} // namespace
+} // Namespace
 
 t_uint32 lastfm_menu::get_command_count()
 {
@@ -54,6 +57,8 @@ GUID lastfm_menu::get_command(t_uint32 index)
         return guid_lastfm_authenticate;
     case cmd_clear_auth:
         return guid_lastfm_clear_auth;
+    case cmd_suspend:
+        return guid_lastfm_suspend;
     default:
         uBugCheck();
     }
@@ -69,6 +74,12 @@ void lastfm_menu::get_name(t_uint32 index, pfc::string_base& out)
     case cmd_clear_auth:
         out = "Clear authentication";
         break;
+    case cmd_suspend:
+        if (lastfm_is_suspended())
+            out = "Unsuspend user";
+        else
+            out = "Suspend user";
+        break;
     default:
         uBugCheck();
     }
@@ -83,6 +94,9 @@ bool lastfm_menu::get_description(t_uint32 index, pfc::string_base& out)
         return true;
     case cmd_clear_auth:
         out = "Clear stored Last.fm authentication/session key.";
+        return true;
+    case cmd_suspend:
+        out = "Suspend user from scrobbling.";
         return true;
     default:
         return false;
@@ -108,14 +122,20 @@ bool lastfm_menu::get_display(t_uint32 index, pfc::string_base& text, uint32_t& 
     {
     case cmd_authenticate:
         if (authed)
-            return false; // hide it entirely
+            return false; // Hide it entirely
+        get_name(index, text);
+        break;
+
+    case cmd_suspend:
+        if (!authed)
+            return false; // Hide it entirely
         get_name(index, text);
         break;
 
     case cmd_clear_auth:
-        get_name(index, text);
         if (!authed)
-            flags |= flag_disabled;
+            return false; // hide when no authenticated user
+        get_name(index, text);
         break;
 
     default:
@@ -125,7 +145,7 @@ bool lastfm_menu::get_display(t_uint32 index, pfc::string_base& text, uint32_t& 
     return true;
 }
 
-void lastfm_menu::execute(t_uint32 index, ctx_t /*callback*/)
+void lastfm_menu::execute(t_uint32 index, ctx_t /*Callback*/)
 {
     switch (index)
     {
@@ -177,10 +197,24 @@ void lastfm_menu::execute(t_uint32 index, ctx_t /*callback*/)
     }
 
     case cmd_clear_auth:
-        clear_lastfm_authentication();
-        popup_message::g_show("Stored Last.fm authentication has been cleared.", "Last.fm Scrobbler");
+        lastfm_clear_authentication();
+        popup_message::g_show("Stored Last.fm authentication has been cleared.", "Last.fm");
         break;
+    case cmd_suspend:
+        if (!lastfm_is_authenticated())
+            return;
 
+        if (lastfm_is_suspended())
+        {
+            lastfm_clear_suspension();
+            LFM_INFO("User unsuspended. Scrobbling is enabled again.");
+        }
+        else
+        {
+            lastfm_suspend_current_user();
+            LFM_INFO("User suspended. Scrobbles will be skipped while suspended.");
+        }
+        break;
     default:
         uBugCheck();
     }

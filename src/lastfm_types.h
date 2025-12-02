@@ -15,6 +15,7 @@ namespace lastfm_plugin
 struct lastfm_auth_state
 {
     bool is_authenticated = false;
+    bool is_suspended = false;
     std::string username;    // Last.fm username
     std::string session_key; // 'sk' from Last.fm
 };

@@ -39,7 +39,7 @@ void lastfm_retry_queued_scrobbles();
 void lastfm_submit_scrobble_async(const lastfm_track_info& track, double playback_seconds);
 
 // Retry ALL queued scrobbles asynchronously.
-// Called when playback starts and/or when we hit the scrobble threshold.
+// Called when playback starts/stops.
 void lastfm_retry_queued_scrobbles_async();
 
 size_t lastfm_get_pending_scrobble_count();

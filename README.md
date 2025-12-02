@@ -1,5 +1,5 @@
 ### Foo Scrobbler for Mac [foo_scrobbler_mac] (c) 2025 by Konstantinos Kyriakopoulos
-#### Version: 0.7.0 — License: GNU GPL Version 3
+#### Version: 0.7.3 — License: GNU GPL Version 3
 
 ### Introduction
 
@@ -52,5 +52,6 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
+0.7.3    2025-12-XX    Added option to enable/disable current scrobbling while the user remains authenticated.
 0.7.0    2025-12-01    Initial release.
 </pre>
