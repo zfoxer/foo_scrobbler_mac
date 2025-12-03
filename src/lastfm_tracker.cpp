@@ -25,10 +25,8 @@ void lastfm_tracker::reset_state()
 {
     m_is_playing = false;
     m_scrobble_sent = false;
-
     m_playback_time = 0.0;
 
-    // Reset effective listening time tracking.
     m_effective_listened_seconds = 0.0;
     m_last_reported_time = 0.0;
     m_have_last_reported_time = false;
@@ -36,6 +34,7 @@ void lastfm_tracker::reset_state()
     m_rules.reset(0.0);
     m_current = lastfm_track_info();
     m_current_handle.release();
+    m_start_wallclock = 0;
 }
 
 void lastfm_tracker::update_from_track(const metadb_handle_ptr& track)
@@ -50,14 +49,14 @@ void lastfm_tracker::update_from_track(const metadb_handle_ptr& track)
     }
 
     const char* artist = info.meta_get("artist", 0);
-    const char* title  = info.meta_get("title", 0);
-    const char* album  = info.meta_get("album", 0);
-    const char* mbid   = info.meta_get("musicbrainz_trackid", 0);
+    const char* title = info.meta_get("title", 0);
+    const char* album = info.meta_get("album", 0);
+    const char* mbid = info.meta_get("musicbrainz_trackid", 0);
 
     m_current.artist = artist ? artist : "";
-    m_current.title  = title ? title : "";
-    m_current.album  = album ? album : "";
-    m_current.mbid   = mbid ? mbid : "";
+    m_current.title = title ? title : "";
+    m_current.album = album ? album : "";
+    m_current.mbid = mbid ? mbid : "";
     m_current.duration_seconds = info.get_length();
 
     m_rules.reset(m_current.duration_seconds);
@@ -67,7 +66,10 @@ void lastfm_tracker::on_playback_new_track(metadb_handle_ptr track)
 {
     reset_state();
     m_is_playing = true;
+    m_start_wallclock = std::time(nullptr);
+
     update_from_track(track);
+
     LFM_DEBUG("Now playing: " << m_current.artist.c_str() << " - " << m_current.title.c_str());
 
     if (!lastfm_is_authenticated())
@@ -112,7 +114,7 @@ void lastfm_tracker::on_playback_time(double time)
         }
     }
 
-    // Keep the original absolute position for other logic (rules, timestamp, etc.).
+    // Keep the original absolute position for other logic (rules etc.).
     m_playback_time = time;
     m_rules.playback_time = time;
 
@@ -123,25 +125,23 @@ void lastfm_tracker::on_playback_time(double time)
         if (m_current_handle->get_info(info))
         {
             std::string newArtist = info.meta_get("artist", 0) ? info.meta_get("artist", 0) : "";
-            std::string newTitle  = info.meta_get("title", 0) ? info.meta_get("title", 0) : "";
-            std::string newAlbum  = info.meta_get("album", 0) ? info.meta_get("album", 0) : "";
+            std::string newTitle = info.meta_get("title", 0) ? info.meta_get("title", 0) : "";
+            std::string newAlbum = info.meta_get("album", 0) ? info.meta_get("album", 0) : "";
 
-            if (newArtist != m_current.artist ||
-                newTitle  != m_current.title  ||
-                newAlbum  != m_current.album)
+            if (newArtist != m_current.artist || newTitle != m_current.title || newAlbum != m_current.album)
             {
                 m_current.artist = newArtist;
-                m_current.title  = newTitle;
-                m_current.album  = newAlbum;
+                m_current.title = newTitle;
+                m_current.album = newAlbum;
 
                 lastfm_refresh_pending_scrobble_metadata(m_current);
+
                 // Refresh Now Playing on Last.fm with updated tags
                 if (lastfm_is_authenticated() && !lastfm_is_suspended())
                 {
                     const lastfm_track_info np = m_current;
-                    std::thread([np]() {
-                        lastfm_send_now_playing(np.artist, np.title, np.album, np.duration_seconds);
-                    }).detach();
+                    std::thread([np]() { lastfm_send_now_playing(np.artist, np.title, np.album, np.duration_seconds); })
+                        .detach();
                 }
             }
         }
@@ -208,28 +208,30 @@ void lastfm_tracker::submit_scrobble_if_needed()
 
     // Additional guard: require enough *effective* listening time,
     // not just position (so seeking forward won't trigger scrobble).
-    const double duration     = m_current.duration_seconds;
+    const double duration = m_current.duration_seconds;
     const double min_duration = 30.0;
 
     if (duration < min_duration)
         return;
 
     const double threshold = std::min(duration * 0.5, 240.0);
-    const double listened  = m_effective_listened_seconds;
+    const double listened = m_effective_listened_seconds;
 
     if (listened < threshold)
         return;
 
     LFM_DEBUG("Scrobble candidate.");
 
+    // Eligibility uses effective listening, but playback_seconds here is
+    // still the absolute position (not actually used for timestamp now
+    // that we have a real start wallclock).
     const double played = m_playback_time;
 
     m_scrobble_sent = true;
 
-    // At 50% (or threshold) we only queue the scrobble.
-    // Actual submission happens later (on next track / stop)
-    // via lastfm_retry_queued_scrobbles_async().
-    lastfm_queue_scrobble_for_retry(m_current, played, /*refresh_on_submit=*/true);
+    // Queue using the *real* playback start timestamp.
+    lastfm_queue_scrobble_for_retry(m_current, played,
+                                    /*refresh_on_submit=*/true, m_start_wallclock);
 }
 
 // Static factory registration
