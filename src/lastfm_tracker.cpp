@@ -35,10 +35,13 @@ void lastfm_tracker::reset_state()
 
     m_rules.reset(0.0);
     m_current = lastfm_track_info();
+    m_current_handle.release();
 }
 
 void lastfm_tracker::update_from_track(const metadb_handle_ptr& track)
 {
+    m_current_handle = track;
+
     file_info_impl info;
     if (!track->get_info(info))
     {
@@ -47,14 +50,14 @@ void lastfm_tracker::update_from_track(const metadb_handle_ptr& track)
     }
 
     const char* artist = info.meta_get("artist", 0);
-    const char* title = info.meta_get("title", 0);
-    const char* album = info.meta_get("album", 0);
-    const char* mbid = info.meta_get("musicbrainz_trackid", 0);
+    const char* title  = info.meta_get("title", 0);
+    const char* album  = info.meta_get("album", 0);
+    const char* mbid   = info.meta_get("musicbrainz_trackid", 0);
 
     m_current.artist = artist ? artist : "";
-    m_current.title = title ? title : "";
-    m_current.album = album ? album : "";
-    m_current.mbid = mbid ? mbid : "";
+    m_current.title  = title ? title : "";
+    m_current.album  = album ? album : "";
+    m_current.mbid   = mbid ? mbid : "";
     m_current.duration_seconds = info.get_length();
 
     m_rules.reset(m_current.duration_seconds);
@@ -113,6 +116,37 @@ void lastfm_tracker::on_playback_time(double time)
     m_playback_time = time;
     m_rules.playback_time = time;
 
+    // If the scrobble is already queued (after 50%), poll for tag changes and update queued metadata.
+    if (m_scrobble_sent && m_current_handle.is_valid())
+    {
+        file_info_impl info;
+        if (m_current_handle->get_info(info))
+        {
+            std::string newArtist = info.meta_get("artist", 0) ? info.meta_get("artist", 0) : "";
+            std::string newTitle  = info.meta_get("title", 0) ? info.meta_get("title", 0) : "";
+            std::string newAlbum  = info.meta_get("album", 0) ? info.meta_get("album", 0) : "";
+
+            if (newArtist != m_current.artist ||
+                newTitle  != m_current.title  ||
+                newAlbum  != m_current.album)
+            {
+                m_current.artist = newArtist;
+                m_current.title  = newTitle;
+                m_current.album  = newAlbum;
+
+                lastfm_refresh_pending_scrobble_metadata(m_current);
+                // Refresh Now Playing on Last.fm with updated tags
+                if (lastfm_is_authenticated() && !lastfm_is_suspended())
+                {
+                    const lastfm_track_info np = m_current;
+                    std::thread([np]() {
+                        lastfm_send_now_playing(np.artist, np.title, np.album, np.duration_seconds);
+                    }).detach();
+                }
+            }
+        }
+    }
+
     submit_scrobble_if_needed();
 }
 
@@ -129,7 +163,10 @@ void lastfm_tracker::on_playback_pause(bool paused)
 
 void lastfm_tracker::on_playback_stop(play_control::t_stop_reason)
 {
+    // This may queue the scrobble if not yet queued (edge cases).
     submit_scrobble_if_needed();
+
+    // Now actually submit queued scrobbles.
     lastfm_retry_queued_scrobbles_async();
     reset_state();
 }
@@ -171,14 +208,14 @@ void lastfm_tracker::submit_scrobble_if_needed()
 
     // Additional guard: require enough *effective* listening time,
     // not just position (so seeking forward won't trigger scrobble).
-    const double duration = m_current.duration_seconds;
+    const double duration     = m_current.duration_seconds;
     const double min_duration = 30.0;
 
     if (duration < min_duration)
         return;
 
     const double threshold = std::min(duration * 0.5, 240.0);
-    const double listened = m_effective_listened_seconds;
+    const double listened  = m_effective_listened_seconds;
 
     if (listened < threshold)
         return;
@@ -187,11 +224,12 @@ void lastfm_tracker::submit_scrobble_if_needed()
 
     const double played = m_playback_time;
 
-    // Keep flushing the cache as before.
-    lastfm_retry_queued_scrobbles_async();
-
     m_scrobble_sent = true;
-    lastfm_submit_scrobble_async(m_current, played);
+
+    // At 50% (or threshold) we only queue the scrobble.
+    // Actual submission happens later (on next track / stop)
+    // via lastfm_retry_queued_scrobbles_async().
+    lastfm_queue_scrobble_for_retry(m_current, played, /*refresh_on_submit=*/true);
 }
 
 // Static factory registration

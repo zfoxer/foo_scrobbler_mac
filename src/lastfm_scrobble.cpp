@@ -33,15 +33,16 @@ static const GUID guid_cfg_lastfm_pending_scrobbles = {
 static cfg_string cfg_lastfm_pending_scrobbles(guid_cfg_lastfm_pending_scrobbles, "");
 
 // Very simple line-based format:
-// artist \t title \t album \t duration_seconds \t playback_seconds \t start_timestamp
+// artist \t title \t album \t duration_seconds \t playback_seconds \t start_timestamp \t refresh_on_submit
 struct queued_scrobble
 {
     std::string artist;
     std::string title;
     std::string album;
-    double duration_seconds = 0.0;
-    double playback_seconds = 0.0;
-    std::time_t start_timestamp = 0;
+    double      duration_seconds = 0.0;
+    double      playback_seconds = 0.0;
+    std::time_t start_timestamp  = 0;
+    bool        refresh_on_submit = false;
 };
 
 static std::string serialize_scrobble(const queued_scrobble& q)
@@ -59,6 +60,8 @@ static std::string serialize_scrobble(const queued_scrobble& q)
     out += std::to_string(q.playback_seconds);
     out += '\t';
     out += std::to_string(static_cast<long long>(q.start_timestamp));
+    out += '\t';
+    out += q.refresh_on_submit ? "1" : "0";
     return out;
 }
 
@@ -121,8 +124,8 @@ static std::vector<queued_scrobble> load_pending_scrobbles()
 
         queued_scrobble q;
         q.artist = parts[0];
-        q.title = parts[1];
-        q.album = parts[2];
+        q.title  = parts[1];
+        q.album  = parts[2];
 
         double dur = 0.0, pb = 0.0;
         if (!parse_double(parts[3].c_str(), dur))
@@ -140,6 +143,13 @@ static std::vector<queued_scrobble> load_pending_scrobbles()
             long long ts = std::strtoll(parts[5].c_str(), &end, 10);
             if (end != parts[5].c_str())
                 q.start_timestamp = static_cast<std::time_t>(ts);
+        }
+
+        // Optional 7th field: refresh_on_submit flag
+        q.refresh_on_submit = false;
+        if (parts.size() >= 7)
+        {
+            q.refresh_on_submit = (parts[6] == "1");
         }
 
         result.push_back(q);
@@ -323,11 +333,11 @@ static void process_scrobble_queue()
         }
 
         lastfm_track_info t;
-        t.artist = q.artist;
-        t.title = q.title;
-        t.album = q.album;
+        t.artist            = q.artist;
+        t.title             = q.title;
+        t.album             = q.album;
         t.mbid.clear();
-        t.duration_seconds = q.duration_seconds;
+        t.duration_seconds  = q.duration_seconds;
 
         lastfm_scrobble_result res = lastfm_scrobble_track(t, q.playback_seconds, q.start_timestamp);
 
@@ -373,7 +383,39 @@ static void process_scrobble_queue()
 } // anonymous namespace
 
 //  Public queue helpers
-void lastfm_queue_scrobble_for_retry(const lastfm_track_info& track, double playback_seconds)
+
+void lastfm_refresh_pending_scrobble_metadata(const lastfm_track_info& track)
+{
+    std::vector<queued_scrobble> items = load_pending_scrobbles();
+    if (items.empty())
+        return;
+
+    bool updated = false;
+
+    // Walk from the end so we hit the most recent one first.
+    for (auto it = items.rbegin(); it != items.rend(); ++it)
+    {
+        if (it->refresh_on_submit)
+        {
+            it->artist           = track.artist;
+            it->title            = track.title;
+            it->album            = track.album;
+            it->duration_seconds = track.duration_seconds;
+            updated = true;
+            break;
+        }
+    }
+
+    if (updated)
+    {
+        save_pending_scrobbles(items);
+        LFM_DEBUG("Updated pending scrobble metadata to latest tags: "
+                  << track.artist.c_str() << " - " << track.title.c_str());
+    }
+}
+
+void lastfm_queue_scrobble_for_retry(const lastfm_track_info& track, double playback_seconds,
+                                     bool refresh_on_submit)
 {
     if (track.title.empty() || track.artist.empty())
     {
@@ -382,21 +424,23 @@ void lastfm_queue_scrobble_for_retry(const lastfm_track_info& track, double play
     }
 
     queued_scrobble q;
-    q.artist = track.artist;
-    q.title = track.title;
-    q.album = track.album;
+    q.artist           = track.artist;
+    q.title            = track.title;
+    q.album            = track.album;
     q.duration_seconds = track.duration_seconds;
     q.playback_seconds = playback_seconds;
     std::time_t now = std::time(nullptr);
     if (now <= 0)
         now = 0;
-    q.start_timestamp = now - static_cast<std::time_t>(playback_seconds);
+    q.start_timestamp   = now - static_cast<std::time_t>(playback_seconds);
+    q.refresh_on_submit = refresh_on_submit;
 
     std::vector<queued_scrobble> items = load_pending_scrobbles();
     items.push_back(q);
     save_pending_scrobbles(items);
 
-    LFM_DEBUG("Queued scrobble for retry: " << track.artist.c_str() << " - " << track.title.c_str());
+    LFM_DEBUG("Queued scrobble for retry: " << track.artist.c_str() << " - " << track.title.c_str()
+                                            << (refresh_on_submit ? " (refresh_on_submit)" : ""));
 }
 
 void lastfm_retry_queued_scrobbles()
@@ -421,7 +465,7 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track, dou
         return lastfm_scrobble_result::invalid_session;
     }
 
-    const std::string api_key = __s66_x3();
+    const std::string api_key    = __s66_x3();
     const std::string api_secret = __s64_x9();
 
     if (api_key.empty() || api_secret.empty())
@@ -525,8 +569,8 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track, dou
 //  Public async submission for ONE track
 void lastfm_submit_scrobble_async(const lastfm_track_info& track, double playback_seconds)
 {
-    lastfm_track_info t_copy = track;
-    double played_copy = playback_seconds;
+    lastfm_track_info t_copy  = track;
+    double            played_copy = playback_seconds;
 
     std::thread(
         [t_copy, played_copy]()
@@ -541,7 +585,7 @@ void lastfm_submit_scrobble_async(const lastfm_track_info& track, double playbac
 
             case lastfm_scrobble_result::temporary_error:
                 LFM_INFO("Scrobble failed: Temporary error (network/server). Queuing for retry.");
-                lastfm_queue_scrobble_for_retry(t_copy, played_copy);
+                lastfm_queue_scrobble_for_retry(t_copy, played_copy); // refresh_on_submit = false
                 break;
 
             case lastfm_scrobble_result::invalid_session:

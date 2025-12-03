@@ -26,7 +26,9 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track, dou
                                              std::time_t start_timestamp = 0);
 
 // Queue a scrobble for later retry (used on network/server failures).
-void lastfm_queue_scrobble_for_retry(const lastfm_track_info& track, double playback_seconds);
+// If refresh_on_submit is true, metadata can be refreshed while the track is still playing.
+void lastfm_queue_scrobble_for_retry(const lastfm_track_info& track, double playback_seconds,
+                                     bool refresh_on_submit = false);
 
 // Retry any queued scrobbles (synchronous).
 void lastfm_retry_queued_scrobbles();
@@ -43,3 +45,7 @@ void lastfm_submit_scrobble_async(const lastfm_track_info& track, double playbac
 void lastfm_retry_queued_scrobbles_async();
 
 size_t lastfm_get_pending_scrobble_count();
+
+// For the currently-playing track whose scrobble is already queued with
+// refresh_on_submit=true, update the queued metadata to match the latest tags.
+void lastfm_refresh_pending_scrobble_metadata(const lastfm_track_info& track);
