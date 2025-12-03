@@ -10,6 +10,7 @@
 #include <foobar2000/SDK/foobar2000.h>
 
 #include <string>
+#include <ctime>
 
 #include "lastfm_rules.h"
 
@@ -42,6 +43,7 @@ class lastfm_tracker : public play_callback_static
     void submit_scrobble_if_needed();
     void update_from_track(const metadb_handle_ptr& track);
 
+    std::time_t m_start_wallclock = 0;
     bool m_is_playing = false;
     bool m_scrobble_sent = false;
     double m_playback_time = 0.0;
