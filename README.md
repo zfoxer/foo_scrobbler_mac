@@ -39,7 +39,10 @@ Supports macOS >= 11.5 on both Intel and ARM. Built with foobar2000 SDK (version
 
 ### Usage
 
-Install the component into foobar2000 for macOS and restart the application. Open the Foo Scrobbler menu, authenticate once using your Last.fm account, and resume playback. Scrobbling runs automatically in the background with no further user intervention required.
+Install the component in foobar2000 for macOS and restart the application.  
+
+Authentication requires only an active Last.fm account. Users grant access once through the Last.fm website with their account, after which Foo Scrobbler runs quietly in the background and submits track information automatically. If authentication is cleared from the menu, the same user —or a different one— must grant access again through the Last.fm website. Foo Scrobbler adds a simple, convenient entry under Playback in the menu bar.  
+
 
 ### Licensing Notice
 
@@ -52,7 +55,8 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
-0.7.3    2025-12-07    Seeking across the submission mark with the slider (e.g., 50%) doesn’t cheat the scrobble.
+0.7.3    2025-12-07    Edited track tags after playback start and before scrobbling, are detected now and reflected.
+                       Seeking across the submission mark with the slider (e.g., 50%) doesn’t cheat the scrobble.
                        Added option to enable/disable scrobbling while the user remains authenticated.
 0.7.0    2025-12-01    Initial release.
 </pre>

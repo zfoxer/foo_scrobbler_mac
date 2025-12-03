@@ -15,7 +15,7 @@ static const GUID g_foo_scrobbler_mac_guid = {
 
 // Component version info
 DECLARE_COMPONENT_VERSION("Foo Scrobbler", FOOSCROBBLER_VERSION,
-                          "Last.fm scrobbler for foobar2000 (macOS).\n"
+                          "A Last.fm scrobbler for foobar2000 (macOS).\n"
                           "(c) 2025 Konstantinos Kyriakopoulos.\n"
                           "GPLv3-licensed source.");
 
