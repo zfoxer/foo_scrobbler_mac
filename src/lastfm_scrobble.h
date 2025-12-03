@@ -36,8 +36,8 @@ void lastfm_retry_queued_scrobbles();
 // Async wrappers so the UI thread never blocks on network.
 
 // Submit ONE track asynchronously:
-// - If it fails with temporary_error → it is queued.
-// - If it fails with invalid_session → auth is cleared on main thread.
+// If it fails with temporary_error, it is queued.
+// If it fails with invalid_session, auth is cleared on main thread.
 void lastfm_submit_scrobble_async(const lastfm_track_info& track, double playback_seconds);
 
 // Retry ALL queued scrobbles asynchronously.
