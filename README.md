@@ -55,8 +55,8 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
-0.7.3    2025-12-07    Handle the remaining error codes from Last.fm API.
-                       Improved internal timing system according to specs.
+0.7.3    2025-12-07    Improved the management of the communication to Last.fm.
+                       Improved internal timing system according to specifications.
                        When track tags change during playback, scrobbling will detect them and use the updated info.
                        Seeking across the submission mark with the slider (e.g., 50%) doesn’t cheat the scrobble.
                        Added option to enable/disable scrobbling while the user remains authenticated.
