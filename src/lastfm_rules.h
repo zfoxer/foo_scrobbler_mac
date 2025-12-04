@@ -13,6 +13,8 @@ static constexpr double MIN_TRACK_DURATION_SECONDS = 30.0;
 static constexpr double SCROBBLE_THRESHOLD_FACTOR = 0.5;
 static constexpr double MAX_THRESHOLD_SECONDS = 240.0;
 static constexpr double LONG_TRACK_SECONDS = 480.0;
+static constexpr double DELTA = 20;
+
 } // namespace lastfm_scrobble_config
 
 struct lastfm_rules

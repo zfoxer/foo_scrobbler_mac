@@ -300,6 +300,41 @@ static bool response_is_invalid_session(const char* body)
            (s.find("Invalid session key") != std::string::npos);
 }
 
+// Minimal parser to extract Last.fm error code from JSON body.
+// Returns 0 if not found / not parseable.
+static int parse_lastfm_error_code(const char* body)
+{
+    if (!body || !*body)
+        return 0;
+
+    std::string s(body);
+
+    const char* patterns[] = {"\"error\":", "\"error\" :", "\"error\" :"};
+
+    for (const char* p : patterns)
+    {
+        size_t pos = s.find(p);
+        if (pos == std::string::npos)
+            continue;
+
+        pos = s.find_first_of("0123456789", pos);
+        if (pos == std::string::npos)
+            continue;
+
+        int code = 0;
+        while (pos < s.size() && std::isdigit((unsigned char)s[pos]))
+        {
+            code = code * 10 + (s[pos] - '0');
+            ++pos;
+        }
+
+        if (code > 0)
+            return code;
+    }
+
+    return 0;
+}
+
 // Queue processing
 // Process all queued scrobbles synchronously.
 // Used by lastfm_retry_queued_scrobbles() and from async wrapper.
@@ -559,6 +594,15 @@ lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track, dou
         return lastfm_scrobble_result::invalid_session;
     }
 
+    // Map known retryable API errors (11, 16) to temporary_error so they get queued.
+    int err_code = parse_lastfm_error_code(body_c);
+    if (err_code == 11 || err_code == 16)
+    {
+        LFM_INFO("Scrobble failed: temporary Last.fm API error (" << err_code
+                                                                  << "). Will be cached for retry if applicable.");
+        return lastfm_scrobble_result::temporary_error;
+    }
+
     LFM_INFO("Scrobble failed: API error.");
     return lastfm_scrobble_result::other_error;
 }
@@ -582,7 +626,7 @@ void lastfm_submit_scrobble_async(const lastfm_track_info& track, double playbac
 
             case lastfm_scrobble_result::temporary_error:
             {
-                LFM_INFO("Scrobble failed: Temporary error (network/server). Queuing for retry.");
+                LFM_INFO("Scrobble failed: Temporary error (network/server/API). Queuing for retry.");
 
                 // We don't have a stored wallclock start here, so approximate
                 // from "now - played_copy" as a fallback.

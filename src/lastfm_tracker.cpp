@@ -105,7 +105,7 @@ void lastfm_tracker::on_playback_time(double time)
 
             // Only count small positive deltas as "listened" time.
             // Large jumps (seeks) or backward moves do not increase effective time.
-            if (delta > 0.0 && delta <= 10.0)
+            if (delta > 0.0 && delta <= lastfm_scrobble_config::DELTA)
             {
                 m_effective_listened_seconds += delta;
             }
@@ -152,7 +152,7 @@ void lastfm_tracker::on_playback_time(double time)
 
 void lastfm_tracker::on_playback_seek(double time)
 {
-    if (time < m_current.duration_seconds * 0.5)
+    if (time < m_current.duration_seconds * lastfm_scrobble_config::SCROBBLE_THRESHOLD_FACTOR)
         m_rules.mark_skipped();
 }
 
@@ -209,12 +209,13 @@ void lastfm_tracker::submit_scrobble_if_needed()
     // Additional guard: require enough *effective* listening time,
     // not just position (so seeking forward won't trigger scrobble).
     const double duration = m_current.duration_seconds;
-    const double min_duration = 30.0;
+    const double min_duration = lastfm_scrobble_config::MIN_TRACK_DURATION_SECONDS;
 
     if (duration < min_duration)
         return;
 
-    const double threshold = std::min(duration * 0.5, 240.0);
+    const double threshold = std::min(duration * lastfm_scrobble_config::SCROBBLE_THRESHOLD_FACTOR,
+                                      lastfm_scrobble_config::MAX_THRESHOLD_SECONDS);
     const double listened = m_effective_listened_seconds;
 
     if (listened < threshold)
