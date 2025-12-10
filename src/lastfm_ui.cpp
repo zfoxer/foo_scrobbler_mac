@@ -13,6 +13,9 @@
 
 #include <foobar2000/SDK/foobar2000.h>
 
+#include <mutex>
+
+
 static const GUID guid_cfg_lastfm_authenticated = {
     0xeccc9ee3, 0xedcb, 0x443b, {0x8c, 0xef, 0xaa, 0x1c, 0xc8, 0x28, 0x23, 0xeb}};
 
@@ -30,8 +33,11 @@ static cfg_string cfg_lastfm_username(guid_cfg_lastfm_username, "");
 static cfg_string cfg_lastfm_session_key(guid_cfg_lastfm_session_key, "");
 static cfg_bool cfg_lastfm_suspended(guid_cfg_lastfm_suspended, false);
 
+static std::mutex g_auth_mutex;
+
 lastfm_auth_state lastfm_get_auth_state()
 {
+    std::lock_guard<std::mutex> lock(g_auth_mutex);
     lastfm_auth_state state;
     state.is_authenticated = cfg_lastfm_authenticated.get();
     state.username = cfg_lastfm_username.get();
@@ -42,6 +48,7 @@ lastfm_auth_state lastfm_get_auth_state()
 
 void lastfm_set_auth_state(const lastfm_auth_state& state)
 {
+    std::lock_guard<std::mutex> lock(g_auth_mutex);
     cfg_lastfm_authenticated.set(state.is_authenticated);
     cfg_lastfm_username.set(state.username.c_str());
     cfg_lastfm_session_key.set(state.session_key.c_str());
@@ -52,6 +59,7 @@ void lastfm_set_auth_state(const lastfm_auth_state& state)
 
 bool lastfm_is_authenticated()
 {
+    std::lock_guard<std::mutex> lock(g_auth_mutex);
     return cfg_lastfm_authenticated.get();
 }
 
@@ -59,12 +67,15 @@ void lastfm_clear_authentication()
 {
     LFM_INFO("Clearing cfg state.");
 
-    cfg_lastfm_authenticated.set(false);
-    cfg_lastfm_username.set("");
-    cfg_lastfm_session_key.set("");
-    cfg_lastfm_suspended.set(false); // Suspension is also dropped
-
-    pfc::string8 user = cfg_lastfm_username.get();
+    pfc::string8 user;
+    {
+        std::lock_guard<std::mutex> lock(g_auth_mutex);
+        user = cfg_lastfm_username.get();
+        cfg_lastfm_authenticated.set(false);
+        cfg_lastfm_username.set("");
+        cfg_lastfm_session_key.set("");
+        cfg_lastfm_suspended.set(false);
+    }
     pfc::string_formatter f;
     f << "Now authenticated=" << (lastfm_is_authenticated() ? 1 : 0) << ", user='" << user << "'";
 
@@ -81,9 +92,12 @@ void lastfm_clear_suspension()
 {
     LFM_INFO("Clearing suspend state.");
 
-    cfg_lastfm_suspended.set(false);
-
-    pfc::string8 user = cfg_lastfm_username.get();
+    pfc::string8 user;
+    {
+        std::lock_guard<std::mutex> lock(g_auth_mutex);
+        cfg_lastfm_suspended.set(false);
+        user = cfg_lastfm_username.get();
+    }
     pfc::string_formatter f;
     f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
 
@@ -98,6 +112,7 @@ void lastfm_clear_suspension()
 
 bool lastfm_is_suspended()
 {
+    std::lock_guard<std::mutex> lock(g_auth_mutex);
     return cfg_lastfm_suspended.get();
 }
 
@@ -105,9 +120,12 @@ void lastfm_suspend_current_user()
 {
     LFM_INFO("Suspending current user.");
 
-    cfg_lastfm_suspended.set(true);
-
-    pfc::string8 user = cfg_lastfm_username.get();
+    pfc::string8 user;
+    {
+        std::lock_guard<std::mutex> lock(g_auth_mutex);
+        cfg_lastfm_suspended.set(true);
+        user = cfg_lastfm_username.get();
+    }
     pfc::string_formatter f;
     f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
 

@@ -20,6 +20,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <thread>
+#include <mutex>
+
 
 namespace
 {
@@ -29,6 +31,8 @@ static const GUID guid_cfg_lastfm_pending_scrobbles = {
     0x9b3b2c41, 0x4c2d, 0x4d8f, {0x9a, 0xa1, 0x1e, 0x37, 0x5b, 0x6a, 0x82, 0x19}};
 
 static cfg_string cfg_lastfm_pending_scrobbles(guid_cfg_lastfm_pending_scrobbles, "");
+
+static std::mutex g_queue_mutex;
 
 // Simple line-based format:
 // artist \t title \t album \t duration_seconds \t playback_seconds \t start_timestamp \t refresh_on_submit
@@ -192,6 +196,7 @@ lastfm_queue& lastfm_queue::instance()
 
 void lastfm_queue::refresh_pending_scrobble_metadata(const lastfm_track_info& track)
 {
+    std::lock_guard<std::mutex> lock(g_queue_mutex);
     std::vector<queued_scrobble> items = load_pending_scrobbles_impl();
     if (items.empty())
         return;
@@ -238,6 +243,7 @@ void lastfm_queue::queue_scrobble_for_retry(const lastfm_track_info& track, doub
     q.start_timestamp = start_timestamp;
     q.refresh_on_submit = refresh_on_submit;
 
+    std::lock_guard<std::mutex> lock(g_queue_mutex);
     std::vector<queued_scrobble> items = load_pending_scrobbles_impl();
     items.push_back(q);
     save_pending_scrobbles_impl(items);
@@ -248,7 +254,11 @@ void lastfm_queue::queue_scrobble_for_retry(const lastfm_track_info& track, doub
 
 void lastfm_queue::retry_queued_scrobbles()
 {
-    std::vector<queued_scrobble> items = load_pending_scrobbles_impl();
+    std::vector<queued_scrobble> items;
+    {
+        std::lock_guard<std::mutex> lock(g_queue_mutex);
+        items = load_pending_scrobbles_impl();   // copy snapshot
+    }
     if (items.empty())
         return;
 
@@ -317,6 +327,7 @@ void lastfm_queue::retry_queued_scrobbles()
         }
     }
 
+    std::lock_guard<std::mutex> lock(g_queue_mutex);
     save_pending_scrobbles_impl(remaining);
 
     if ((unsigned)remaining.size())
@@ -330,5 +341,6 @@ void lastfm_queue::retry_queued_scrobbles_async()
 
 std::size_t lastfm_queue::get_pending_scrobble_count() const
 {
+    std::lock_guard<std::mutex> lock(g_queue_mutex);
     return load_pending_scrobbles_impl().size();
 }

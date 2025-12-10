@@ -14,7 +14,7 @@ Supports macOS ≥ 11.5 on both Intel and ARM. Developed with foobar2000 SDK-202
   Fully integrated with foobar2000 for macOS. No compatibility layers or wrapper apps.
 
 - **Smart submission logic**  
-  Scrobbles only when playback is meaningful (≥ 50% or ≥ 240 seconds).
+  Scrobbles only when playback is meaningful (e.g., ≥ 50% or ≥ 240 seconds).
 
 - **Automatic offline caching**  
   If Last.fm or the network is unavailable, scrobbles are stored and submitted automatically later.
@@ -26,7 +26,7 @@ Supports macOS ≥ 11.5 on both Intel and ARM. Developed with foobar2000 SDK-202
   Authentication required only once.
 
 - **Lightweight and efficient**  
-  Runs inside foobar2000 without performance loss.
+  Runs inside foobar2000 without performance loss. Not relying on third-party dependencies.
 
 - **Strict playback validation**  
   Prevents malformed or duplicate scrobbles.
@@ -56,7 +56,8 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 
 <pre>
 0.7.5    2025-12-xx    xx
-0.7.3    2025-12-07    Improved the management of the communication to Last.fm.
+                       Improved internal design.
+0.7.3    2025-12-07    Improved management of the communication to Last.fm.
                        Improved internal timing system according to specifications.
                        When track tags change during playback, scrobbling will detect them and use the updated info.
                        Seeking across the submission mark with the slider (e.g., 50%) doesn’t cheat the scrobble.
