@@ -8,6 +8,7 @@
 #include "lastfm_ui.h"
 #include "lastfm_auth.h"
 #include "lastfm_scrobble.h"
+#include "lastfm_queue.h"
 #include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
@@ -67,7 +68,7 @@ void lastfm_clear_authentication()
     pfc::string_formatter f;
     f << "Now authenticated=" << (lastfm_is_authenticated() ? 1 : 0) << ", user='" << user << "'";
 
-    size_t pending = lastfm_get_pending_scrobble_count();
+    size_t pending = lastfm_queue::instance().get_pending_scrobble_count();
     if (pending > 0)
     {
         f << ", pending cached scrobbles=" << pending;
@@ -86,7 +87,7 @@ void lastfm_clear_suspension()
     pfc::string_formatter f;
     f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
 
-    size_t pending = lastfm_get_pending_scrobble_count();
+    size_t pending = lastfm_queue::instance().get_pending_scrobble_count();
     if (pending > 0)
     {
         f << ", pending cached scrobbles=" << pending;
@@ -110,7 +111,7 @@ void lastfm_suspend_current_user()
     pfc::string_formatter f;
     f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
 
-    size_t pending = lastfm_get_pending_scrobble_count();
+    size_t pending = lastfm_queue::instance().get_pending_scrobble_count();
     if (pending > 0)
     {
         f << ", pending cached scrobbles=" << pending;
