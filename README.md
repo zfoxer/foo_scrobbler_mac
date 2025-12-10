@@ -56,6 +56,7 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 
 <pre>
 0.7.5    2025-12-xx    xx
+                       Added back-off retry strategy for queued scrobbles.
                        Improved internal design.
 0.7.3    2025-12-07    Improved management of the communication to Last.fm.
                        Improved internal timing system according to specifications.

@@ -24,8 +24,7 @@ static const GUID guid_lastfm_clear_auth = {
 static const GUID guid_lastfm_menu_group = {
     0x7f4f3aa1, 0x1b7c, 0x4b6e, {0x9a, 0x23, 0x4e, 0x8d, 0x17, 0x39, 0x52, 0x11}};
 
-static const GUID guid_lastfm_suspend = {
-    0x3b5aca2b, 0x731e, 0x4ac4, {0xa3, 0xc5, 0x59, 0x4f, 0xcd, 0x27, 0xea, 0x49}};
+static const GUID guid_lastfm_suspend = {0x3b5aca2b, 0x731e, 0x4ac4, {0xa3, 0xc5, 0x59, 0x4f, 0xcd, 0x27, 0xea, 0x49}};
 
 static mainmenu_group_popup_factory g_lastfm_menu_group_factory(guid_lastfm_menu_group, mainmenu_groups::playback,
                                                                 mainmenu_commands::sort_priority_dontcare, "Last.fm");

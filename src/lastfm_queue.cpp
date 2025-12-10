@@ -22,7 +22,6 @@
 #include <thread>
 #include <mutex>
 
-
 namespace
 {
 
@@ -34,8 +33,11 @@ static cfg_string cfg_lastfm_pending_scrobbles(guid_cfg_lastfm_pending_scrobbles
 
 static std::mutex g_queue_mutex;
 
-// Simple line-based format:
-// artist \t title \t album \t duration_seconds \t playback_seconds \t start_timestamp \t refresh_on_submit
+// Max number of scrobbles retried per batch
+static const unsigned kMaxBatch = 10;
+
+// artist \t title \t album \t duration_seconds \t playback_seconds \t start_timestamp
+//      \t refresh_on_submit \t retry_count \t next_retry_timestamp
 struct queued_scrobble
 {
     std::string artist;
@@ -45,12 +47,14 @@ struct queued_scrobble
     double playback_seconds = 0.0;
     std::time_t start_timestamp = 0;
     bool refresh_on_submit = false;
+    int retry_count = 0;
+    std::time_t next_retry_timestamp = 0;
 };
 
 static std::string serialize_scrobble(const queued_scrobble& q)
 {
     std::string out;
-    out.reserve(192);
+    out.reserve(256);
     out += q.artist;
     out += '\t';
     out += q.title;
@@ -64,6 +68,10 @@ static std::string serialize_scrobble(const queued_scrobble& q)
     out += std::to_string(static_cast<long long>(q.start_timestamp));
     out += '\t';
     out += (q.refresh_on_submit ? "1" : "0");
+    out += '\t';
+    out += std::to_string(q.retry_count);
+    out += '\t';
+    out += std::to_string(static_cast<long long>(q.next_retry_timestamp));
     return out;
 }
 
@@ -144,8 +152,7 @@ static std::vector<queued_scrobble> load_pending_scrobbles_impl()
         q.duration_seconds = dur;
         q.playback_seconds = pb;
 
-        // Optional 6th field: original start timestamp (absolute, seconds since epoch)
-        q.start_timestamp = 0;
+        // Optional 6th field
         if (parts.size() >= 6)
         {
             char* end = nullptr;
@@ -154,11 +161,26 @@ static std::vector<queued_scrobble> load_pending_scrobbles_impl()
                 q.start_timestamp = static_cast<std::time_t>(ts);
         }
 
-        // Optional 7th field: refresh_on_submit flag
-        q.refresh_on_submit = false;
+        // Optional 7th field
         if (parts.size() >= 7)
-        {
             q.refresh_on_submit = (parts[6] == "1");
+
+        // Optional 8th field
+        if (parts.size() >= 8)
+        {
+            char* end = nullptr;
+            long val = std::strtol(parts[7].c_str(), &end, 10);
+            if (end != parts[7].c_str() && val >= 0 && val <= 1000)
+                q.retry_count = static_cast<int>(val);
+        }
+
+        // Optional 9th field
+        if (parts.size() >= 9)
+        {
+            char* end = nullptr;
+            long long ts = std::strtoll(parts[8].c_str(), &end, 10);
+            if (end != parts[8].c_str())
+                q.next_retry_timestamp = static_cast<std::time_t>(ts);
         }
 
         result.push_back(q);
@@ -173,8 +195,7 @@ static void save_pending_scrobbles_impl(const std::vector<queued_scrobble>& item
 
     for (std::size_t i = 0; i < items.size(); ++i)
     {
-        const auto& q = items[i];
-        std::string line = serialize_scrobble(q);
+        std::string line = serialize_scrobble(items[i]);
         raw += line.c_str();
         raw += "\n";
     }
@@ -182,7 +203,166 @@ static void save_pending_scrobbles_impl(const std::vector<queued_scrobble>& item
     cfg_lastfm_pending_scrobbles.set(raw);
 }
 
-} // anonymous namespace
+// Part 1: snapshot + time + initial status
+static bool load_queue_snapshot_and_log(std::vector<queued_scrobble>& items, std::time_t& now, unsigned& eligible,
+                                        unsigned& not_due)
+{
+    {
+        std::lock_guard<std::mutex> lock(g_queue_mutex);
+        items = load_pending_scrobbles_impl();
+    }
+
+    if (items.empty())
+        return false;
+
+    now = std::time(nullptr);
+    if (now <= 0)
+        now = 0;
+
+    eligible = 0;
+    not_due = 0;
+
+    if (now > 0)
+    {
+        for (const auto& q : items)
+        {
+            if (q.next_retry_timestamp > 0 && now < q.next_retry_timestamp)
+                ++not_due;
+            else
+                ++eligible;
+        }
+    }
+    else
+    {
+        eligible = (unsigned)items.size();
+    }
+
+    LFM_INFO("Queue retry: total=" << items.size() << ", eligible=" << eligible << ", not_due=" << not_due
+                                   << ", batch_limit=" << kMaxBatch);
+    return true;
+}
+
+// Part 2: process scrobbles with backoff + limits
+static void process_queue_items(const std::vector<queued_scrobble>& items, std::time_t now,
+                                std::vector<queued_scrobble>& remaining, unsigned& processed, unsigned& succeeded,
+                                unsigned& rescheduled)
+{
+    bool invalid_session_seen = false;
+
+    processed = 0;
+    succeeded = 0;
+    rescheduled = 0;
+
+    for (const auto& q : items)
+    {
+        if (invalid_session_seen)
+        {
+            remaining.push_back(q);
+            continue;
+        }
+
+        if (q.next_retry_timestamp > 0 && now > 0 && now < q.next_retry_timestamp)
+        {
+            remaining.push_back(q);
+            continue;
+        }
+
+        if (processed >= kMaxBatch)
+        {
+            remaining.push_back(q);
+            continue;
+        }
+
+        lastfm_auth_state auth_state = lastfm_get_auth_state();
+        if (!auth_state.is_authenticated || auth_state.session_key.empty())
+        {
+            LFM_INFO("Queue retry: no valid auth state, keeping remaining items.");
+            remaining.push_back(q);
+            invalid_session_seen = true;
+            continue;
+        }
+
+        lastfm_track_info t;
+        t.artist = q.artist;
+        t.title = q.title;
+        t.album = q.album;
+        t.duration_seconds = q.duration_seconds;
+
+        lastfm_scrobble_result res = lastfm_scrobble_track(t, q.playback_seconds, q.start_timestamp);
+
+        ++processed;
+
+        switch (res)
+        {
+        case lastfm_scrobble_result::success:
+            ++succeeded;
+            LFM_DEBUG("Queued scrobble succeeded: " << t.artist.c_str() << " - " << t.title.c_str());
+            break;
+
+        case lastfm_scrobble_result::temporary_error:
+        case lastfm_scrobble_result::other_error:
+        {
+            queued_scrobble q_next = q;
+            q_next.retry_count = std::min(q.retry_count + 1, 1000);
+
+            std::time_t delay = 0;
+            if (now > 0)
+            {
+                const std::time_t base = 60;
+                const std::time_t max_delay = 3600;
+
+                std::time_t raw = base * q_next.retry_count;
+                if (raw > max_delay)
+                    raw = max_delay;
+
+                delay = raw;
+                q_next.next_retry_timestamp = now + delay;
+            }
+
+            ++rescheduled;
+
+            LFM_INFO("Scrobble retry scheduled later (retry_count=" << q_next.retry_count << ", delay=" << delay
+                                                                    << "s): " << t.artist.c_str() << " - "
+                                                                    << t.title.c_str());
+
+            remaining.push_back(q_next);
+            break;
+        }
+
+        case lastfm_scrobble_result::invalid_session:
+            remaining.push_back(q);
+            invalid_session_seen = true;
+
+            LFM_INFO("Queue retry: invalid session detected. Clearing auth.");
+
+            fb2k::inMainThread(
+                []()
+                {
+                    lastfm_clear_authentication();
+                    popup_message::g_show("Your Last.fm session is no longer valid.\n"
+                                          "Please authenticate again from the Last.fm menu.",
+                                          "Last.fm Scrobbler");
+                });
+
+            break;
+        }
+    }
+}
+
+// Part 3: save results + summary
+static void finalize_retry_results(const std::vector<queued_scrobble>& remaining, unsigned processed,
+                                   unsigned succeeded, unsigned rescheduled)
+{
+    {
+        std::lock_guard<std::mutex> lock(g_queue_mutex);
+        save_pending_scrobbles_impl(remaining);
+    }
+
+    LFM_INFO("Queue retry results: processed=" << processed << ", succeeded=" << succeeded << ", rescheduled="
+                                               << rescheduled << ", still_pending=" << remaining.size());
+}
+
+} // end anonymous namespace
 
 //
 // lastfm_queue implementation
@@ -201,9 +381,6 @@ void lastfm_queue::refresh_pending_scrobble_metadata(const lastfm_track_info& tr
     if (items.empty())
         return;
 
-    bool updated = false;
-
-    // Walk from the end so we hit the most recent one first.
     for (auto it = items.rbegin(); it != items.rend(); ++it)
     {
         if (it->refresh_on_submit)
@@ -212,16 +389,12 @@ void lastfm_queue::refresh_pending_scrobble_metadata(const lastfm_track_info& tr
             it->title = track.title;
             it->album = track.album;
             it->duration_seconds = track.duration_seconds;
-            updated = true;
+
+            save_pending_scrobbles_impl(items);
+
+            LFM_DEBUG("Updated pending scrobble metadata: " << track.artist.c_str() << " - " << track.title.c_str());
             break;
         }
-    }
-
-    if (updated)
-    {
-        save_pending_scrobbles_impl(items);
-        LFM_DEBUG("Updated pending scrobble metadata to latest tags: " << track.artist.c_str() << " - "
-                                                                       << track.title.c_str());
     }
 }
 
@@ -242,6 +415,8 @@ void lastfm_queue::queue_scrobble_for_retry(const lastfm_track_info& track, doub
     q.playback_seconds = playback_seconds;
     q.start_timestamp = start_timestamp;
     q.refresh_on_submit = refresh_on_submit;
+    q.retry_count = 0;
+    q.next_retry_timestamp = 0;
 
     std::lock_guard<std::mutex> lock(g_queue_mutex);
     std::vector<queued_scrobble> items = load_pending_scrobbles_impl();
@@ -255,83 +430,21 @@ void lastfm_queue::queue_scrobble_for_retry(const lastfm_track_info& track, doub
 void lastfm_queue::retry_queued_scrobbles()
 {
     std::vector<queued_scrobble> items;
-    {
-        std::lock_guard<std::mutex> lock(g_queue_mutex);
-        items = load_pending_scrobbles_impl();   // copy snapshot
-    }
-    if (items.empty())
+    std::time_t now = 0;
+    unsigned eligible = 0;
+    unsigned not_due = 0;
+
+    if (!load_queue_snapshot_and_log(items, now, eligible, not_due))
         return;
 
-    if ((unsigned)items.size() > 1)
-        LFM_INFO("Submitting " << (unsigned)items.size() << " queued scrobble(s).");
-
     std::vector<queued_scrobble> remaining;
-    bool invalid_session_seen = false;
+    unsigned processed = 0;
+    unsigned succeeded = 0;
+    unsigned rescheduled = 0;
 
-    for (const auto& q : items)
-    {
-        if (invalid_session_seen)
-        {
-            remaining.push_back(q);
-            continue;
-        }
+    process_queue_items(items, now, remaining, processed, succeeded, rescheduled);
 
-        lastfm_auth_state auth_state = lastfm_get_auth_state();
-        if (!auth_state.is_authenticated || auth_state.session_key.empty())
-        {
-            LFM_INFO("Queue retry: no valid auth state, keeping remaining items.");
-            remaining.push_back(q);
-            invalid_session_seen = true;
-            continue;
-        }
-
-        lastfm_track_info t;
-        t.artist = q.artist;
-        t.title = q.title;
-        t.album = q.album;
-        t.mbid.clear();
-        t.duration_seconds = q.duration_seconds;
-
-        lastfm_scrobble_result res = lastfm_scrobble_track(t, q.playback_seconds, q.start_timestamp);
-
-        switch (res)
-        {
-        case lastfm_scrobble_result::success:
-        {
-            LFM_DEBUG("Queued scrobble succeeded: " << t.artist.c_str() << " - " << t.title.c_str());
-            break;
-        }
-
-        case lastfm_scrobble_result::temporary_error:
-        case lastfm_scrobble_result::other_error:
-            remaining.push_back(q);
-            break;
-
-        case lastfm_scrobble_result::invalid_session:
-        {
-            remaining.push_back(q);
-            invalid_session_seen = true;
-
-            LFM_INFO("Queue retry: invalid session detected. Clearing auth on main thread.");
-
-            fb2k::inMainThread(
-                []()
-                {
-                    lastfm_clear_authentication();
-                    popup_message::g_show("Your Last.fm session is no longer valid.\n"
-                                          "Please authenticate again from the Last.fm menu.",
-                                          "Last.fm Scrobbler");
-                });
-            break;
-        }
-        }
-    }
-
-    std::lock_guard<std::mutex> lock(g_queue_mutex);
-    save_pending_scrobbles_impl(remaining);
-
-    if ((unsigned)remaining.size())
-        LFM_INFO("Pending scrobbles remaining: " << (unsigned)remaining.size());
+    finalize_retry_results(remaining, processed, succeeded, rescheduled);
 }
 
 void lastfm_queue::retry_queued_scrobbles_async()
