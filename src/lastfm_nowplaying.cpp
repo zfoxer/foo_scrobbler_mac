@@ -27,9 +27,7 @@ static std::string md5_hex(const std::string& data)
 {
     unsigned char digest[CC_MD5_DIGEST_LENGTH];
     CC_MD5(data.data(), (CC_LONG)data.size(), digest);
-
     const char hex_digits[] = "0123456789abcdef";
-
     std::string out;
     out.reserve(CC_MD5_DIGEST_LENGTH * 2);
 
@@ -117,7 +115,7 @@ static bool response_is_invalid_session(const char* body)
     return false;
 }
 
-} // namespace
+} // anonymous namespace
 
 bool lastfm_send_now_playing(const std::string& artist, const std::string& title, const std::string& album,
                              double duration_seconds)

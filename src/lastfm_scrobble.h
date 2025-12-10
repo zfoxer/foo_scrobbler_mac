@@ -24,28 +24,7 @@ enum class lastfm_scrobble_result
 // Does NOT queue or clear auth itself.
 lastfm_scrobble_result lastfm_scrobble_track(const lastfm_track_info& track, double playback_seconds,
                                              std::time_t start_timestamp = 0);
-
-// Queue a scrobble for later retry (used on network/server failures).
-// If refresh_on_submit is true, metadata can be refreshed while the track is still playing.
-void lastfm_queue_scrobble_for_retry(const lastfm_track_info& track, double playback_seconds, bool refresh_on_submit,
-                                     std::time_t start_timestamp);
-
-// Retry any queued scrobbles (synchronous).
-void lastfm_retry_queued_scrobbles();
-
-// Async wrappers so the UI thread never blocks on network.
-
 // Submit ONE track asynchronously:
 // If it fails with temporary_error, it is queued.
 // If it fails with invalid_session, auth is cleared on main thread.
 void lastfm_submit_scrobble_async(const lastfm_track_info& track, double playback_seconds);
-
-// Retry ALL queued scrobbles asynchronously.
-// Called when playback starts/stops.
-void lastfm_retry_queued_scrobbles_async();
-
-size_t lastfm_get_pending_scrobble_count();
-
-// For the currently-playing track whose scrobble is already queued with
-// refresh_on_submit=true, update the queued metadata to match the latest tags.
-void lastfm_refresh_pending_scrobble_metadata(const lastfm_track_info& track);

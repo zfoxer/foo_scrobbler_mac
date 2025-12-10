@@ -10,6 +10,7 @@
 #include "lastfm_auth.h"
 #include "lastfm_scrobble.h"
 #include "lastfm_nowplaying.h"
+#include "lastfm_queue.h"
 #include "debug.h"
 
 #include <thread>
@@ -76,7 +77,7 @@ void lastfm_tracker::on_playback_new_track(metadb_handle_ptr track)
         return;
 
     // Still flush queued scrobbles even if suspended – they were created earlier.
-    lastfm_retry_queued_scrobbles_async();
+    lastfm_queue::instance().retry_queued_scrobbles_async();
 
     // If suspended, do not send new "now playing".
     if (lastfm_is_suspended())
@@ -134,7 +135,7 @@ void lastfm_tracker::on_playback_time(double time)
                 m_current.title = newTitle;
                 m_current.album = newAlbum;
 
-                lastfm_refresh_pending_scrobble_metadata(m_current);
+                lastfm_queue::instance().refresh_pending_scrobble_metadata(m_current);
 
                 // Refresh Now Playing on Last.fm with updated tags
                 if (lastfm_is_authenticated() && !lastfm_is_suspended())
@@ -167,7 +168,7 @@ void lastfm_tracker::on_playback_stop(play_control::t_stop_reason)
     submit_scrobble_if_needed();
 
     // Now actually submit queued scrobbles.
-    lastfm_retry_queued_scrobbles_async();
+    lastfm_queue::instance().retry_queued_scrobbles_async();
     reset_state();
 }
 
@@ -231,8 +232,8 @@ void lastfm_tracker::submit_scrobble_if_needed()
     m_scrobble_sent = true;
 
     // Queue using the *real* playback start timestamp.
-    lastfm_queue_scrobble_for_retry(m_current, played,
-                                    /*refresh_on_submit=*/true, m_start_wallclock);
+    lastfm_queue::instance().queue_scrobble_for_retry(m_current, played,
+                                                      /*refresh_on_submit=*/true, m_start_wallclock);
 }
 
 // Static factory registration
