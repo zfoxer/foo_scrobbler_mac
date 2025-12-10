@@ -129,7 +129,7 @@ static bool http_request_to_string(const char* method, const char* url, pfc::str
     catch (std::exception const& e)
     {
         const char* what = e.what();
-        LFM_INFO("HTTP request exception: " << (what ? what : "(null)"));
+        LFM_DEBUG("HTTP request exception: " << (what ? what : "(null)"));
         out_error = what ? what : "HTTP exception";
         return false;
     }
