@@ -15,6 +15,49 @@
 
 #include <thread>
 #include <algorithm>
+#include <cctype>
+#include <string>
+
+namespace
+{
+
+static std::string clean_tag_value(const char* value)
+{
+    if (!value)
+        return std::string();
+
+    std::string s(value);
+
+    // Trim leading/trailing whitespace
+    std::size_t start = 0;
+    while (start < s.size() && std::isspace((unsigned char)s[start]))
+        ++start;
+
+    std::size_t end = s.size();
+    while (end > start && std::isspace((unsigned char)s[end - 1]))
+        --end;
+
+    if (start == end)
+        return std::string();
+
+    s = s.substr(start, end - start);
+
+    // Lowercased, space-stripped copy for placeholder detection
+    std::string norm;
+    norm.reserve(s.size());
+    for (char c : s)
+    {
+        if (!std::isspace((unsigned char)c))
+            norm.push_back((char)std::tolower((unsigned char)c));
+    }
+
+    if (norm == "unknown" || norm == "unknownartist" || norm == "unknowntrack")
+        return std::string();
+
+    return s;
+}
+
+} // anonymous namespace
 
 unsigned lastfm_tracker::get_flags()
 {
@@ -54,9 +97,9 @@ void lastfm_tracker::update_from_track(const metadb_handle_ptr& track)
     const char* album = info.meta_get("album", 0);
     const char* mbid = info.meta_get("musicbrainz_trackid", 0);
 
-    m_current.artist = artist ? artist : "";
-    m_current.title = title ? title : "";
-    m_current.album = album ? album : "";
+    m_current.artist = clean_tag_value(artist);
+    m_current.title = clean_tag_value(title);
+    m_current.album = clean_tag_value(album);
     m_current.mbid = mbid ? mbid : "";
     m_current.duration_seconds = info.get_length();
 
@@ -125,9 +168,9 @@ void lastfm_tracker::on_playback_time(double time)
         file_info_impl info;
         if (m_current_handle->get_info(info))
         {
-            std::string newArtist = info.meta_get("artist", 0) ? info.meta_get("artist", 0) : "";
-            std::string newTitle = info.meta_get("title", 0) ? info.meta_get("title", 0) : "";
-            std::string newAlbum = info.meta_get("album", 0) ? info.meta_get("album", 0) : "";
+            std::string newArtist = clean_tag_value(info.meta_get("artist", 0));
+            std::string newTitle = clean_tag_value(info.meta_get("title", 0));
+            std::string newAlbum = clean_tag_value(info.meta_get("album", 0));
 
             if (newArtist != m_current.artist || newTitle != m_current.title || newAlbum != m_current.album)
             {

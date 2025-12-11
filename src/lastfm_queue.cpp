@@ -237,8 +237,9 @@ static bool load_queue_snapshot_and_log(std::vector<queued_scrobble>& items, std
         eligible = (unsigned)items.size();
     }
 
-    LFM_INFO("Queue retry: total=" << items.size() << ", eligible=" << eligible << ", not_due=" << not_due
-                                   << ", batch_limit=" << kMaxBatch);
+    if (eligible > 1)
+        LFM_INFO("Queue retry: total=" << items.size() << ", eligible=" << eligible << ", not_due=" << not_due
+                                       << ", batch_limit=" << kMaxBatch);
     return true;
 }
 
@@ -358,8 +359,9 @@ static void finalize_retry_results(const std::vector<queued_scrobble>& remaining
         save_pending_scrobbles_impl(remaining);
     }
 
-    LFM_INFO("Queue retry results: processed=" << processed << ", succeeded=" << succeeded << ", rescheduled="
-                                               << rescheduled << ", still_pending=" << remaining.size());
+    if (processed > 1)
+        LFM_INFO("Queue retry results: processed=" << processed << ", succeeded=" << succeeded << ", rescheduled="
+                                                   << rescheduled << ", still_pending=" << remaining.size());
 }
 
 } // end anonymous namespace
