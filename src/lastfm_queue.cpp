@@ -297,7 +297,7 @@ static void process_queue_items(const std::vector<queued_scrobble>& items, std::
         {
         case lastfm_scrobble_result::success:
             ++succeeded;
-            LFM_DEBUG("Queued scrobble succeeded: " << t.artist.c_str() << " - " << t.title.c_str());
+            LFM_DEBUG("Scrobble succeeded: " << t.artist.c_str() << " - " << t.title.c_str());
             break;
 
         case lastfm_scrobble_result::temporary_error:
@@ -425,7 +425,7 @@ void lastfm_queue::queue_scrobble_for_retry(const lastfm_track_info& track, doub
     items.push_back(q);
     save_pending_scrobbles_impl(items);
 
-    LFM_DEBUG("Queued scrobble for retry: " << track.artist.c_str() << " - " << track.title.c_str()
+    LFM_DEBUG("Queued scrobble: " << track.artist.c_str() << " - " << track.title.c_str()
                                             << (refresh_on_submit ? " (refresh_on_submit)" : ""));
 }
 

@@ -74,9 +74,9 @@ void lastfm_menu::get_name(t_uint32 index, pfc::string_base& out)
         break;
     case cmd_suspend:
         if (lastfm_is_suspended())
-            out = "Unsuspend user";
+            out = "Resume scrobbling";
         else
-            out = "Suspend user";
+            out = "Pause scrobbling";
         break;
     default:
         uBugCheck();
