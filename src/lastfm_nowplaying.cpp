@@ -2,7 +2,7 @@
 //  lastfm_nowplaying.cpp
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos.
+//  (c) 2025 by Konstantinos Kyriakopoulos
 //
 
 #include "lastfm_nowplaying.h"
@@ -22,27 +22,27 @@
 namespace
 {
 
-// Local MD5 -> lowercase hex (same style as other modules).
-static std::string md5_hex(const std::string& data)
+// Local MD5 -> lowercase hex
+static std::string md5Hex(const std::string& data)
 {
     unsigned char digest[CC_MD5_DIGEST_LENGTH];
     CC_MD5(data.data(), (CC_LONG)data.size(), digest);
-    const char hex_digits[] = "0123456789abcdef";
+    const char hexDigits[] = "0123456789abcdef";
     std::string out;
     out.reserve(CC_MD5_DIGEST_LENGTH * 2);
 
     for (int i = 0; i < CC_MD5_DIGEST_LENGTH; ++i)
     {
         const unsigned char b = digest[i];
-        out.push_back(hex_digits[b >> 4]);
-        out.push_back(hex_digits[b & 0x0F]);
+        out.push_back(hexDigits[b >> 4]);
+        out.push_back(hexDigits[b & 0x0F]);
     }
 
     return out;
 }
 
 // URL-encode a value for query string.
-static std::string url_encode(const std::string& value)
+static std::string urlEncode(const std::string& value)
 {
     std::string out;
     out.reserve(value.size() * 3);
@@ -69,7 +69,7 @@ static std::string url_encode(const std::string& value)
 
 // Run HTTP request with explicit method ("POST")
 // and read entire body into pfc::string8.
-static bool http_request_to_string(const char* method, const char* url, pfc::string8& out_body, std::string& out_error)
+static bool httpRequestToString(const char* method, const char* url, pfc::string8& outBody, std::string& outError)
 {
     try
     {
@@ -77,32 +77,32 @@ static bool http_request_to_string(const char* method, const char* url, pfc::str
         file::ptr stream = req->run(url, fb2k::noAbort);
 
         pfc::string8 line;
-        out_body.reset();
+        outBody.reset();
 
         while (!stream->is_eof(fb2k::noAbort))
         {
             line.reset();
             stream->read_string_raw(line, fb2k::noAbort);
-            out_body += line;
+            outBody += line;
         }
 
-        out_error.clear();
+        outError.clear();
         return true;
     }
     catch (std::exception const& e)
     {
         const char* what = e.what();
-        out_error = what ? what : "";
+        outError = what ? what : "";
         return false;
     }
 }
 
-static bool response_has_error(const char* body)
+static bool responseHasError(const char* body)
 {
     return body && std::strstr(body, "\"error\"");
 }
 
-static bool response_is_invalid_session(const char* body)
+static bool responseIsInvalidSession(const char* body)
 {
     if (!body)
         return false;
@@ -117,12 +117,12 @@ static bool response_is_invalid_session(const char* body)
 
 } // anonymous namespace
 
-bool lastfm_send_now_playing(const std::string& artist, const std::string& title, const std::string& album,
-                             double duration_seconds)
+bool sendNowPlaying(const std::string& artist, const std::string& title, const std::string& album,
+                    double durationSeconds)
 {
     // Check auth state.
-    lastfm_auth_state state = lastfm_get_auth_state();
-    if (!state.is_authenticated || state.session_key.empty())
+    LastfmAuthState state = getAuthState();
+    if (!state.isAuthenticated || state.sessionKey.empty())
     {
         LFM_INFO("NowPlaying: not authenticated, skipping.");
         return false;
@@ -135,10 +135,10 @@ bool lastfm_send_now_playing(const std::string& artist, const std::string& title
         return false;
     }
 
-    const std::string api_key = __s66_x3();
-    const std::string api_secret = __s64_x9();
+    const std::string apiKey = __s66_x3();
+    const std::string apiSecret = __s64_x9();
 
-    if (api_key.empty() || api_secret.empty())
+    if (apiKey.empty() || apiSecret.empty())
     {
         LFM_INFO("NowPlaying: API key/secret not configured.");
         return false;
@@ -146,29 +146,29 @@ bool lastfm_send_now_playing(const std::string& artist, const std::string& title
 
     // Build params (no encoding here; map sorts keys for signature).
     std::map<std::string, std::string> params = {
-        {"api_key", api_key},      {"artist", artist}, {"track", title}, {"method", "track.updateNowPlaying"},
-        {"sk", state.session_key},
+        {"api_key", apiKey},      {"artist", artist}, {"track", title}, {"method", "track.updateNowPlaying"},
+        {"sk", state.sessionKey},
     };
 
     if (!album.empty())
         params["album"] = album;
 
-    if (duration_seconds > 0.0)
+    if (durationSeconds > 0.0)
     {
-        int dur = static_cast<int>(duration_seconds + 0.5);
+        int dur = static_cast<int>(durationSeconds + 0.5);
         params["duration"] = std::to_string(dur);
     }
 
     // Build signature: concat key+value in key order, append secret, MD5.
-    std::string sig_src;
+    std::string sigSrc;
     for (const auto& kv : params)
     {
-        sig_src += kv.first;
-        sig_src += kv.second;
+        sigSrc += kv.first;
+        sigSrc += kv.second;
     }
-    sig_src += api_secret;
+    sigSrc += apiSecret;
 
-    const std::string api_sig = md5_hex(sig_src);
+    const std::string apiSig = md5Hex(sigSrc);
 
     // Build URL with encoded values.
     pfc::string8 url;
@@ -181,36 +181,36 @@ bool lastfm_send_now_playing(const std::string& artist, const std::string& title
             url << "&";
         first = false;
 
-        const std::string encoded_val = url_encode(kv.second);
-        url << kv.first.c_str() << "=" << encoded_val.c_str();
+        const std::string encodedVal = urlEncode(kv.second);
+        url << kv.first.c_str() << "=" << encodedVal.c_str();
     }
 
-    url << "&api_sig=" << api_sig.c_str() << "&format=json";
+    url << "&api_sig=" << apiSig.c_str() << "&format=json";
 
     LFM_DEBUG("NowPlaying URL: " << url);
     pfc::string8 body;
-    std::string http_error;
+    std::string httpError;
 
-    if (!http_request_to_string("POST", url.c_str(), body, http_error))
+    if (!httpRequestToString("POST", url.c_str(), body, httpError))
     {
         LFM_INFO("" << "NowPlaying: HTTP request failed: "
-                    << (http_error.empty() ? "unknown error" : http_error.c_str()));
+                    << (httpError.empty() ? "unknown error" : httpError.c_str()));
         return false;
     }
 
-    const char* body_c = body.c_str();
+    const char* bodyC = body.c_str();
 
     {
-        LFM_DEBUG("NowPlaying response: " << (body_c ? body_c : "(null)"));
+        LFM_DEBUG("NowPlaying response: " << (bodyC ? bodyC : "(null)"));
     }
 
-    if (!response_has_error(body_c))
+    if (!responseHasError(bodyC))
     {
         LFM_DEBUG("NowPlaying OK.");
         return true;
     }
 
-    if (response_is_invalid_session(body_c))
+    if (responseIsInvalidSession(bodyC))
     {
         LFM_INFO("NowPlaying: invalid session key (ignored here, scrobble path will clear auth).");
         return false;

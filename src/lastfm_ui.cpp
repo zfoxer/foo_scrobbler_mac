@@ -2,137 +2,119 @@
 //  lastfm_ui.cpp
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos.
+//  (c) 2025 by Konstantinos Kyriakopoulos
 //
 
 #include "lastfm_ui.h"
 #include "lastfm_auth.h"
-#include "lastfm_scrobble.h"
-#include "lastfm_queue.h"
 #include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
 
 #include <mutex>
 
-static const GUID guid_cfg_lastfm_authenticated = {
+static const GUID GUID_CFG_LASTFM_AUTHENTICATED = {
     0xeccc9ee3, 0xedcb, 0x443b, {0x8c, 0xef, 0xaa, 0x1c, 0xc8, 0x28, 0x23, 0xeb}};
 
-static const GUID guid_cfg_lastfm_username = {
+static const GUID GUID_CFG_LASTFM_USERNAME = {
     0x4cf9fab7, 0x1288, 0x4dc9, {0xb7, 0x81, 0x54, 0x5c, 0xda, 0xd3, 0xd7, 0x37}};
 
-static const GUID guid_cfg_lastfm_session_key = {
+static const GUID GUID_CFG_LASTFM_SESSION_KEY = {
     0xdcf41b90, 0x9d00, 0x44f1, {0xa6, 0x1d, 0xf2, 0x99, 0x95, 0x27, 0x0e, 0x79}};
 
-static const GUID guid_cfg_lastfm_suspended = {
+static const GUID GUID_CFG_LASTFM_SUSPENDED = {
     0xe09c5dbb, 0x8040, 0x4a89, {0x98, 0xc8, 0x0e, 0x0e, 0x42, 0x27, 0xcb, 0x56}};
 
-static cfg_bool cfg_lastfm_authenticated(guid_cfg_lastfm_authenticated, false);
-static cfg_string cfg_lastfm_username(guid_cfg_lastfm_username, "");
-static cfg_string cfg_lastfm_session_key(guid_cfg_lastfm_session_key, "");
-static cfg_bool cfg_lastfm_suspended(guid_cfg_lastfm_suspended, false);
+static cfg_bool cfgLastfmAuthenticated(GUID_CFG_LASTFM_AUTHENTICATED, false);
+static cfg_string cfgLastfmUsername(GUID_CFG_LASTFM_USERNAME, "");
+static cfg_string cfgLastfmSessionKey(GUID_CFG_LASTFM_SESSION_KEY, "");
+static cfg_bool cfgLastfmSuspended(GUID_CFG_LASTFM_SUSPENDED, false);
 
-static std::mutex g_auth_mutex;
+static std::mutex authMutex;
 
-lastfm_auth_state lastfm_get_auth_state()
+LastfmAuthState getAuthState()
 {
-    std::lock_guard<std::mutex> lock(g_auth_mutex);
-    lastfm_auth_state state;
-    state.is_authenticated = cfg_lastfm_authenticated.get();
-    state.username = cfg_lastfm_username.get();
-    state.session_key = cfg_lastfm_session_key.get();
-    state.is_suspended = cfg_lastfm_suspended.get();
+    std::lock_guard<std::mutex> lock(authMutex);
+    LastfmAuthState state;
+    state.isAuthenticated = cfgLastfmAuthenticated.get();
+    state.username = cfgLastfmUsername.get();
+    state.sessionKey = cfgLastfmSessionKey.get();
+    state.isSuspended = cfgLastfmSuspended.get();
     return state;
 }
 
-void lastfm_set_auth_state(const lastfm_auth_state& state)
+void setAuthState(const LastfmAuthState& state)
 {
-    std::lock_guard<std::mutex> lock(g_auth_mutex);
-    cfg_lastfm_authenticated.set(state.is_authenticated);
-    cfg_lastfm_username.set(state.username.c_str());
-    cfg_lastfm_session_key.set(state.session_key.c_str());
-    // Any successful auth clears suspension.
-    if (state.is_authenticated)
-        cfg_lastfm_suspended.set(false);
+    std::lock_guard<std::mutex> lock(authMutex);
+    cfgLastfmAuthenticated.set(state.isAuthenticated);
+    cfgLastfmUsername.set(state.username.c_str());
+    cfgLastfmSessionKey.set(state.sessionKey.c_str());
+    if (state.isAuthenticated)
+        cfgLastfmSuspended.set(false);
 }
 
-bool lastfm_is_authenticated()
+bool isAuthenticated()
 {
-    std::lock_guard<std::mutex> lock(g_auth_mutex);
-    return cfg_lastfm_authenticated.get();
+    std::lock_guard<std::mutex> lock(authMutex);
+    return cfgLastfmAuthenticated.get();
 }
 
-void lastfm_clear_authentication()
+void clearAuthentication()
 {
     LFM_INFO("Clearing cfg state.");
 
     pfc::string8 user;
     {
-        std::lock_guard<std::mutex> lock(g_auth_mutex);
-        user = cfg_lastfm_username.get();
-        cfg_lastfm_authenticated.set(false);
-        cfg_lastfm_username.set("");
-        cfg_lastfm_session_key.set("");
-        cfg_lastfm_suspended.set(false);
+        std::lock_guard<std::mutex> lock(authMutex);
+        user = cfgLastfmUsername.get();
+        cfgLastfmAuthenticated.set(false);
+        cfgLastfmUsername.set("");
+        cfgLastfmSessionKey.set("");
+        cfgLastfmSuspended.set(false);
     }
-    pfc::string_formatter f;
-    f << "Now authenticated=" << (lastfm_is_authenticated() ? 1 : 0) << ", user='" << user << "'";
 
-    size_t pending = lastfm_queue::instance().get_pending_scrobble_count();
-    if (pending > 0)
-    {
-        f << ", pending cached scrobbles=" << pending;
-    }
+    pfc::string_formatter f;
+    f << "Now authenticated=" << (isAuthenticated() ? 1 : 0) << ", user='" << user << "'";
 
     LFM_INFO(f.c_str());
 }
 
-void lastfm_clear_suspension()
+void clearSuspension()
 {
     LFM_INFO("Clearing suspend state.");
 
     pfc::string8 user;
     {
-        std::lock_guard<std::mutex> lock(g_auth_mutex);
-        cfg_lastfm_suspended.set(false);
-        user = cfg_lastfm_username.get();
+        std::lock_guard<std::mutex> lock(authMutex);
+        cfgLastfmSuspended.set(false);
+        user = cfgLastfmUsername.get();
     }
-    pfc::string_formatter f;
-    f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
 
-    size_t pending = lastfm_queue::instance().get_pending_scrobble_count();
-    if (pending > 0)
-    {
-        f << ", pending cached scrobbles=" << pending;
-    }
+    pfc::string_formatter f;
+    f << "Suspended=" << (isSuspended() ? "yes" : "no") << ", user='" << user << "'";
 
     LFM_INFO(f.c_str());
 }
 
-bool lastfm_is_suspended()
+bool isSuspended()
 {
-    std::lock_guard<std::mutex> lock(g_auth_mutex);
-    return cfg_lastfm_suspended.get();
+    std::lock_guard<std::mutex> lock(authMutex);
+    return cfgLastfmSuspended.get();
 }
 
-void lastfm_suspend_current_user()
+void suspendCurrentUser()
 {
     LFM_INFO("Suspending current user.");
 
     pfc::string8 user;
     {
-        std::lock_guard<std::mutex> lock(g_auth_mutex);
-        cfg_lastfm_suspended.set(true);
-        user = cfg_lastfm_username.get();
+        std::lock_guard<std::mutex> lock(authMutex);
+        cfgLastfmSuspended.set(true);
+        user = cfgLastfmUsername.get();
     }
-    pfc::string_formatter f;
-    f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
 
-    size_t pending = lastfm_queue::instance().get_pending_scrobble_count();
-    if (pending > 0)
-    {
-        f << ", pending cached scrobbles=" << pending;
-    }
+    pfc::string_formatter f;
+    f << "Suspended=" << (isSuspended() ? "yes" : "no") << ", user='" << user << "'";
 
     LFM_INFO(f.c_str());
 }

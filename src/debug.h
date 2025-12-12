@@ -2,7 +2,7 @@
 //  debug.h
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos.
+//  (c) 2025 by Konstantinos Kyriakopoulos
 //
 
 #pragma once
@@ -10,32 +10,30 @@
 #include <atomic>
 #include <foobar2000/SDK/foobar2000.h>
 
-enum class LFMLogLevel : int
+enum class LfmLogLevel : int
 {
-    Off = 0,
-    Info = 1,
-    Debug = 2
+    OFF = 0,
+    INFO = 1,
+    DEBUG = 2
 };
 
 // Global log level (runtime adjustable)
-extern std::atomic<int> g_lfm_log_level;
+extern std::atomic<int> lfmLogLevel;
 
-// Internal helper
-inline bool lfm_should_log_info()
+inline bool shouldLogInfo()
 {
-    return g_lfm_log_level.load() >= (int)LFMLogLevel::Info;
+    return lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::INFO);
 }
 
-inline bool lfm_should_log_debug()
+inline bool shouldLogDebug()
 {
-    return g_lfm_log_level.load() >= (int)LFMLogLevel::Debug;
+    return lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::DEBUG);
 }
 
-// Public macros
 #define LFM_INFO(expr)                                                                                                 \
     do                                                                                                                 \
     {                                                                                                                  \
-        if (lfm_should_log_info())                                                                                     \
+        if (shouldLogInfo())                                                                                           \
         {                                                                                                              \
             console::formatter lfm_f;                                                                                  \
             lfm_f << "foo_scrobbler_mac: " << expr;                                                                    \
@@ -45,7 +43,7 @@ inline bool lfm_should_log_debug()
 #define LFM_DEBUG(expr)                                                                                                \
     do                                                                                                                 \
     {                                                                                                                  \
-        if (lfm_should_log_debug())                                                                                    \
+        if (shouldLogDebug())                                                                                          \
         {                                                                                                              \
             console::formatter lfm_f;                                                                                  \
             lfm_f << "foo_scrobbler_mac [DEBUG]: " << expr;                                                            \

@@ -55,7 +55,7 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
-0.7.5    2025-12-14    Not considering candidate scrobbles with garbage tag entries.
+0.7.5    2025-12-13    Not considering candidate scrobbles with garbage tag entries.
                        Added linear back-off retry strategy per scrobble for the queue.
                        Improved internal design.
 0.7.3    2025-12-07    Improved management of the communication to Last.fm.

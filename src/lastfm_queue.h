@@ -9,24 +9,31 @@
 
 #include <cstddef>
 #include <ctime>
+#include <functional>
+#include <mutex>
 
-struct lastfm_track_info;
+#include "lastfm_track_info.h"
 
-// Singleton wrapper around the persistent scrobble queue.
-class lastfm_queue
+class LastfmClient;
+
+// Persistent scrobble queue
+class LastfmQueue
 {
   public:
-    static lastfm_queue& instance();
-    void refresh_pending_scrobble_metadata(const lastfm_track_info& track);
-    void queue_scrobble_for_retry(const lastfm_track_info& track, double playback_seconds, bool refresh_on_submit,
-                                  std::time_t start_timestamp);
-    void retry_queued_scrobbles();
-    void retry_queued_scrobbles_async();
-    std::size_t get_pending_scrobble_count() const;
+    explicit LastfmQueue(LastfmClient& client, std::function<void()> onInvalidSession = {});
+
+    void refreshPendingScrobbleMetadata(const LastfmTrackInfo& track);
+
+    void queueScrobbleForRetry(const LastfmTrackInfo& track, double playbackSeconds, bool refreshOnSubmit,
+                               std::time_t startTimestamp);
+
+    void retryQueuedScrobbles();
+    void retryQueuedScrobblesAsync();
+
+    std::size_t getPendingScrobbleCount() const;
 
   private:
-    lastfm_queue() = default;
-    lastfm_queue(const lastfm_queue&) = delete;
-    lastfm_queue& operator=(const lastfm_queue&) = delete;
-    // Internal representation is kept private in the .cpp file.
+    LastfmClient& client;
+    std::function<void()> onInvalidSession;
+    mutable std::mutex mutex;
 };

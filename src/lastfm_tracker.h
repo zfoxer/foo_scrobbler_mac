@@ -2,7 +2,7 @@
 //  lastfm_tracker.h
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos.
+//  (c) 2025 by Konstantinos Kyriakopoulos
 //
 
 #pragma once
@@ -13,17 +13,10 @@
 #include <ctime>
 
 #include "lastfm_rules.h"
+#include "lastfm_track_info.h"
+#include "lastfm_scrobbler.h"
 
-struct lastfm_track_info
-{
-    std::string artist;
-    std::string title;
-    std::string album;
-    std::string mbid;
-    double duration_seconds = 0.0;
-};
-
-class lastfm_tracker : public play_callback_static
+class LastfmTracker : public play_callback_static
 {
   public:
     unsigned get_flags() override;
@@ -39,19 +32,21 @@ class lastfm_tracker : public play_callback_static
     void on_volume_change(float volume) override;
 
   private:
-    void reset_state();
-    void submit_scrobble_if_needed();
-    void update_from_track(const metadb_handle_ptr& track);
+    void resetState();
+    void submitScrobbleIfNeeded();
+    void updateFromTrack(const metadb_handle_ptr& track);
 
-    std::time_t m_start_wallclock = 0;
-    bool m_is_playing = false;
-    bool m_scrobble_sent = false;
-    double m_playback_time = 0.0;
-    lastfm_track_info m_current;
-    // Effective listening time logic
-    double m_effective_listened_seconds = 0.0;
-    double m_last_reported_time = 0.0;
-    bool m_have_last_reported_time = false;
-    metadb_handle_ptr m_current_handle;
-    lastfm_rules m_rules;
+    std::time_t startWallclock = 0;
+    bool isPlaying = false;
+    bool scrobbleSent = false;
+    double playbackTime = 0.0;
+
+    LastfmTrackInfo current;
+
+    double effectiveListenedSeconds = 0.0;
+    double lastReportedTime = 0.0;
+    bool haveLastReportedTime = false;
+
+    metadb_handle_ptr currentHandle;
+    LastfmRules rules;
 };

@@ -2,7 +2,7 @@
 //  lastfm_auth.h
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos.
+//  (c) 2025 by Konstantinos Kyriakopoulos
 //
 
 #pragma once
@@ -13,15 +13,15 @@
 #include "lastfm_ui.h"
 
 // Starts the browser-based Last.fm auth flow.
-// Fills out_auth_url with the URL the user should be sent to.
-bool lastfm_begin_auth(std::string& out_auth_url);
+// Fills outAuthUrl with the URL the user should be sent to.
+bool beginAuth(std::string& outAuthUrl);
 
 // Completes auth given a callback URL (ignored in current simplified flow).
-// Updates auth_state with username + session_key on success.
-bool lastfm_complete_auth_from_callback_url(const std::string& callback_url, lastfm_auth_state& auth_state);
+// Updates authState with username + session key on success.
+bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState& authState);
 
 // Clears stored credentials.
-void lastfm_logout();
+void logout();
 
 // Returns true if we already requested a token and are waiting to complete auth.
-bool lastfm_has_pending_token();
+bool hasPendingToken();

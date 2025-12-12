@@ -2,7 +2,7 @@
 //  lastfm_ui.h
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos.
+//  (c) 2025 by Konstantinos Kyriakopoulos
 //
 
 #pragma once
@@ -11,20 +11,15 @@
 
 #include "lastfm_types.h"
 
-// Returns the current cached auth state (from config)
-lastfm_auth_state lastfm_get_auth_state();
+LastfmAuthState getAuthState();
 
-// Main entry point for the popup window.
-// Called from the foobar2000 main menu command.
-void lastfm_show_scrobbler_dialog();
+void showScrobblerDialog();
 
-// New helpers used by the menu.
-bool lastfm_is_authenticated();
-void lastfm_show_auth_dialog();
-void lastfm_clear_authentication();
-void lastfm_clear_suspension();
-bool lastfm_is_suspended();
-void lastfm_suspend_current_user();
+bool isAuthenticated();
+void showAuthDialog();
+void clearAuthentication();
+void clearSuspension();
+bool isSuspended();
+void suspendCurrentUser();
 
-// Used by the auth layer to persist successful auth.
-void lastfm_set_auth_state(const lastfm_auth_state& state);
+void setAuthState(const LastfmAuthState& state);

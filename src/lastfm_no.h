@@ -9,6 +9,5 @@
 
 #include <string>
 
-// Public accessors for Foo Scrobbler.
 std::string __s66_x3();
 std::string __s64_x9();

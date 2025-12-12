@@ -2,58 +2,57 @@
 //  lastfm_rules.h
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos.
+//  (c) 2025 by Konstantinos Kyriakopoulos
 //
 
 #pragma once
 
-namespace lastfm_scrobble_config
+namespace LastfmScrobbleConfig
 {
 static constexpr double MIN_TRACK_DURATION_SECONDS = 30.0;
 static constexpr double SCROBBLE_THRESHOLD_FACTOR = 0.5;
 static constexpr double MAX_THRESHOLD_SECONDS = 240.0;
 static constexpr double LONG_TRACK_SECONDS = 480.0;
-static constexpr double DELTA = 20;
+static constexpr double DELTA = 20.0;
+} // namespace LastfmScrobbleConfig
 
-} // namespace lastfm_scrobble_config
-
-struct lastfm_rules
+struct LastfmRules
 {
-    double track_duration = 0.0;
-    double playback_time = 0.0;
+    double trackDuration = 0.0;
+    double playbackTime = 0.0;
     bool paused = false;
-    bool skipped_early = false;
+    bool skippedEarly = false;
 
-    bool is_eligible_to_scrobble() const
+    bool isEligibleToScrobble() const
     {
-        using namespace lastfm_scrobble_config;
+        using namespace LastfmScrobbleConfig;
 
-        if (track_duration < MIN_TRACK_DURATION_SECONDS)
+        if (trackDuration < MIN_TRACK_DURATION_SECONDS)
             return false;
 
-        const double fifty_percent = track_duration * SCROBBLE_THRESHOLD_FACTOR;
-        const double required_time = (track_duration > LONG_TRACK_SECONDS) ? MAX_THRESHOLD_SECONDS : fifty_percent;
+        const double fiftyPercent = trackDuration * SCROBBLE_THRESHOLD_FACTOR;
+        const double requiredTime = (trackDuration > LONG_TRACK_SECONDS) ? MAX_THRESHOLD_SECONDS : fiftyPercent;
 
-        return playback_time >= required_time;
+        return playbackTime >= requiredTime;
     }
 
-    bool should_scrobble() const
+    bool shouldScrobble() const
     {
-        if (paused || skipped_early)
+        if (paused || skippedEarly)
             return false;
-        return is_eligible_to_scrobble();
+        return isEligibleToScrobble();
     }
 
-    void reset(double new_duration)
+    void reset(double newDuration)
     {
-        track_duration = new_duration;
-        playback_time = 0.0;
+        trackDuration = newDuration;
+        playbackTime = 0.0;
         paused = false;
-        skipped_early = false;
+        skippedEarly = false;
     }
 
-    void mark_skipped()
+    void markSkipped()
     {
-        skipped_early = true;
+        skippedEarly = true;
     }
 };
