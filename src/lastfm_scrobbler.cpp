@@ -7,10 +7,11 @@
 
 #include "lastfm_scrobbler.h"
 
+#include "debug.h"
 #include "lastfm_client.h"
 #include "lastfm_ui.h"
-#include "debug.h"
 
+#include <ctime>
 #include <thread>
 
 LastfmScrobbler::LastfmScrobbler(LastfmClient& client)
@@ -26,10 +27,28 @@ void LastfmScrobbler::sendNowPlayingOnly(const LastfmTrackInfo& track)
     std::thread([this, track]() { client.updateNowPlaying(track); }).detach();
 }
 
+void LastfmScrobbler::dispatchRetryIfDue(const char* reasonTag)
+{
+    if (!client.isAuthenticated() || client.isSuspended())
+        return;
+
+    const std::time_t now = std::time(nullptr);
+    const std::size_t pending = queue.getPendingScrobbleCount();
+    const bool due = pending > 0 ? queue.hasDueScrobble(now) : false;
+    const bool inflight = queue.isRetryInFlight();
+
+    LFM_DEBUG("Dispatch gate (" << reasonTag << "): due=" << (due ? "yes" : "no") << " pending=" << (unsigned)pending
+                               << " inflight=" << (inflight ? "yes" : "no"));
+
+    // Only dispatch if due and no worker is already running.
+    if (due && !inflight)
+        queue.retryQueuedScrobblesAsync();
+}
+
 void LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
 {
-    if (client.isAuthenticated())
-        queue.retryQueuedScrobblesAsync();
+    // Retry queue first (if authenticated), then do Now Playing.
+    dispatchRetryIfDue("onNowPlaying");
 
     if (!client.isAuthenticated() || client.isSuspended())
         return;
@@ -53,7 +72,7 @@ void LastfmScrobbler::queueScrobble(const LastfmTrackInfo& track, double playbac
 
 void LastfmScrobbler::retryAsync()
 {
-    queue.retryQueuedScrobblesAsync();
+    dispatchRetryIfDue("retryAsync");
 }
 
 void LastfmScrobbler::handleInvalidSessionOnce()

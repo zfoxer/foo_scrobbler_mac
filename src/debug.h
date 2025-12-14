@@ -14,7 +14,7 @@ enum class LfmLogLevel : int
 {
     OFF = 0,
     INFO = 1,
-    DEBUG = 2
+    DEBUG_LOG = 2
 };
 
 // Global log level (runtime adjustable)
@@ -27,7 +27,7 @@ inline bool shouldLogInfo()
 
 inline bool shouldLogDebug()
 {
-    return lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::DEBUG);
+    return lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::DEBUG_LOG);
 }
 
 #define LFM_INFO(expr)                                                                                                 \

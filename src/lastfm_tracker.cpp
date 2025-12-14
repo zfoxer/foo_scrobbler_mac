@@ -69,6 +69,8 @@ void LastfmTracker::resetState()
     lastReportedTime = 0.0;
     haveLastReportedTime = false;
 
+    pendingDueToMissingMetadata = false;
+
     rules.reset(0.0);
     current = LastfmTrackInfo{};
     currentHandle.release();
@@ -132,7 +134,7 @@ void LastfmTracker::on_playback_time(double time)
     playbackTime = time;
     rules.playbackTime = time;
 
-    if (scrobbleSent && currentHandle.is_valid())
+    if ((scrobbleSent || pendingDueToMissingMetadata) && currentHandle.is_valid())
     {
         file_info_impl info;
         if (currentHandle->get_info(info))
@@ -147,8 +149,13 @@ void LastfmTracker::on_playback_time(double time)
                 current.title = newTitle;
                 current.album = newAlbum;
 
-                scrobbler.refreshPendingMetadata(current);
+                if (scrobbleSent)
+                    scrobbler.refreshPendingMetadata(current);
+
                 scrobbler.sendNowPlayingOnly(current);
+
+                if (pendingDueToMissingMetadata && !current.artist.empty() && !current.title.empty())
+                    pendingDueToMissingMetadata = false;
             }
         }
     }
@@ -158,9 +165,15 @@ void LastfmTracker::on_playback_time(double time)
 
 void LastfmTracker::on_playback_seek(double time)
 {
-    if (time < current.durationSeconds * LastfmScrobbleConfig::SCROBBLE_THRESHOLD_FACTOR)
+    if (!isPlaying || current.durationSeconds <= 0.0)
+        return;
+
+    const double half = current.durationSeconds * LastfmScrobbleConfig::SCROBBLE_THRESHOLD_FACTOR;
+
+    if (time < half)
     {
-        rules.markSkipped();
+        effectiveListenedSeconds = 0.0;
+        haveLastReportedTime = false;
     }
 }
 
@@ -193,6 +206,31 @@ void LastfmTracker::submitScrobbleIfNeeded()
 
     if (effectiveListenedSeconds < threshold)
         return;
+
+    // NEW: last-moment refresh if mandatory tags look missing.
+    if ((current.artist.empty() || current.title.empty()) && currentHandle.is_valid())
+    {
+        file_info_impl info;
+        if (currentHandle->get_info(info))
+        {
+            current.artist = cleanTagValue(info.meta_get("artist", 0));
+            current.title = cleanTagValue(info.meta_get("title", 0));
+            current.album = cleanTagValue(info.meta_get("album", 0));
+        }
+    }
+
+    // If still missing after refresh, block and wait for tag update.
+    if (current.artist.empty() || current.title.empty())
+    {
+        if (!pendingDueToMissingMetadata)
+        {
+            LFM_INFO("Scrobble blocked: Missing track info (artist/title). Will retry when tags update.");
+        }
+        pendingDueToMissingMetadata = true;
+        return;
+    }
+
+    pendingDueToMissingMetadata = false;
 
     scrobbleSent = true;
 
