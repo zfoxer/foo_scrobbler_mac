@@ -9,8 +9,8 @@
 
 #include <ctime>
 
-#include "lastfm_track_info.h"
 #include "lastfm_queue.h"
+#include "lastfm_track_info.h"
 
 class LastfmClient;
 
@@ -30,6 +30,7 @@ class LastfmScrobbler
 
   private:
     void handleInvalidSessionOnce();
+    void dispatchRetryIfDue(const char* reasonTag);
 
   private:
     LastfmClient& client;

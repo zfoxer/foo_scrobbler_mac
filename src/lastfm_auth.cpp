@@ -1,20 +1,18 @@
+// lastfm_auth.cpp
+// foo_scrobbler_mac
 //
-//  lastfm_auth.cpp
-//  foo_scrobbler_mac
-//
-//  (c) 2025 by Konstantinos Kyriakopoulos
+// (c) 2025 by Konstantinos Kyriakopoulos
 //
 
 #include "lastfm_auth.h"
 #include "lastfm_no.h"
+#include "lastfm_util.h"
 #include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
 
-#include <string>
 #include <map>
-
-#include <CommonCrypto/CommonDigest.h> // MD5
+#include <string>
 
 namespace
 {
@@ -24,54 +22,6 @@ static std::string lastfmPendingToken;
 bool hasPendingToken()
 {
     return !lastfmPendingToken.empty();
-}
-
-// MD5 lowercase hex via Apple CommonCrypto
-static std::string md5Hex(const std::string& data)
-{
-    unsigned char digest[CC_MD5_DIGEST_LENGTH];
-    CC_MD5(data.data(), (CC_LONG)data.size(), digest);
-
-    const char hexDigits[] = "0123456789abcdef";
-    std::string out;
-    out.reserve(32); // 16 bytes -> 32 hex chars
-
-    for (int i = 0; i < CC_MD5_DIGEST_LENGTH; ++i)
-    {
-        const unsigned char b = digest[i];
-        out.push_back(hexDigits[b >> 4]);
-        out.push_back(hexDigits[b & 0x0F]);
-    }
-
-    return out;
-}
-
-// Run GET URL and read entire body into pfc::string8
-static bool httpGetToString(const char* url, pfc::string8& outBody)
-{
-    try
-    {
-        auto request = http_client::get()->create_request("GET");
-        file::ptr stream = request->run(url, fb2k::noAbort);
-
-        pfc::string8 line;
-        outBody.reset();
-
-        // Most JSON responses from Last.fm are a single line, reading all lines just in case.
-        while (!stream->is_eof(fb2k::noAbort))
-        {
-            line.reset();
-            stream->read_string_raw(line, fb2k::noAbort);
-            outBody += line;
-        }
-
-        return true;
-    }
-    catch (std::exception const& e)
-    {
-        LFM_INFO("HTTP GET failed: " << e.what());
-        return false;
-    }
 }
 
 // Get token & browser URL
@@ -89,13 +39,11 @@ bool beginAuth(std::string& outAuthUrl)
         return false;
     }
 
-    // Build params for auth.getToken
     std::map<std::string, std::string> params = {
         {"api_key", apiKey},
         {"method", "auth.getToken"},
     };
 
-    // Build api_sig = md5(concat(sorted params) + secret)
     std::string sig;
     for (const auto& kv : params)
     {
@@ -103,39 +51,29 @@ bool beginAuth(std::string& outAuthUrl)
         sig += kv.second;
     }
     sig += apiSecret;
-    sig = md5Hex(sig);
+    sig = lastfm::util::md5HexLower(sig);
 
-    // Build URL
     pfc::string8 url;
     url << "https://ws.audioscrobbler.com/2.0/?method=auth.getToken"
         << "&api_key=" << apiKey.c_str() << "&api_sig=" << sig.c_str() << "&format=json";
 
     pfc::string8 body;
-    if (!httpGetToString(url, body))
+    std::string httpError;
+    if (!lastfm::util::httpGetToString(url, body, httpError))
     {
-        LFM_INFO("auth.getToken request failed.");
+        LFM_INFO("auth.getToken request failed: " << (httpError.empty() ? "unknown error" : httpError.c_str()));
         return false;
     }
 
-    // JSON parse: look for "token":"..."
-    const char* p = strstr(body.c_str(), "\"token\":\"");
-    if (!p)
+    std::string token;
+    if (!lastfm::util::jsonFindStringValue(body.c_str(), "token", token) || token.empty())
     {
-        LFM_INFO("auth.getToken: token not found. Response: " << body.c_str());
-        return false;
-    }
-    p += 9; // Skip "token":"
-    const char* end = strchr(p, '"');
-    if (!end)
-    {
-        LFM_INFO("auth.getToken: malformed token field.");
+        LFM_INFO("auth.getToken: token not found. (response omitted, size=" << body.get_length() << ")");
         return false;
     }
 
-    lastfmPendingToken.assign(p, end - p);
-    LFM_DEBUG("Received auth token: " << lastfmPendingToken.c_str());
+    lastfmPendingToken = token;
 
-    // Browser URL for user authorization
     outAuthUrl = "https://www.last.fm/api/auth/"
                  "?api_key=" +
                  apiKey + "&token=" + lastfmPendingToken;
@@ -146,7 +84,7 @@ bool beginAuth(std::string& outAuthUrl)
 // Using the stored token, call auth.getSession
 bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState& authState)
 {
-    (void)callbackUrl; // unused for this flow
+    (void)callbackUrl;
 
     if (lastfmPendingToken.empty())
     {
@@ -163,7 +101,6 @@ bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState
         return false;
     }
 
-    // Build params for auth.getSession
     std::map<std::string, std::string> params = {
         {"api_key", apiKey},
         {"method", "auth.getSession"},
@@ -177,7 +114,7 @@ bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState
         sig += kv.second;
     }
     sig += apiSecret;
-    sig = md5Hex(sig);
+    sig = lastfm::util::md5HexLower(sig);
 
     pfc::string8 url;
     url << "https://ws.audioscrobbler.com/2.0/?method=auth.getSession"
@@ -185,46 +122,34 @@ bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState
         << "&format=json";
 
     pfc::string8 body;
-    if (!httpGetToString(url, body))
+    std::string httpError;
+    if (!lastfm::util::httpGetToString(url, body, httpError))
     {
-        LFM_INFO("auth.getSession request failed.");
+        LFM_INFO("auth.getSession request failed: " << (httpError.empty() ? "unknown error" : httpError.c_str()));
         return false;
     }
 
-    // Parse `"name":"USERNAME"` and `"key":"SESSION_KEY"`
-    const char* p = strstr(body.c_str(), "\"name\":\"");
-    if (!p)
-    {
-        LFM_INFO("auth.getSession: username not found. Response: " << body.c_str());
-        return false;
-    }
-    p += 8;
-    const char* end = strchr(p, '"');
-    if (!end)
-    {
-        LFM_INFO("auth.getSession: malformed name field.");
-        return false;
-    }
-    authState.username.assign(p, end - p);
+    std::string name;
+    std::string key;
 
-    p = strstr(end, "\"key\":\"");
-    if (!p)
+    if (!lastfm::util::jsonFindStringValue(body.c_str(), "name", name) || name.empty())
     {
-        LFM_INFO("auth.getSession: session key not found.");
+        LFM_INFO("auth.getSession: username not found. (response omitted, size=" << body.get_length() << ")");
         return false;
     }
-    p += 7;
-    const char* end2 = strchr(p, '"');
-    if (!end2)
+    if (!lastfm::util::jsonFindStringValue(body.c_str(), "key", key) || key.empty())
     {
-        LFM_INFO("auth.getSession: malformed key field.");
+        LFM_INFO("auth.getSession: session key not found. (response omitted, size=" << body.get_length() << ")");
         return false;
     }
-    authState.sessionKey.assign(p, end2 - p);
+
+    authState.username = name;
+    authState.sessionKey = key;
     authState.isAuthenticated = true;
+
     setAuthState(authState);
 
-    LFM_DEBUG("Authentication complete. User: " << authState.username.c_str());
+    LFM_INFO("Authentication complete. User: " << authState.username.c_str());
     lastfmPendingToken.clear();
     return true;
 }

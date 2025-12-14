@@ -47,6 +47,10 @@ class LastfmTracker : public play_callback_static
     double lastReportedTime = 0.0;
     bool haveLastReportedTime = false;
 
+    // Reached scrobble threshold, but artist/title were missing at the moment.
+    // We keep tracking tag changes and will submit once metadata becomes valid.
+    bool pendingDueToMissingMetadata = false;
+
     metadb_handle_ptr currentHandle;
     LastfmRules rules;
 };

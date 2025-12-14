@@ -41,7 +41,7 @@ static void openBrowserUrl(const std::string& url)
     std::string cmd = "open \"" + url + "\"";
     std::system(cmd.c_str());
 #else
-    LFM_INFO("Open manually: " << url.c_str());
+    LFM_INFO("Open manually: (url omitted)");
 #endif
 }
 } // namespace
