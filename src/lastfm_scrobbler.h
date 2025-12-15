@@ -8,6 +8,8 @@
 #pragma once
 
 #include <ctime>
+#include <atomic>
+#include <mutex>
 
 #include "lastfm_queue.h"
 #include "lastfm_track_info.h"
@@ -27,13 +29,20 @@ class LastfmScrobbler
                        bool refreshOnSubmit);
 
     void retryAsync();
+    void clearQueue();
+    void resetInvalidSessionHandling();
 
   private:
     void handleInvalidSessionOnce();
     void dispatchRetryIfDue(const char* reasonTag);
+    void deferNowPlayingAfterRetry(const LastfmTrackInfo& track);
 
   private:
     LastfmClient& client;
     LastfmQueue queue;
     bool invalidSessionHandled = false;
+    // If NowPlaying is skipped due to retry-in-flight, defer it and send once retry completes.
+    std::atomic<uint64_t> nowPlayingEpoch{0};
+    mutable std::mutex nowPlayingMutex;
+    LastfmTrackInfo deferredNowPlayingTrack;
 };

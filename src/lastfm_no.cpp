@@ -1,5 +1,5 @@
 //
-//  lastfm_secrets.cpp
+//  lastfm_no.cpp
 //  foo_scrobbler_mac
 //
 //  (c) 2025 by Konstantinos Kyriakopoulos.

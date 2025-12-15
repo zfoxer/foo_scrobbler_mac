@@ -38,7 +38,7 @@ static bool responseIsInvalidSession(const char* body)
             return true;
     }
 
-    // Ultra-fallback: keep your original heuristic.
+    // Ultra-fallback: keep original heuristic.
     if (std::strstr(body, "Invalid session key"))
         return true;
 
@@ -121,7 +121,7 @@ bool sendNowPlaying(const std::string& artist, const std::string& title, const s
     }
 
     const char* bodyC = body.c_str();
-    LFM_DEBUG("NowPlaying response received. (size=" << (bodyC ? strlen(bodyC) : 0) << ")");
+    LFM_DEBUG("NowPlaying response received. (size=" << body.get_length() << ")");
 
     // Success is: no "error" key in JSON.
     if (!lastfm::util::jsonHasKey(bodyC, "error"))

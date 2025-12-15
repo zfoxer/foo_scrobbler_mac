@@ -11,15 +11,17 @@
 
 #include "lastfm_types.h"
 
+// NOTE: State is implemented in lastfm_state.* now.
 LastfmAuthState getAuthState();
-
-void showScrobblerDialog();
-
 bool isAuthenticated();
-void showAuthDialog();
+bool isSuspended();
 void clearAuthentication();
 void clearSuspension();
-bool isSuspended();
 void suspendCurrentUser();
 
+// UI entry points (keep as-is if you have them elsewhere)
+void showScrobblerDialog();
+void showAuthDialog();
+
+// Used by the auth layer to persist successful auth.
 void setAuthState(const LastfmAuthState& state);

@@ -16,12 +16,12 @@
 // Fills outAuthUrl with the URL the user should be sent to.
 bool beginAuth(std::string& outAuthUrl);
 
-// Completes auth given a callback URL (ignored in current simplified flow).
+// Completes auth given a callback URL (ignored in current flow).
 // Updates authState with username + session key on success.
 bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState& authState);
 
 // Clears stored credentials.
 void logout();
 
-// Returns true if we already requested a token and are waiting to complete auth.
+// Returns true if already requested a token and wait to complete auth.
 bool hasPendingToken();

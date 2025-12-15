@@ -9,12 +9,10 @@
 
 #include <foobar2000/SDK/foobar2000.h>
 
-#include <string>
 #include <ctime>
 
 #include "lastfm_rules.h"
 #include "lastfm_track_info.h"
-#include "lastfm_scrobbler.h"
 
 class LastfmTracker : public play_callback_static
 {
@@ -50,6 +48,9 @@ class LastfmTracker : public play_callback_static
     // Reached scrobble threshold, but artist/title were missing at the moment.
     // We keep tracking tag changes and will submit once metadata becomes valid.
     bool pendingDueToMissingMetadata = false;
+
+    // Track became eligible while suspended; defer submission until stop/new-track boundary.
+    bool thresholdReachedButDeferred = false;
 
     metadb_handle_ptr currentHandle;
     LastfmRules rules;
