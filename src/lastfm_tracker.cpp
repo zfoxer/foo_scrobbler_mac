@@ -6,20 +6,17 @@
 //
 
 #include "lastfm_tracker.h"
-#include "lastfm_client.h"
-#include "lastfm_ui.h"
-#include "lastfm_scrobbler.h"
+#include "lastfm_core.h"
+#include "lastfm_state.h"
 #include "debug.h"
 
-#include <thread>
 #include <algorithm>
 #include <cctype>
+#include <ctime>
 #include <string>
 
 namespace
 {
-static LastfmClient lastfmClient;
-static LastfmScrobbler scrobbler(lastfmClient);
 
 static std::string cleanTagValue(const char* value)
 {
@@ -70,6 +67,7 @@ void LastfmTracker::resetState()
     haveLastReportedTime = false;
 
     pendingDueToMissingMetadata = false;
+    thresholdReachedButDeferred = false;
 
     rules.reset(0.0);
     current = LastfmTrackInfo{};
@@ -101,39 +99,61 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
 
 void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
 {
+    // Natural boundary: if we deferred an eligible scrobble for the previous track, submit now.
+    if (thresholdReachedButDeferred)
+        submitScrobbleIfNeeded();
+
     resetState();
     isPlaying = true;
     startWallclock = std::time(nullptr);
 
     updateFromTrack(track);
 
+    // While suspended: no Now Playing behavior at all.
+    if (lastfm_is_suspended())
+        return;
+
     LFM_DEBUG("Now playing: " << current.artist.c_str() << " - " << current.title.c_str());
 
+    auto& scrobbler = LastfmCore::instance().scrobbler();
     scrobbler.onNowPlaying(current);
 }
 
 void LastfmTracker::on_playback_time(double time)
 {
-    if (isPlaying && current.durationSeconds > 0.0)
-    {
-        if (!haveLastReportedTime)
-        {
-            lastReportedTime = time;
-            haveLastReportedTime = true;
-        }
-        else
-        {
-            const double delta = time - lastReportedTime;
-            if (delta > 0.0 && delta <= LastfmScrobbleConfig::DELTA)
-                effectiveListenedSeconds += delta;
+    playbackTime = time;
 
-            lastReportedTime = time;
+    const bool suspended = lastfm_is_suspended();
+
+    // Policy B: while suspended, freeze scrobble progress (do not count time).
+    if (!suspended)
+    {
+        if (isPlaying && current.durationSeconds > 0.0)
+        {
+            if (!haveLastReportedTime)
+            {
+                lastReportedTime = time;
+                haveLastReportedTime = true;
+            }
+            else
+            {
+                const double delta = time - lastReportedTime;
+                if (delta > 0.0 && delta <= LastfmScrobbleConfig::DELTA)
+                    effectiveListenedSeconds += delta;
+
+                lastReportedTime = time;
+            }
         }
+
+        rules.playbackTime = time;
+    }
+    else
+    {
+        // Avoid a big delta jump when resuming.
+        haveLastReportedTime = false;
     }
 
-    playbackTime = time;
-    rules.playbackTime = time;
-
+    auto& scrobbler = LastfmCore::instance().scrobbler();
     if ((scrobbleSent || pendingDueToMissingMetadata) && currentHandle.is_valid())
     {
         file_info_impl info;
@@ -149,16 +169,24 @@ void LastfmTracker::on_playback_time(double time)
                 current.title = newTitle;
                 current.album = newAlbum;
 
-                if (scrobbleSent)
-                    scrobbler.refreshPendingMetadata(current);
+                if (!suspended)
+                {
+                    if (scrobbleSent)
+                        scrobbler.refreshPendingMetadata(current);
 
-                scrobbler.sendNowPlayingOnly(current);
+                    scrobbler.sendNowPlayingOnly(current);
+                }
 
                 if (pendingDueToMissingMetadata && !current.artist.empty() && !current.title.empty())
                     pendingDueToMissingMetadata = false;
             }
         }
     }
+
+    // If we deferred an eligible scrobble during suspension, do not fire mid-track after resume.
+    // It will be handled on stop / new-track boundaries.
+    if (thresholdReachedButDeferred)
+        return;
 
     submitScrobbleIfNeeded();
 }
@@ -185,6 +213,7 @@ void LastfmTracker::on_playback_pause(bool paused)
 void LastfmTracker::on_playback_stop(play_control::t_stop_reason)
 {
     submitScrobbleIfNeeded();
+    auto& scrobbler = LastfmCore::instance().scrobbler();
     scrobbler.retryAsync();
     resetState();
 }
@@ -207,7 +236,7 @@ void LastfmTracker::submitScrobbleIfNeeded()
     if (effectiveListenedSeconds < threshold)
         return;
 
-    // NEW: last-moment refresh if mandatory tags look missing.
+    // Last-moment refresh if mandatory tags look missing.
     if ((current.artist.empty() || current.title.empty()) && currentHandle.is_valid())
     {
         file_info_impl info;
@@ -223,19 +252,27 @@ void LastfmTracker::submitScrobbleIfNeeded()
     if (current.artist.empty() || current.title.empty())
     {
         if (!pendingDueToMissingMetadata)
-        {
             LFM_INFO("Scrobble blocked: Missing track info (artist/title). Will retry when tags update.");
-        }
         pendingDueToMissingMetadata = true;
         return;
     }
 
     pendingDueToMissingMetadata = false;
 
+    // Eligible, but suspended -> remember and defer.
+    if (lastfm_is_suspended())
+    {
+        thresholdReachedButDeferred = true;
+        return;
+    }
+
+    if (!lastfm_is_authenticated())
+        return;
+
     scrobbleSent = true;
 
-    scrobbler.queueScrobble(current, playbackTime, startWallclock,
-                            /*refreshOnSubmit=*/true);
+    auto& scrobbler = LastfmCore::instance().scrobbler();
+    scrobbler.queueScrobble(current, playbackTime, startWallclock, /*refreshOnSubmit=*/true);
 }
 
 // Unused callbacks (required by interface)

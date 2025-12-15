@@ -132,7 +132,7 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
     }
 
     const char* bodyC = body.c_str();
-    LFM_DEBUG("Scrobble response received. (size=" << (bodyC ? strlen(bodyC) : 0) << ")");
+    LFM_DEBUG("Scrobble response received. (size=" << body.get_length() << ")");
 
     if (!lastfm::util::jsonHasKey(bodyC, "error"))
     {

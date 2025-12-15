@@ -13,10 +13,14 @@
 
 #include <ctime>
 #include <thread>
+#include <chrono>
 
 LastfmScrobbler::LastfmScrobbler(LastfmClient& client)
     : client(client), queue(client, [this]() { handleInvalidSessionOnce(); })
 {
+    LFM_DEBUG("Startup: authenticated=" << (client.isAuthenticated() ? "yes" : "no")
+                                        << " suspended=" << (client.isSuspended() ? "yes" : "no")
+                                        << " pending=" << (unsigned)queue.getPendingScrobbleCount());
 }
 
 void LastfmScrobbler::sendNowPlayingOnly(const LastfmTrackInfo& track)
@@ -38,7 +42,7 @@ void LastfmScrobbler::dispatchRetryIfDue(const char* reasonTag)
     const bool inflight = queue.isRetryInFlight();
 
     LFM_DEBUG("Dispatch gate (" << reasonTag << "): due=" << (due ? "yes" : "no") << " pending=" << (unsigned)pending
-                               << " inflight=" << (inflight ? "yes" : "no"));
+                                << " inflight=" << (inflight ? "yes" : "no"));
 
     // Only dispatch if due and no worker is already running.
     if (due && !inflight)
@@ -52,6 +56,14 @@ void LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
 
     if (!client.isAuthenticated() || client.isSuspended())
         return;
+
+    // Avoid overlapping HTTP traffic: don't send NowPlaying while a retry worker is in flight.
+    if (queue.isRetryInFlight())
+    {
+        LFM_DEBUG("NowPlaying: retry in flight, deferring.");
+        deferNowPlayingAfterRetry(track);
+        return;
+    }
 
     sendNowPlayingOnly(track);
 }
@@ -88,4 +100,57 @@ void LastfmScrobbler::handleInvalidSessionOnce()
     popup_message::g_show("Your Last.fm session is no longer valid.\n"
                           "Please authenticate again from the Last.fm menu.",
                           "Last.fm Scrobbler");
+}
+
+void LastfmScrobbler::clearQueue()
+{
+    queue.clearAll();
+}
+
+void LastfmScrobbler::resetInvalidSessionHandling()
+{
+    invalidSessionHandled = false;
+}
+
+void LastfmScrobbler::deferNowPlayingAfterRetry(const LastfmTrackInfo& track)
+{
+    const uint64_t epoch = nowPlayingEpoch.fetch_add(1) + 1;
+
+    {
+        std::lock_guard<std::mutex> lock(nowPlayingMutex);
+        deferredNowPlayingTrack = track;
+    }
+
+    std::thread(
+        [this, epoch]()
+        {
+            // Wait until retry finishes (bounded wait).
+            for (int i = 0; i < 1000; ++i) // ~10 seconds at 10ms
+            {
+                if (!queue.isRetryInFlight())
+                    break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+
+            // Only the latest deferred request should fire.
+            if (nowPlayingEpoch.load() != epoch)
+                return;
+
+            if (!client.isAuthenticated() || client.isSuspended())
+                return;
+
+            LastfmTrackInfo t;
+            {
+                std::lock_guard<std::mutex> lock(nowPlayingMutex);
+                t = deferredNowPlayingTrack;
+            }
+
+            // Final sanity: Don't send garbage NP.
+            if (t.artist.empty() || t.title.empty())
+                return;
+
+            LFM_DEBUG("NowPlaying: sending deferred update after retry.");
+            sendNowPlayingOnly(t);
+        })
+        .detach();
 }

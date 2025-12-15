@@ -6,18 +6,17 @@
 //
 
 #include "lastfm_client.h"
-
-#include "lastfm_ui.h"
 #include "lastfm_auth.h"
-
-bool LastfmClient::isAuthenticated() const
-{
-    return ::isAuthenticated();
-}
+#include "lastfm_state.h"
 
 bool LastfmClient::isSuspended() const
 {
-    return ::isSuspended();
+    return lastfm_is_suspended();
+}
+
+bool LastfmClient::isAuthenticated() const
+{
+    return lastfm_is_authenticated();
 }
 
 bool LastfmClient::updateNowPlaying(const LastfmTrackInfo& track)

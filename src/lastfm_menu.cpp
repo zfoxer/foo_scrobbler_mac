@@ -6,15 +6,16 @@
 //
 
 #include "lastfm_menu.h"
-#include "lastfm_authenticator.h"
 #include "lastfm_ui.h"
-#include "lastfm_client.h"
+#include "lastfm_core.h"
+#include "lastfm_track_info.h"
 #include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
 
 #include <string>
 #include <cstdlib>
+#include <cctype>
 
 static const GUID GUID_LASTFM_AUTHENTICATE = {
     0xb2f2b721, 0xdc90, 0x45ee, {0xa5, 0xb6, 0x46, 0x4d, 0xb5, 0x4f, 0x5d, 0x5f}};
@@ -32,17 +33,73 @@ static mainmenu_group_popup_factory lastfmMenuGroupFactory(GUID_LASTFM_MENU_GROU
 
 namespace
 {
-static LastfmClient lastfmClient;
-static Authenticator authenticator(lastfmClient);
 
 static void openBrowserUrl(const std::string& url)
 {
 #if defined(__APPLE__)
+    if (url.find('"') != std::string::npos)
+        return;
     std::string cmd = "open \"" + url + "\"";
     std::system(cmd.c_str());
 #else
     LFM_INFO("Open manually: (url omitted)");
 #endif
+}
+
+static std::string cleanTagValue(const char* value)
+{
+    if (!value)
+        return {};
+
+    std::string s(value);
+
+    std::size_t start = 0;
+    while (start < s.size() && std::isspace((unsigned char)s[start]))
+        ++start;
+
+    std::size_t end = s.size();
+    while (end > start && std::isspace((unsigned char)s[end - 1]))
+        --end;
+
+    if (start == end)
+        return {};
+
+    s = s.substr(start, end - start);
+
+    std::string norm;
+    for (char c : s)
+        if (!std::isspace((unsigned char)c))
+            norm.push_back((char)std::tolower((unsigned char)c));
+
+    if (norm == "unknown" || norm == "unknownartist" || norm == "unknowntrack")
+        return {};
+
+    return s;
+}
+
+static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
+{
+    out = LastfmTrackInfo{};
+
+    metadb_handle_ptr handle;
+    if (!playback_control::get()->get_now_playing(handle) || !handle.is_valid())
+        return false;
+
+    file_info_impl info;
+    if (!handle->get_info(info))
+        return false;
+
+    out.artist = cleanTagValue(info.meta_get("artist", 0));
+    out.title = cleanTagValue(info.meta_get("title", 0));
+    out.album = cleanTagValue(info.meta_get("album", 0));
+
+    const char* mbid = info.meta_get("musicbrainz_trackid", 0);
+    out.mbid = mbid ? mbid : "";
+
+    out.durationSeconds = info.get_length();
+
+    // For Now Playing, if artist/title are missing, just skip sending.
+    return !out.artist.empty() && !out.title.empty();
 }
 } // namespace
 
@@ -138,6 +195,7 @@ bool LastfmMenu::get_display(t_uint32 index, pfc::string_base& text, uint32_t& f
 
 void LastfmMenu::execute(t_uint32 index, ctx_t)
 {
+    auto& authenticator = LastfmCore::instance().authenticator();
     switch (index)
     {
     case CMD_AUTHENTICATE:
@@ -176,16 +234,39 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
     }
 
     case CMD_CLEAR_AUTH:
-        authenticator.logout();
+    {
+        auto& core = LastfmCore::instance();
+        core.scrobbler().clearQueue();
+        core.scrobbler().resetInvalidSessionHandling();
+        core.authenticator().logout();
+
         popup_message::g_show("Stored Last.fm authentication has been cleared.", "Last.fm");
         break;
+    }
 
     case CMD_SUSPEND:
+    {
+        auto& core = LastfmCore::instance();
+
         if (isSuspended())
+        {
             clearSuspension();
+
+            // Send Now Playing immediately for the currently playing track.
+            // Use sendNowPlayingOnly() so we do NOT flush the retry queue on resume.
+            LastfmTrackInfo now;
+            if (getNowPlayingTrackInfo(now))
+                core.scrobbler().sendNowPlayingOnly(now);
+
+            // Do NOT retryAsync() here.
+            // Queue will be retried on natural boundaries (next track -> onNowPlaying, stop -> retryAsync, etc).
+        }
         else
+        {
             suspendCurrentUser();
+        }
         break;
+    }
 
     default:
         uBugCheck();

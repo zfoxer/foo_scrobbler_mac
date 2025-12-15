@@ -13,8 +13,8 @@
 #include <functional>
 #include <mutex>
 
-#include "lastfm_types.h"  // LastfmTrackInfo
-#include "lastfm_client.h" // LastfmClient
+#include "lastfm_types.h"
+#include "lastfm_client.h"
 
 class LastfmQueue
 {
@@ -40,6 +40,8 @@ class LastfmQueue
     {
         return retryInFlight.load();
     }
+    // Clear all pending scrobbles (persistent storage).
+    void clearAll();
 
   private:
     LastfmClient& client;

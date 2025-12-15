@@ -1,5 +1,5 @@
 ### Foo Scrobbler for Mac (c) 2025 by Konstantinos Kyriakopoulos
-#### Version: 0.7.6 — Released under GNU GPLv3
+#### Version: 0.7.7 — Released under GNU GPLv3
 
 ### Intro
 
@@ -55,8 +55,10 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
+0.7.7    2026-01-16    Fixed bug related to the behaviour while the user gets unauthenticated.
+                       Fixed policy issues related to disabling scrobbling.
 0.7.6    2025-12-14    Removed rule about the seekbar moves at first half of track which were cancelling the scrobble.
-                       Fixed queue policy regression from previous version.
+                       Fixed linear queue policy.
 0.7.5    2025-12-13    Not considering candidate scrobbles with garbage tag entries.
                        Added linear back-off retry strategy per scrobble for the queue.
                        Improved internal design.

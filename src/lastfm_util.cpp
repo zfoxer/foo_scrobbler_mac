@@ -138,7 +138,7 @@ bool httpPostToString(const char* url, pfc::string8& outBody, std::string& outEr
     return httpRequestToString("POST", url, outBody, outError);
 }
 
-// ---- Minimal JSON helpers ----
+// JSON helpers
 
 static const char* skipWs(const char* p)
 {

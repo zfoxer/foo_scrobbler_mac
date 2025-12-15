@@ -162,17 +162,22 @@ void LastfmQueue::refreshPendingScrobbleMetadata(const LastfmTrackInfo& track)
     std::lock_guard<std::mutex> lock(mutex);
     auto items = loadPendingScrobblesImpl();
 
-    // Update the most recent pending item that asked for refresh.
     for (auto it = items.rbegin(); it != items.rend(); ++it)
     {
         if (!it->refreshOnSubmit)
             continue;
 
         LFM_DEBUG("Queue: refresh metadata");
-        it->artist = track.artist;
-        it->title = track.title;
-        it->album = track.album;
-        it->durationSeconds = track.durationSeconds;
+
+        // Only overwrite with non-empty values
+        if (!track.artist.empty())
+            it->artist = track.artist;
+        if (!track.title.empty())
+            it->title = track.title;
+        if (!track.album.empty())
+            it->album = track.album;
+        if (track.durationSeconds > 0.0)
+            it->durationSeconds = track.durationSeconds;
 
         savePendingScrobblesImpl(items);
         return;
@@ -193,8 +198,6 @@ void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double pla
     q.playbackSeconds = playbackSeconds;
     q.startTimestamp = startTimestamp;
     q.refreshOnSubmit = refreshOnSubmit;
-    q.retryCount = 0;
-    q.nextRetryTimestamp = 0;
 
     std::lock_guard<std::mutex> lock(mutex);
     auto items = loadPendingScrobblesImpl();
@@ -216,7 +219,6 @@ void LastfmQueue::retryQueuedScrobbles()
         return;
 
     const std::time_t nowCheck = std::time(nullptr);
-
     std::vector<RetryUpdate> updates;
     updates.reserve(kMaxDispatchBatch);
 
@@ -225,14 +227,18 @@ void LastfmQueue::retryQueuedScrobbles()
 
     for (const auto& q : snapshot)
     {
-        if (invalidSessionSeen)
+        if (invalidSessionSeen || attempted >= kMaxDispatchBatch)
             break;
 
         if (q.nextRetryTimestamp > 0 && q.nextRetryTimestamp > nowCheck)
             continue;
 
-        if (attempted >= kMaxDispatchBatch)
-            break;
+        // Final mandatory-tag validation
+        if (q.artist.empty() || q.title.empty())
+        {
+            LFM_INFO("Queue: pending still invalid metadata, deferring.");
+            continue;
+        }
 
         ++attempted;
 
@@ -257,12 +263,9 @@ void LastfmQueue::retryQueuedScrobbles()
             break;
         }
 
-        // Linear backoff
         const std::time_t nowSchedule = std::time(nullptr);
-
         u.newRetryCount = std::min(q.retryCount + 1, 100);
-        const int delay = std::min(u.newRetryCount * kRetryStepSeconds, kRetryMaxSeconds);
-        u.newNextRetryTimestamp = nowSchedule + delay;
+        u.newNextRetryTimestamp = nowSchedule + std::min(u.newRetryCount * kRetryStepSeconds, kRetryMaxSeconds);
 
         updates.push_back(u);
     }
@@ -270,36 +273,32 @@ void LastfmQueue::retryQueuedScrobbles()
     if (updates.empty())
         return;
 
+    std::lock_guard<std::mutex> lock(mutex);
+    auto latest = loadPendingScrobblesImpl();
+
+    for (const auto& u : updates)
     {
-        std::lock_guard<std::mutex> lock(mutex);
-        auto latest = loadPendingScrobblesImpl();
-
-        for (const auto& u : updates)
+        for (auto it = latest.begin(); it != latest.end();)
         {
-            for (auto it = latest.begin(); it != latest.end();)
+            if (!sameKey(*it, u.key))
             {
-                if (!sameKey(*it, u.key))
-                {
-                    ++it;
-                    continue;
-                }
+                ++it;
+                continue;
+            }
 
-                if (u.remove)
-                {
-                    it = latest.erase(it);
-                }
-                else
-                {
-                    it->retryCount = u.newRetryCount;
-                    it->nextRetryTimestamp = u.newNextRetryTimestamp;
-                    ++it;
-                }
+            if (u.remove)
+                it = latest.erase(it);
+            else
+            {
+                it->retryCount = u.newRetryCount;
+                it->nextRetryTimestamp = u.newNextRetryTimestamp;
+                ++it;
             }
         }
-
-        savePendingScrobblesImpl(latest);
-        LFM_DEBUG("Queue: merge-save done, pending=" << (unsigned)latest.size());
     }
+
+    savePendingScrobblesImpl(latest);
+    LFM_DEBUG("Queue: merge-save done, pending=" << (unsigned)latest.size());
 }
 
 void LastfmQueue::retryQueuedScrobblesAsync()
@@ -326,13 +325,15 @@ std::size_t LastfmQueue::getPendingScrobbleCount() const
 bool LastfmQueue::hasDueScrobble(std::time_t now) const
 {
     std::lock_guard<std::mutex> lock(mutex);
-    auto items = loadPendingScrobblesImpl();
-
-    for (const auto& q : items)
-    {
+    for (const auto& q : loadPendingScrobblesImpl())
         if (q.nextRetryTimestamp == 0 || q.nextRetryTimestamp <= now)
             return true;
-    }
-
     return false;
+}
+
+void LastfmQueue::clearAll()
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    cfgLastfmPendingScrobbles.set("");
+    LFM_INFO("Queue: cleared all pending scrobbles.");
 }
