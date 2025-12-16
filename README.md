@@ -55,7 +55,7 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
-0.7.7    2026-01-16    Fixed bug related to the behaviour while the user gets unauthenticated.
+0.7.7    2025-12-15    Fixed bug related to the behaviour while the user gets unauthenticated.
                        Fixed policy issues related to disabling scrobbling.
 0.7.6    2025-12-14    Removed rule about the seekbar moves at first half of track which were cancelling the scrobble.
                        Fixed linear queue policy.
