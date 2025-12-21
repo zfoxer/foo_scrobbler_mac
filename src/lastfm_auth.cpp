@@ -1,7 +1,8 @@
-// lastfm_auth.cpp
-// foo_scrobbler_mac
 //
-// (c) 2025 by Konstantinos Kyriakopoulos
+//  lastfm_auth.cpp
+//  foo_scrobbler_mac
+//
+//  (c) 2025 by Konstantinos Kyriakopoulos
 //
 
 #include "lastfm_auth.h"

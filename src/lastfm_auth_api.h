@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+
 #include "lastfm_types.h"
 
 class ILastfmAuthApi

@@ -46,7 +46,29 @@ static std::string cleanTagValue(const char* value)
     if (norm == "unknown" || norm == "unknownartist" || norm == "unknowntrack")
         return {};
 
+    bool hasAlnum = false;
+    for (unsigned char c : s)
+    {
+        if (std::isalnum(c))
+        {
+            hasAlnum = true;
+            break;
+        }
+    }
+
+    if (!hasAlnum)
+        return {};
+
     return s;
+}
+
+static bool isTrackInMediaLibrary(const metadb_handle_ptr& track)
+{
+    if (!track.is_valid())
+        return false;
+
+    static_api_ptr_t<library_manager> lm;
+    return lm->is_item_in_library(track);
 }
 } // namespace
 
@@ -99,9 +121,9 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
 
 void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
 {
-    // Natural boundary: if we deferred an eligible scrobble for the previous track, submit now.
-    if (thresholdReachedButDeferred)
-        submitScrobbleIfNeeded();
+    // Natural boundary: submit previous track (if eligible) before switching state.
+    submitScrobbleIfNeeded();
+    LastfmCore::instance().scrobbler().retryAsync();
 
     resetState();
     isPlaying = true;
@@ -109,7 +131,19 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
 
     updateFromTrack(track);
 
-    // While suspended: no Now Playing behavior at all.
+    if (current.artist.empty() || current.title.empty())
+    {
+        LFM_INFO("Missing track info, not submitting.");
+        return;
+    }
+
+    if (lastfm_only_scrobble_from_media_library() && !isTrackInMediaLibrary(track))
+    {
+        LFM_DEBUG("Track skipped: not in Media Library.");
+        resetState();
+        return;
+    }
+
     if (lastfm_is_suspended())
         return;
 
@@ -125,7 +159,7 @@ void LastfmTracker::on_playback_time(double time)
 
     const bool suspended = lastfm_is_suspended();
 
-    // Policy B: while suspended, freeze scrobble progress (do not count time).
+    // Policy: while suspended, freeze scrobble progress (do not count time).
     if (!suspended)
     {
         if (isPlaying && current.durationSeconds > 0.0)
@@ -225,6 +259,13 @@ void LastfmTracker::submitScrobbleIfNeeded()
 
     if (!rules.shouldScrobble())
         return;
+
+    // Policy: Only submit from Media Library
+    if (lastfm_only_scrobble_from_media_library() && currentHandle.is_valid())
+    {
+        if (!isTrackInMediaLibrary(currentHandle))
+            return;
+    }
 
     const double duration = current.durationSeconds;
     if (duration < LastfmScrobbleConfig::MIN_TRACK_DURATION_SECONDS)

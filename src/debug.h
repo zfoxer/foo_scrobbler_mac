@@ -8,6 +8,7 @@
 #pragma once
 
 #include <atomic>
+
 #include <foobar2000/SDK/foobar2000.h>
 
 enum class LfmLogLevel : int
@@ -17,23 +18,16 @@ enum class LfmLogLevel : int
     DEBUG_LOG = 2
 };
 
-// Global log level (runtime adjustable)
 extern std::atomic<int> lfmLogLevel;
 
-inline bool shouldLogInfo()
-{
-    return lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::INFO);
-}
-
-inline bool shouldLogDebug()
-{
-    return lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::DEBUG_LOG);
-}
+// Defined in lastfm_prefs_pane.cpp
+void lastfm_sync_log_level_from_prefs();
 
 #define LFM_INFO(expr)                                                                                                 \
     do                                                                                                                 \
     {                                                                                                                  \
-        if (shouldLogInfo())                                                                                           \
+        lastfm_sync_log_level_from_prefs();                                                                            \
+        if (lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::INFO))                                                 \
         {                                                                                                              \
             console::formatter lfm_f;                                                                                  \
             lfm_f << "foo_scrobbler_mac: " << expr;                                                                    \
@@ -43,9 +37,10 @@ inline bool shouldLogDebug()
 #define LFM_DEBUG(expr)                                                                                                \
     do                                                                                                                 \
     {                                                                                                                  \
-        if (shouldLogDebug())                                                                                          \
+        lastfm_sync_log_level_from_prefs();                                                                            \
+        if (lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::DEBUG_LOG))                                            \
         {                                                                                                              \
-            console::formatter lfm_f;                                                                                  \
-            lfm_f << "foo_scrobbler_mac [DEBUG]: " << expr;                                                            \
+            console::formatter f;                                                                                      \
+            f << "foo_scrobbler_mac [DEBUG]: " << expr;                                                                \
         }                                                                                                              \
     } while (0)

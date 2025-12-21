@@ -13,6 +13,7 @@
 
 #include "lastfm_rules.h"
 #include "lastfm_track_info.h"
+#include "lastfm_prefs_pane.h"
 
 class LastfmTracker : public play_callback_static
 {
