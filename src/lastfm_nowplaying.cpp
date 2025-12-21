@@ -1,3 +1,4 @@
+//
 // lastfm_nowplaying.cpp
 // foo_scrobbler_mac
 //

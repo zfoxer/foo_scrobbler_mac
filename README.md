@@ -1,11 +1,11 @@
 ### Foo Scrobbler for Mac (c) 2025 by Konstantinos Kyriakopoulos
-#### Version: 0.7.7 — Released under GNU GPLv3
+#### Version: 0.9.5 — Released under GNU GPLv3
 
 ### Intro
 
 Foo Scrobbler is a native Last.fm scrobbling plugin for foobar2000 on macOS. Submits tracks based on precise playback rules, caches scrobbles when offline, and operates silently after one-time authentication. Built using the official foobar2000 plugin API, it focuses on reliability, low overhead, and correct metadata handling. Fully open-source under GPLv3.
 
-Supports macOS ≥ 11.5 on both Intel and ARM. Developed with foobar2000 SDK-2025-03-07.  
+Supports macOS ≥ 11.5 on both Intel and ARM.  
 
 
 ### Key Features
@@ -39,9 +39,9 @@ Supports macOS ≥ 11.5 on both Intel and ARM. Developed with foobar2000 SDK-202
 
 ### Usage
 
-Install the component **foo_scrobbler_mac.fb2k-component** from within foobar2000 for macOS by pointing to it from the components pane.  
+Install the component **foo_scrobbler_mac.fb2k-component** from within foobar2000 by pointing to it (i.e., add via '+') from the components section.  
 
-Authentication requires only an active Last.fm account. Users grant access once through the Last.fm website with their account, after which Foo Scrobbler runs quietly in the background and submits track information automatically. If authentication is cleared from the menu, the same user —or a different one— must grant access again through browser redirection to the Last.fm website. Foo Scrobbler adds a simple, convenient and non-intrusive last entry under Playback in the menu bar.  
+Authentication requires only an active Last.fm account. Users grant access once through the Last.fm website with their account, after which Foo Scrobbler runs quietly in the background and submits track information automatically. If authentication is cleared from the menu, the same user —or a different one— must grant access again through browser redirection to the Last.fm website. Foo Scrobbler adds a simple, convenient and non-intrusive last entry under Playback in the menu bar.  More options are located in Preferences → Advanced → Tools → Foo Scrobbler.
 
 
 ### Licensing Notice
@@ -55,18 +55,27 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
+0.9.5    2025-12-24    Introduced new configuration fields in Preferences → Advanced → Tools → Foo Scrobbler.
+                       Added option to only scrobble tracks from the media library.
+                       Added option to set the console info level: none, basic or debug.
+                       Added option to disable NowPlaying notifications.
+                       
 0.7.7    2025-12-15    Fixed bug related to the behaviour while the user gets unauthenticated.
                        Fixed policy issues related to disabling scrobbling.
+
 0.7.6    2025-12-14    Removed rule about the seekbar moves at first half of track which were cancelling the scrobble.
                        Fixed linear queue policy.
+
 0.7.5    2025-12-13    Not considering candidate scrobbles with garbage tag entries.
-                       Added linear back-off retry strategy per scrobble for the queue.
+                       Added linear back-off retry strategy per batch of scrobbles for the queue.
                        Improved internal design.
+
 0.7.3    2025-12-07    Improved management of the communication to Last.fm.
                        Improved internal timing system according to specifications.
                        When track tags change during playback, scrobbling will detect them and use the updated info.
                        Seeking across the submission mark with the slider (e.g., 50%) doesn’t cheat the scrobble.
                        Added option to enable/disable scrobbling while the user remains authenticated.
+
 0.7.0    2025-12-01    Initial release.
 </pre>
 

@@ -6,9 +6,8 @@
 //
 
 #include "lastfm_queue.h"
-
-#include "debug.h"
 #include "lastfm_client.h"
+#include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
 

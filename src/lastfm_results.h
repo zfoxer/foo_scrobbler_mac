@@ -1,5 +1,5 @@
 //
-//  LastfmScrobbleResult.h
+//  lastfm_results.h
 //  foo_scrobbler_mac
 //
 //  (c) 2025 by Konstantinos Kyriakopoulos.

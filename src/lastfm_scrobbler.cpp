@@ -6,10 +6,9 @@
 //
 
 #include "lastfm_scrobbler.h"
-
-#include "debug.h"
 #include "lastfm_client.h"
 #include "lastfm_ui.h"
+#include "debug.h"
 
 #include <ctime>
 #include <thread>
@@ -26,6 +25,9 @@ LastfmScrobbler::LastfmScrobbler(LastfmClient& client)
 void LastfmScrobbler::sendNowPlayingOnly(const LastfmTrackInfo& track)
 {
     if (!client.isAuthenticated() || client.isSuspended())
+        return;
+
+    if (lastfm_disable_nowplaying())
         return;
 
     std::thread([this, track]() { client.updateNowPlaying(track); }).detach();
@@ -51,6 +53,13 @@ void LastfmScrobbler::dispatchRetryIfDue(const char* reasonTag)
 
 void LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
 {
+    // Hard opt-out: NP disabled by prefs
+    if (lastfm_disable_nowplaying())
+    {
+        LFM_DEBUG("NowPlaying disabled by prefs.");
+        return;
+    }
+
     // Retry queue first (if authenticated), then do Now Playing.
     dispatchRetryIfDue("onNowPlaying");
 

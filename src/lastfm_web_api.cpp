@@ -1,16 +1,16 @@
-// lastfm_web_api.cpp
-// foo_scrobbler_mac
 //
-// (c) 2025 by Konstantinos Kyriakopoulos.
+//  lastfm_web_api.cpp
+//  foo_scrobbler_mac
+//
+//  (c) 2025 by Konstantinos Kyriakopoulos.
 //
 
 #include "lastfm_web_api.h"
-
 #include "lastfm_no.h"
 #include "lastfm_ui.h"
 #include "lastfm_util.h"
-#include "debug.h"
 #include "lastfm_nowplaying.h"
+#include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
 
