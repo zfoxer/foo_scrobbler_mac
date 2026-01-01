@@ -1,5 +1,5 @@
-### Foo Scrobbler for Mac (c) 2025 by Konstantinos Kyriakopoulos
-#### Version: 0.9.5 — Released under GNU GPLv3
+### Foo Scrobbler for Mac (c) 2025-2026 by Konstantinos Kyriakopoulos
+#### Version: 0.9.6 — Released under GNU GPLv3
 
 ### Intro
 
@@ -39,7 +39,7 @@ Supports macOS ≥ 11.5 on both Intel and ARM.
 
 ### Usage
 
-Install the component **foo_scrobbler_mac.fb2k-component** from within foobar2000 by pointing to it (i.e., add via '+') from the components section.  
+Install **foo_scrobbler_mac.fb2k-component** from within foobar2000 by pointing to it (that is, add via '+') from the components section.  
 
 Authentication requires only an active Last.fm account. Users grant access once through the Last.fm website with their account, after which Foo Scrobbler runs quietly in the background and submits track information automatically. If authentication is cleared from the menu, the same user —or a different one— must grant access again through browser redirection to the Last.fm website. Foo Scrobbler adds a simple, convenient and non-intrusive last entry under Playback in the menu bar.  More options are located in Preferences → Advanced → Tools → Foo Scrobbler.
 
@@ -55,6 +55,10 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
+0.9.6    2026-01-xx    If a different user authenticates, the local scrobble cache is cleared.
+                       Control the submission rate of the local scrobble cache to meet Last.fm requirements.
+                       Fixed bug when authentication was not completed the first time and restart was required.
+
 0.9.5    2025-12-24    Introduced new configuration fields in Preferences → Advanced → Tools → Foo Scrobbler.
                        Added option to only scrobble tracks from the media library.
                        Added option to set the console info level: none, basic or debug.
@@ -67,7 +71,7 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
                        Fixed linear queue policy.
 
 0.7.5    2025-12-13    Not considering candidate scrobbles with garbage tag entries.
-                       Added linear back-off retry strategy per batch of scrobbles for the queue.
+                       Added linear back-off retry strategy per scrobble for the queue.
                        Improved internal design.
 
 0.7.3    2025-12-07    Improved management of the communication to Last.fm.

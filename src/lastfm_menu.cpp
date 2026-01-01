@@ -2,13 +2,14 @@
 //  lastfm_menu.cpp
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //
 
 #include "lastfm_menu.h"
 #include "lastfm_ui.h"
 #include "lastfm_core.h"
 #include "lastfm_track_info.h"
+#include "lastfm_state.h"
 #include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
@@ -204,18 +205,21 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
             return;
 
         std::string url;
+
         if (!authenticator.hasPendingToken())
         {
-            if (authenticator.startAuth(url))
+            const bool ok = authenticator.startAuth(url);
+            if (ok && !url.empty())
             {
                 popup_message::g_show("A browser window will open to authorize this foobar2000 instance with Last.fm.\n"
                                       "After allowing access, return here and click Authenticate again.",
-                                      "Last.fm Scrobbler");
+                                      "Foo Scrobbler");
                 openBrowserUrl(url);
             }
             else
             {
-                popup_message::g_show("Failed to start authentication.", "Last.fm Scrobbler");
+                authenticator.logout(); // Clear any half-started state
+                popup_message::g_show("Failed to start authentication. Please try again.", "Foo Scrobbler");
             }
         }
         else
@@ -223,11 +227,48 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
             LastfmAuthState state;
             if (authenticator.completeAuth(state))
             {
-                popup_message::g_show("Authentication complete.", "Last.fm Scrobbler");
+                popup_message::g_show("Authentication complete.", "Foo Scrobbler");
+
+                auto& core = LastfmCore::instance();
+
+                // Prevent cross-account submission:
+                const pfc::string8 owner = lastfm_get_queue_owner_username();
+                const std::string newUser = state.username;
+
+                if (owner.is_empty())
+                {
+                    // First time: claim ownership.
+                    lastfm_set_queue_owner_username(newUser.c_str());
+                }
+                else if (std::string(owner.c_str()) != newUser)
+                {
+                    // Different user: wipe pending scrobbles before draining.
+                    core.scrobbler().clearQueue();
+                    lastfm_set_queue_owner_username(newUser.c_str());
+                }
+                // else same user -> keep queue as-is
+                core.scrobbler().onAuthenticationRecovered();
+                core.scrobbler().retryAsync();
             }
             else
             {
-                popup_message::g_show("Authentication failed.", "Last.fm Scrobbler");
+                // User likely closed browser or denied access. Reset and restart auth flow.
+                authenticator.logout();
+
+                std::string url2;
+                if (authenticator.startAuth(url2) && !url2.empty())
+                {
+                    popup_message::g_show(
+                        "Authorization was not completed. Let's try again.\n"
+                        "A browser window will open to authorize this foobar2000 instance with Last.fm.\n"
+                        "After allowing access, return here and click Authenticate again.",
+                        "Foo Scrobbler");
+                    openBrowserUrl(url2);
+                }
+                else
+                {
+                    popup_message::g_show("Authentication failed. Please try again.", "Foo Scrobbler");
+                }
             }
         }
         break;
@@ -236,11 +277,15 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
     case CMD_CLEAR_AUTH:
     {
         auto& core = LastfmCore::instance();
-        core.scrobbler().clearQueue();
+
+        // Do NOT clear the queue here anymore.
+        // Do NOT clear queue-owner either.
         core.scrobbler().resetInvalidSessionHandling();
         core.authenticator().logout();
 
-        popup_message::g_show("Stored Last.fm authentication has been cleared.", "Last.fm");
+        popup_message::g_show("Stored Last.fm authentication has been cleared.\n"
+                              "Pending scrobbles are kept for this user.",
+                              "Foo Scrobbler");
         break;
     }
 

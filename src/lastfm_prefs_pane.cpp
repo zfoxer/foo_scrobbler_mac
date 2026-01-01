@@ -2,7 +2,7 @@
 //  lastfm_prefs_pane.cpp
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //
 
 #include <foobar2000/SDK/advconfig.h>

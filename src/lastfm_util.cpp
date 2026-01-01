@@ -2,7 +2,7 @@
 //  lastfm_util.cpp
 //  foo_scrobbler_mac
 //
-//  Created by Konstantinos Kyriakopoulos on 14/12/25.
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //
 
 #include "lastfm_util.h"

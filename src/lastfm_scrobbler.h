@@ -2,7 +2,7 @@
 //  lastfm_scrobbler.h
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos.
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos.
 //
 
 #pragma once
@@ -31,6 +31,7 @@ class LastfmScrobbler
     void retryAsync();
     void clearQueue();
     void resetInvalidSessionHandling();
+    void onAuthenticationRecovered();
 
   private:
     void handleInvalidSessionOnce();

@@ -2,7 +2,7 @@
 //  lastfm_state.h
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //
 
 #pragma once
@@ -24,3 +24,8 @@ bool lastfm_is_suspended();
 void lastfm_clear_authentication();
 void lastfm_clear_suspension();
 void lastfm_suspend_current_user();
+
+// Queue ownership (prevents cross-account submission)
+pfc::string8 lastfm_get_queue_owner_username();
+void lastfm_set_queue_owner_username(const char* username);
+void lastfm_clear_queue_owner_username();

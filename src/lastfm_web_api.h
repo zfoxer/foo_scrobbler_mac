@@ -2,7 +2,7 @@
 //  lastfm_web_api.h
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //
 
 #pragma once

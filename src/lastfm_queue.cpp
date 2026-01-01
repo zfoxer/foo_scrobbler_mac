@@ -2,7 +2,7 @@
 //  lastfm_queue.cpp
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //
 
 #include "lastfm_queue.h"
@@ -18,13 +18,28 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <cstdint>
+#include <random>
 
 namespace
 {
 static const GUID GUID_CFG_LASTFM_PENDING_SCROBBLES = {
     0x9b3b2c41, 0x4c2d, 0x4d8f, {0x9a, 0xa1, 0x1e, 0x37, 0x5b, 0x6a, 0x82, 0x19}};
 
-static cfg_string cfgLastfmPendingScrobbles(GUID_CFG_LASTFM_PENDING_SCROBBLES, "");
+static const GUID GUID_CFG_LASTFM_DRAIN_COOLDOWN_SECS = {
+    0xad4ee3df, 0x0091, 0x4bc9, {0x8b, 0x31, 0x68, 0xa8, 0x09, 0x35, 0x2c, 0x46}};
+
+static const GUID GUID_CFG_LASTFM_DRAIN_ENABLED = {
+    0xff0d2adc, 0x0e4b, 0x436a, {0x88, 0xa2, 0x44, 0x98, 0x5c, 0x66, 0x83, 0xe5}};
+
+static const GUID GUID_CFG_LASTFM_DAILY_BUDGET = {
+    0x98b413ba, 0xfd05, 0x47c2, {0xb6, 0x5a, 0x94, 0xe4, 0xc1, 0x69, 0x81, 0x13}};
+
+static const GUID GUID_CFG_LASTFM_SCROBBLES_TODAY = {
+    0x1f309229, 0x43df, 0x44f4, {0xaf, 0x42, 0x68, 0x63, 0xc6, 0xb4, 0x6f, 0x11}};
+
+static const GUID GUID_CFG_LASTFM_DAY_STAMP = {
+    0xb9d93960, 0x37ab, 0x4bd5, {0x89, 0xb1, 0x9d, 0xd3, 0x09, 0x73, 0xea, 0xbd}};
 
 // Dispatch at most 10 per run
 static constexpr size_t kMaxDispatchBatch = 10;
@@ -32,9 +47,33 @@ static constexpr size_t kMaxDispatchBatch = 10;
 // Linear backoff: 60s, 120s, 180s… capped
 static constexpr int kRetryStepSeconds = 60;
 static constexpr int kRetryMaxSeconds = 60 * 60; // 1h cap
+// Ignore global cooldown if queue is small (UX-first)
+static constexpr size_t kCooldownMinQueueSize = 101; // cooldown applies only when pending >= 101
+
+static cfg_string cfgLastfmPendingScrobbles(GUID_CFG_LASTFM_PENDING_SCROBBLES, "");
+
+static cfg_int cfgLastfmDrainCooldownSeconds(GUID_CFG_LASTFM_DRAIN_COOLDOWN_SECS,
+                                             360 // 6 minutes
+);
+
+static cfg_int cfgLastfmDrainEnabled(GUID_CFG_LASTFM_DRAIN_ENABLED,
+                                     1 // enabled by default
+);
+
+static cfg_int cfgLastfmDailyBudget(GUID_CFG_LASTFM_DAILY_BUDGET,
+                                    2600 // safe default
+);
+
+static cfg_int cfgLastfmScrobblesToday(GUID_CFG_LASTFM_SCROBBLES_TODAY, 0);
+
+static cfg_int cfgLastfmDayStamp(GUID_CFG_LASTFM_DAY_STAMP, 0);
+
+static std::atomic<std::time_t> s_nextDrainAllowed{0};
+static std::atomic<std::time_t> s_nextAuthRetryAllowed{0};
 
 struct QueuedScrobble
 {
+    std::uint64_t id = 0;
     std::string artist;
     std::string title;
     std::string album;
@@ -42,19 +81,149 @@ struct QueuedScrobble
     double playbackSeconds = 0.0;
     std::time_t startTimestamp = 0;
     bool refreshOnSubmit = false;
-
     int retryCount = 0;
     std::time_t nextRetryTimestamp = 0;
 };
 
+static std::uint64_t fnv1a64_append(std::uint64_t h, const void* data, std::size_t n)
+{
+    const unsigned char* p = static_cast<const unsigned char*>(data);
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        h ^= static_cast<std::uint64_t>(p[i]);
+        h *= 1099511628211ull;
+    }
+    return h;
+}
+
+static std::uint64_t fnv1a64_str(std::uint64_t h, const std::string& s)
+{
+    return fnv1a64_append(h, s.data(), s.size());
+}
+
+static std::uint64_t computeLegacyId(const QueuedScrobble& q)
+{
+    std::uint64_t h = 1469598103934665603ull;
+    h = fnv1a64_str(h, q.artist);
+    h = fnv1a64_str(h, q.title);
+    h = fnv1a64_str(h, q.album);
+
+    const auto ts = static_cast<std::int64_t>(q.startTimestamp);
+    h = fnv1a64_append(h, &ts, sizeof(ts));
+
+    const auto dur = q.durationSeconds;
+    h = fnv1a64_append(h, &dur, sizeof(dur));
+
+    const auto pb = q.playbackSeconds;
+    h = fnv1a64_append(h, &pb, sizeof(pb));
+
+    const auto ro = static_cast<std::int32_t>(q.retryCount);
+    h = fnv1a64_append(h, &ro, sizeof(ro));
+
+    const auto nr = static_cast<std::int64_t>(q.nextRetryTimestamp);
+    h = fnv1a64_append(h, &nr, sizeof(nr));
+
+    const auto rf = static_cast<std::uint8_t>(q.refreshOnSubmit ? 1 : 0);
+    h = fnv1a64_append(h, &rf, sizeof(rf));
+
+    if (h == 0)
+        h = 1;
+    return h;
+}
+
+static std::uint64_t nextQueueId()
+{
+    static std::uint64_t base = []() -> std::uint64_t
+    {
+        std::random_device rd;
+        const std::uint64_t hi = static_cast<std::uint64_t>(rd());
+        const std::uint64_t lo = static_cast<std::uint64_t>(rd());
+        std::uint64_t v = (hi << 32) ^ lo;
+        if (v == 0)
+            v = 0x9e3779b97f4a7c15ull; // non-zero fallback
+        return v;
+    }();
+
+    static std::atomic<std::uint64_t> seq{0};
+    const std::uint64_t s = seq.fetch_add(1) + 1;
+    const std::uint64_t id = base ^ (s * 0x9e3779b97f4a7c15ull);
+    return id ? id : 1;
+}
+
+static std::string escapeField(const std::string& in)
+{
+    std::string out;
+    out.reserve(in.size());
+
+    for (char c : in)
+    {
+        switch (c)
+        {
+        case '\\':
+            out += "\\\\";
+            break;
+        case '\t':
+            out += "\\t";
+            break;
+        case '\n':
+            out += "\\n";
+            break;
+        case '\r':
+            out += "\\r";
+            break;
+        default:
+            out += c;
+            break;
+        }
+    }
+    return out;
+}
+
+static std::string unescapeField(const std::string& in)
+{
+    std::string out;
+    out.reserve(in.size());
+
+    for (size_t i = 0; i < in.size(); ++i)
+    {
+        if (in[i] == '\\' && i + 1 < in.size())
+        {
+            char n = in[i + 1];
+            switch (n)
+            {
+            case '\\':
+                out += '\\';
+                ++i;
+                continue;
+            case 't':
+                out += '\t';
+                ++i;
+                continue;
+            case 'n':
+                out += '\n';
+                ++i;
+                continue;
+            case 'r':
+                out += '\r';
+                ++i;
+                continue;
+            default:
+                break;
+            }
+        }
+        out += in[i];
+    }
+    return out;
+}
+
 static std::string serializeScrobble(const QueuedScrobble& q)
 {
     std::string out;
-    out += q.artist;
+    out += escapeField(q.artist);
     out += '\t';
-    out += q.title;
+    out += escapeField(q.title);
     out += '\t';
-    out += q.album;
+    out += escapeField(q.album);
     out += '\t';
     out += std::to_string(q.durationSeconds);
     out += '\t';
@@ -67,6 +236,8 @@ static std::string serializeScrobble(const QueuedScrobble& q)
     out += std::to_string(q.retryCount);
     out += '\t';
     out += std::to_string((long long)q.nextRetryTimestamp);
+    out += '\t';
+    out += std::to_string((unsigned long long)q.id);
     return out;
 }
 
@@ -106,9 +277,9 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
             continue;
 
         QueuedScrobble q;
-        q.artist = parts[0];
-        q.title = parts[1];
-        q.album = parts[2];
+        q.artist = unescapeField(parts[0]);
+        q.title = unescapeField(parts[1]);
+        q.album = unescapeField(parts[2]);
         q.durationSeconds = std::atof(parts[3].c_str());
         q.playbackSeconds = std::atof(parts[4].c_str());
         if (parts.size() > 5)
@@ -119,6 +290,13 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
             q.retryCount = std::atoi(parts[7].c_str());
         if (parts.size() > 8)
             q.nextRetryTimestamp = std::atoll(parts[8].c_str());
+        if (parts.size() > 9)
+            q.id = static_cast<std::uint64_t>(std::strtoull(parts[9].c_str(), nullptr, 10));
+        else
+            q.id = computeLegacyId(q);
+
+        if (q.id == 0)
+            q.id = computeLegacyId(q);
 
         result.push_back(q);
     }
@@ -137,18 +315,39 @@ static void savePendingScrobblesImpl(const std::vector<QueuedScrobble>& items)
     cfgLastfmPendingScrobbles.set(raw);
 }
 
-static bool sameKey(const QueuedScrobble& a, const QueuedScrobble& b)
-{
-    return a.startTimestamp == b.startTimestamp && a.artist == b.artist && a.title == b.title && a.album == b.album;
-}
-
 struct RetryUpdate
 {
-    QueuedScrobble key;
+    std::uint64_t id = 0;
     bool remove = false;
     int newRetryCount = 0;
     std::time_t newNextRetryTimestamp = 0;
 };
+
+static bool lastfmDailyBudgetExhausted()
+{
+    const std::time_t now = std::time(nullptr);
+    std::tm tmNow{};
+#if defined(_WIN32)
+    localtime_s(&tmNow, &now);
+#else
+    localtime_r(&now, &tmNow);
+#endif
+
+    const int todayStamp = (tmNow.tm_year + 1900) * 10000 + (tmNow.tm_mon + 1) * 100 + tmNow.tm_mday;
+
+    if (cfgLastfmDayStamp.get() != todayStamp)
+    {
+        cfgLastfmDayStamp.set(todayStamp);
+        cfgLastfmScrobblesToday.set(0);
+    }
+
+    const int64_t dailyBudget = static_cast<int64_t>(cfgLastfmDailyBudget.get());
+    const int64_t todayCount = static_cast<int64_t>(cfgLastfmScrobblesToday.get());
+    if (dailyBudget > 0 && todayCount >= dailyBudget)
+        return true;
+
+    return false;
+}
 } // namespace
 
 LastfmQueue::LastfmQueue(LastfmClient& client, std::function<void()> onInvalidSession)
@@ -197,6 +396,7 @@ void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double pla
     q.playbackSeconds = playbackSeconds;
     q.startTimestamp = startTimestamp;
     q.refreshOnSubmit = refreshOnSubmit;
+    q.id = nextQueueId();
 
     std::lock_guard<std::mutex> lock(mutex);
     auto items = loadPendingScrobblesImpl();
@@ -208,6 +408,9 @@ void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double pla
 
 void LastfmQueue::retryQueuedScrobbles()
 {
+    if (lastfmDailyBudgetExhausted())
+        return;
+
     std::vector<QueuedScrobble> snapshot;
     {
         std::lock_guard<std::mutex> lock(mutex);
@@ -245,18 +448,27 @@ void LastfmQueue::retryQueuedScrobbles()
         auto res = client.scrobble(t, q.playbackSeconds, q.startTimestamp);
 
         RetryUpdate u;
-        u.key = q;
+        u.id = q.id;
 
         if (res == LastfmScrobbleResult::SUCCESS)
         {
             u.remove = true;
             updates.push_back(u);
+
+            // Count only accepted scrobbles against daily budget
+            cfgLastfmScrobblesToday.set(cfgLastfmScrobblesToday.get() + 1);
+
             continue;
         }
 
         if (res == LastfmScrobbleResult::INVALID_SESSION)
         {
             invalidSessionSeen = true;
+
+            // Avoid thrashing: back off globally until auth is fixed.
+            const std::time_t now = std::time(nullptr);
+            s_nextAuthRetryAllowed.store(now + 3600); // 1 hour
+
             if (onInvalidSession)
                 onInvalidSession();
             break;
@@ -279,7 +491,7 @@ void LastfmQueue::retryQueuedScrobbles()
     {
         for (auto it = latest.begin(); it != latest.end();)
         {
-            if (!sameKey(*it, u.key))
+            if (it->id != u.id)
             {
                 ++it;
                 continue;
@@ -293,6 +505,9 @@ void LastfmQueue::retryQueuedScrobbles()
                 it->nextRetryTimestamp = u.newNextRetryTimestamp;
                 ++it;
             }
+
+            // IDs are unique. Once matched, stop scanning.
+            break;
         }
     }
 
@@ -302,9 +517,40 @@ void LastfmQueue::retryQueuedScrobbles()
 
 void LastfmQueue::retryQueuedScrobblesAsync()
 {
+    // Global drain enable switch
+    if (cfgLastfmDrainEnabled.get() == 0)
+        return;
+
+    const std::time_t now = std::time(nullptr);
+
+    if (now < s_nextAuthRetryAllowed.load())
+        return;
+
+    // If queue is small, ignore cooldown
+    const std::size_t pending = getPendingScrobbleCount();
+    const bool enforceCooldown = pending >= kCooldownMinQueueSize;
+
+    // Global cooldown gate (prevents hammering on frequent play/stop/seek triggers)
+    if (enforceCooldown && now < s_nextDrainAllowed.load())
+        return;
+
     bool expected = false;
     if (!retryInFlight.compare_exchange_strong(expected, true))
         return;
+
+    // Clamp cooldown to sane range and arm the next allowed drain time
+    int64_t cooldown = cfgLastfmDrainCooldownSeconds.get();
+    if (cooldown < 0)
+        cooldown = 0;
+    else if (cooldown > 3600)
+        cooldown = 3600;
+
+    // Only arm cooldown when we actually enforce it.
+    if (enforceCooldown)
+    {
+        const std::time_t next = now + static_cast<std::time_t>(cooldown);
+        s_nextDrainAllowed.store(next);
+    }
 
     std::thread(
         [this]()
@@ -335,4 +581,11 @@ void LastfmQueue::clearAll()
     std::lock_guard<std::mutex> lock(mutex);
     cfgLastfmPendingScrobbles.set("");
     LFM_INFO("Queue: cleared all pending scrobbles.");
+}
+
+void LastfmQueue::resetGlobalDrainGate()
+{
+    // Allow immediate drain attempt again.
+    s_nextDrainAllowed.store(0);
+    s_nextAuthRetryAllowed.store(0);
 }

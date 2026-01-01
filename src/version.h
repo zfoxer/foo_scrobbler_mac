@@ -2,10 +2,10 @@
 //  version.h
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos.
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos.
 //
 
 #pragma once
 
-#define FOOSCROBBLER_VERSION "0.9.5"
+#define FOOSCROBBLER_VERSION "0.9.6"
 #define FOOSCROBBLER_NAME "Foo Scrobbler"

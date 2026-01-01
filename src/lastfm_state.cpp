@@ -2,7 +2,7 @@
 //  lastfm_state.cpp
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //
 
 #include "lastfm_state.h"
@@ -24,6 +24,10 @@ static const GUID GUID_CFG_LASTFM_SESSION_KEY = {
 static const GUID GUID_CFG_LASTFM_SUSPENDED = {
     0xe09c5dbb, 0x8040, 0x4a89, {0x98, 0xc8, 0x0e, 0x0e, 0x42, 0x27, 0xcb, 0x56}};
 
+static const GUID GUID_CFG_LASTFM_QUEUE_OWNER_USERNAME = {
+    0xf2b6fd80, 0xa0eb, 0x4272, {0x82, 0x65, 0x9f, 0xfb, 0xb2, 0x68, 0xda, 0xc0}};
+
+static cfg_string cfgLastfmQueueOwner(GUID_CFG_LASTFM_QUEUE_OWNER_USERNAME, "");
 static cfg_bool cfgLastfmAuthenticated(GUID_CFG_LASTFM_AUTHENTICATED, false);
 static cfg_string cfgLastfmUsername(GUID_CFG_LASTFM_USERNAME, "");
 static cfg_string cfgLastfmSessionKey(GUID_CFG_LASTFM_SESSION_KEY, "");
@@ -113,4 +117,22 @@ void lastfm_suspend_current_user()
     pfc::string_formatter f;
     f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
     LFM_INFO(f.c_str());
+}
+
+pfc::string8 lastfm_get_queue_owner_username()
+{
+    std::lock_guard<std::mutex> lock(authMutex);
+    return cfgLastfmQueueOwner.get();
+}
+
+void lastfm_set_queue_owner_username(const char* username)
+{
+    std::lock_guard<std::mutex> lock(authMutex);
+    cfgLastfmQueueOwner.set(username ? username : "");
+}
+
+void lastfm_clear_queue_owner_username()
+{
+    std::lock_guard<std::mutex> lock(authMutex);
+    cfgLastfmQueueOwner.set("");
 }

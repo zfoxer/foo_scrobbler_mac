@@ -2,7 +2,7 @@
 //  lastfm_queue.h
 //  foo_scrobbler_mac
 //
-//  (c) 2025 by Konstantinos Kyriakopoulos
+//  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //
 
 #pragma once
@@ -40,8 +40,12 @@ class LastfmQueue
     {
         return retryInFlight.load();
     }
+
     // Clear all pending scrobbles (persistent storage).
     void clearAll();
+
+    // Clears the global drain cooldown gate (used to back off after INVALID_SESSION).
+    static void resetGlobalDrainGate();
 
   private:
     LastfmClient& client;
