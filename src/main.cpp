@@ -9,6 +9,7 @@
 
 #include "version.h"
 #include "debug.h"
+#include "lastfm_core.h"
 
 // Component GUID
 static const GUID FOO_SCROBBLER_MAC_GUID = {
@@ -35,7 +36,7 @@ class FooScrobblerMacComponent : public initquit
 
     void on_quit() override
     {
-        // No cleanup needed
+        LastfmCore::instance().scrobbler().shutdown();
     }
 };
 

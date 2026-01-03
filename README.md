@@ -55,9 +55,10 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
-0.9.6    2026-01-xx    If a different user authenticates, the local scrobble cache is cleared.
-                       Control the submission rate of the local scrobble cache to meet Last.fm requirements.
-                       Fixed bug when authentication was not completed the first time and restart was required.
+0.9.6    2026-01-04    If a different user authenticates, the local scrobble cache is cleared.
+                       Controlling the submission rate of the local scrobble cache to meet Last.fm requirements.
+                       Fixed bug when authentication was not completed the first time and fbar restart was required.
+                       Refactored the internal thread system.
 
 0.9.5    2025-12-24    Introduced new configuration fields in Preferences → Advanced → Tools → Foo Scrobbler.
                        Added option to only scrobble tracks from the media library.

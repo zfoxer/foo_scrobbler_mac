@@ -10,49 +10,74 @@
 #include "lastfm_ui.h"
 #include "debug.h"
 
+#include <foobar2000/SDK/main_thread_callback.h>
+#include <foobar2000/SDK/popup_message.h>
+
 #include <ctime>
 #include <thread>
 #include <chrono>
 
 LastfmScrobbler::LastfmScrobbler(LastfmClient& client)
-    : client(client), queue(client, [this]() { handleInvalidSessionOnce(); })
+    : client(client), queue(client, [this]() { handleInvalidSessionOnce(); }),
+      worker(client, queue,
+             []
+             {
+                 LastfmWorker::Config c;
+                 c.drainEnabled = &LastfmQueue::drainEnabled;
+                 c.drainMinInterval = LastfmQueue::drainCooldown();
+                 return c;
+             }())
 {
+    queue.setShuttingDownFlag(&shuttingDown);
+    worker.start();
     LFM_DEBUG("Startup: authenticated=" << (client.isAuthenticated() ? "yes" : "no")
                                         << " suspended=" << (client.isSuspended() ? "yes" : "no")
                                         << " pending=" << (unsigned)queue.getPendingScrobbleCount());
 }
 
+LastfmScrobbler::~LastfmScrobbler()
+{
+    shutdown();
+}
+
 void LastfmScrobbler::sendNowPlayingOnly(const LastfmTrackInfo& track)
 {
+    if (core_api::is_shutting_down() || shuttingDown.load(std::memory_order_acquire))
+        return;
+
     if (!client.isAuthenticated() || client.isSuspended())
         return;
 
     if (lastfm_disable_nowplaying())
         return;
 
-    std::thread([this, track]() { client.updateNowPlaying(track); }).detach();
+    worker.postNowPlaying(track);
 }
 
 void LastfmScrobbler::dispatchRetryIfDue(const char* reasonTag)
 {
+    if (core_api::is_shutting_down() || shuttingDown.load(std::memory_order_acquire))
+        return;
+
     if (!client.isAuthenticated() || client.isSuspended())
         return;
 
     const std::time_t now = std::time(nullptr);
     const std::size_t pending = queue.getPendingScrobbleCount();
     const bool due = pending > 0 ? queue.hasDueScrobble(now) : false;
-    const bool inflight = queue.isRetryInFlight();
 
-    LFM_DEBUG("Dispatch gate (" << reasonTag << "): due=" << (due ? "yes" : "no") << " pending=" << (unsigned)pending
-                                << " inflight=" << (inflight ? "yes" : "no"));
+    LFM_DEBUG("Dispatch gate (" << reasonTag << "): due=" << (due ? "yes" : "no") << " pending=" << (unsigned)pending);
 
     // Only dispatch if due and no worker is already running.
-    if (due && !inflight)
-        queue.retryQueuedScrobblesAsync();
+    if (due)
+        worker.postDrain();
 }
 
 void LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
 {
+    if (core_api::is_shutting_down() || shuttingDown.load(std::memory_order_acquire))
+        return;
+
     // Hard opt-out: NP disabled by prefs
     if (lastfm_disable_nowplaying())
     {
@@ -66,15 +91,7 @@ void LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
     if (!client.isAuthenticated() || client.isSuspended())
         return;
 
-    // Avoid overlapping HTTP traffic: don't send NowPlaying while a retry worker is in flight.
-    if (queue.isRetryInFlight())
-    {
-        LFM_DEBUG("NowPlaying: retry in flight, deferring.");
-        deferNowPlayingAfterRetry(track);
-        return;
-    }
-
-    sendNowPlayingOnly(track);
+    worker.postNowPlaying(track);
 }
 
 void LastfmScrobbler::refreshPendingMetadata(const LastfmTrackInfo& track)
@@ -85,6 +102,9 @@ void LastfmScrobbler::refreshPendingMetadata(const LastfmTrackInfo& track)
 void LastfmScrobbler::queueScrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startWallclock,
                                     bool refreshOnSubmit)
 {
+    if (core_api::is_shutting_down() || shuttingDown.load(std::memory_order_acquire))
+        return;
+
     if (!client.isAuthenticated() || client.isSuspended())
         return;
 
@@ -93,22 +113,34 @@ void LastfmScrobbler::queueScrobble(const LastfmTrackInfo& track, double playbac
 
 void LastfmScrobbler::retryAsync()
 {
-    dispatchRetryIfDue("retryAsync");
+    if (core_api::is_shutting_down())
+        return;
+
+    worker.postDrain();
 }
 
 void LastfmScrobbler::handleInvalidSessionOnce()
 {
-    if (invalidSessionHandled)
+    if (core_api::is_shutting_down() || shuttingDown.load())
         return;
 
-    invalidSessionHandled = true;
+    if (invalidSessionHandled.exchange(true))
+        return;
 
     LFM_INFO("Invalid session detected. Clearing auth once.");
 
-    clearAuthentication();
-    popup_message::g_show("Your Last.fm session is no longer valid.\n"
-                          "Please authenticate again from the Last.fm menu.",
-                          "Last.fm Scrobbler");
+    worker.postInvalidSession(); // block side-effects immediately (thread-safe)
+
+    fb2k::inMainThread(
+        [this]
+        {
+            if (shuttingDown.load())
+                return;
+            clearAuthentication();
+            popup_message::g_show("Your Last.fm session is no longer valid.\n"
+                                  "Please authenticate again from the Last.fm menu.",
+                                  "Last.fm Scrobbler");
+        });
 }
 
 void LastfmScrobbler::clearQueue()
@@ -118,56 +150,21 @@ void LastfmScrobbler::clearQueue()
 
 void LastfmScrobbler::resetInvalidSessionHandling()
 {
-    invalidSessionHandled = false;
-}
-
-void LastfmScrobbler::deferNowPlayingAfterRetry(const LastfmTrackInfo& track)
-{
-    const uint64_t epoch = nowPlayingEpoch.fetch_add(1) + 1;
-
-    {
-        std::lock_guard<std::mutex> lock(nowPlayingMutex);
-        deferredNowPlayingTrack = track;
-    }
-
-    std::thread(
-        [this, epoch]()
-        {
-            // Wait until retry finishes (bounded wait).
-            for (int i = 0; i < 1000; ++i) // ~10 seconds at 10ms
-            {
-                if (!queue.isRetryInFlight())
-                    break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
-
-            // Only the latest deferred request should fire.
-            if (nowPlayingEpoch.load() != epoch)
-                return;
-
-            if (!client.isAuthenticated() || client.isSuspended())
-                return;
-
-            LastfmTrackInfo t;
-            {
-                std::lock_guard<std::mutex> lock(nowPlayingMutex);
-                t = deferredNowPlayingTrack;
-            }
-
-            // Final sanity: Don't send garbage NP.
-            if (t.artist.empty() || t.title.empty())
-                return;
-
-            LFM_DEBUG("NowPlaying: sending deferred update after retry.");
-            sendNowPlayingOnly(t);
-        })
-        .detach();
+    invalidSessionHandled.store(false);
 }
 
 void LastfmScrobbler::onAuthenticationRecovered()
 {
     // Lift invalid-session backoff ONLY
-    LastfmQueue::resetGlobalDrainGate();
-
     resetInvalidSessionHandling();
+    worker.postAuthRecovered();
+}
+
+void LastfmScrobbler::shutdown()
+{
+    // idempotent
+    if (shuttingDown.exchange(true))
+        return;
+
+    worker.stop();
 }
