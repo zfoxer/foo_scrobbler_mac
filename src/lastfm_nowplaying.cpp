@@ -17,8 +17,12 @@
 #include <string>
 #include <cstring>
 
-bool sendNowPlaying(const std::string& artist, const std::string& title, const std::string& album,
-                    double durationSeconds)
+namespace
+{
+
+static bool buildNowPlayingParams(std::map<std::string, std::string>& params, std::string& apiSecretOut,
+                                  const std::string& artist, const std::string& title, const std::string& album,
+                                  double durationSeconds)
 {
     LastfmAuthState state = getAuthState();
     if (!state.isAuthenticated || state.sessionKey.empty())
@@ -42,7 +46,9 @@ bool sendNowPlaying(const std::string& artist, const std::string& title, const s
         return false;
     }
 
-    std::map<std::string, std::string> params = {
+    apiSecretOut = apiSecret;
+
+    params = {
         {"api_key", apiKey},      {"artist", artist}, {"track", title}, {"method", "track.updateNowPlaying"},
         {"sk", state.sessionKey},
     };
@@ -56,6 +62,11 @@ bool sendNowPlaying(const std::string& artist, const std::string& title, const s
         params["duration"] = std::to_string(dur);
     }
 
+    return true;
+}
+
+static pfc::string8 buildNowPlayingUrl(const std::map<std::string, std::string>& params, const std::string& apiSecret)
+{
     std::string sigSrc;
     for (const auto& kv : params)
     {
@@ -81,11 +92,15 @@ bool sendNowPlaying(const std::string& artist, const std::string& title, const s
     }
 
     url << "&api_sig=" << apiSig.c_str() << "&format=json";
+    return url;
+}
 
+static bool postNowPlayingAndInterpret(const char* urlCStr)
+{
     pfc::string8 body;
     std::string httpError;
 
-    if (!lastfm::util::httpPostToString(url.c_str(), body, httpError))
+    if (!lastfm::util::httpPostToString(urlCStr, body, httpError))
     {
         LFM_INFO("NowPlaying: HTTP request failed: " << (httpError.empty() ? "unknown error" : httpError.c_str()));
         return false;
@@ -117,4 +132,19 @@ bool sendNowPlaying(const std::string& artist, const std::string& title, const s
     LFM_INFO("NowPlaying: API error " << apiInfo.errorCode << (apiInfo.message.empty() ? "" : ": ")
                                       << apiInfo.message.c_str());
     return false;
+}
+
+} // namespace
+
+bool sendNowPlaying(const std::string& artist, const std::string& title, const std::string& album,
+                    double durationSeconds)
+{
+    std::map<std::string, std::string> params;
+    std::string apiSecret;
+
+    if (!buildNowPlayingParams(params, apiSecret, artist, title, album, durationSeconds))
+        return false;
+
+    const pfc::string8 url = buildNowPlayingUrl(params, apiSecret);
+    return postNowPlayingAndInterpret(url.c_str());
 }
