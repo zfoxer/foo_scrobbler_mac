@@ -15,6 +15,15 @@ namespace lastfm
 {
 namespace util
 {
+struct LastfmApiErrorInfo
+{
+    bool hasJson = false;
+    bool hasError = false;
+    int errorCode = 0;
+    std::string message;
+};
+LastfmApiErrorInfo extractLastfmApiError(const char* body);
+
 std::string md5HexLower(const std::string& data);
 std::string urlEncode(const std::string& value);
 

@@ -17,36 +17,6 @@
 #include <string>
 #include <cstring>
 
-namespace
-{
-static bool responseIsInvalidSession(const char* body)
-{
-    if (!body || !*body)
-        return false;
-
-    int errCode = 0;
-    if (lastfm::util::jsonFindIntValue(body, "error", errCode))
-    {
-        if (errCode == 9)
-            return true;
-    }
-
-    // Fallback: message string may include this text.
-    std::string msg;
-    if (lastfm::util::jsonFindStringValue(body, "message", msg))
-    {
-        if (msg.find("Invalid session key") != std::string::npos)
-            return true;
-    }
-
-    // Ultra-fallback: keep original heuristic.
-    if (std::strstr(body, "Invalid session key"))
-        return true;
-
-    return false;
-}
-} // namespace
-
 bool sendNowPlaying(const std::string& artist, const std::string& title, const std::string& album,
                     double durationSeconds)
 {
@@ -124,19 +94,27 @@ bool sendNowPlaying(const std::string& artist, const std::string& title, const s
     const char* bodyC = body.c_str();
     LFM_DEBUG("NowPlaying response received. (size=" << body.get_length() << ")");
 
-    // Success is: no "error" key in JSON.
-    if (!lastfm::util::jsonHasKey(bodyC, "error"))
+    lastfm::util::LastfmApiErrorInfo apiInfo = lastfm::util::extractLastfmApiError(bodyC);
+
+    if (!apiInfo.hasJson)
+    {
+        LFM_INFO("NowPlaying: response is not valid JSON (size=" << body.get_length() << ")");
+        return false;
+    }
+
+    if (!apiInfo.hasError)
     {
         LFM_DEBUG("NowPlaying OK.");
         return true;
     }
 
-    if (responseIsInvalidSession(bodyC))
+    if (apiInfo.errorCode == 9)
     {
         LFM_INFO("NowPlaying: invalid session key (ignored here, scrobble path will clear auth).");
         return false;
     }
 
-    LFM_INFO("NowPlaying: API error.");
+    LFM_INFO("NowPlaying: API error " << apiInfo.errorCode << (apiInfo.message.empty() ? "" : ": ")
+                                      << apiInfo.message.c_str());
     return false;
 }

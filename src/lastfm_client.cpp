@@ -11,12 +11,12 @@
 
 bool LastfmClient::isSuspended() const
 {
-    return lastfm_is_suspended();
+    return lastfmIsSuspended();
 }
 
 bool LastfmClient::isAuthenticated() const
 {
-    return lastfm_is_authenticated();
+    return lastfmIsAuthenticated();
 }
 
 bool LastfmClient::updateNowPlaying(const LastfmTrackInfo& track)

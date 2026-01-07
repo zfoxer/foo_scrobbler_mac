@@ -137,14 +137,14 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
         return;
     }
 
-    if (lastfm_only_scrobble_from_media_library() && !isTrackInMediaLibrary(track))
+    if (lastfmOnlyScrobbleFromMediaLibrary() && !isTrackInMediaLibrary(track))
     {
         LFM_DEBUG("Track skipped: not in Media Library.");
         resetState();
         return;
     }
 
-    if (lastfm_is_suspended())
+    if (lastfmIsSuspended())
         return;
 
     LFM_DEBUG("Now playing: " << current.artist.c_str() << " - " << current.title.c_str());
@@ -157,7 +157,7 @@ void LastfmTracker::on_playback_time(double time)
 {
     playbackTime = time;
 
-    const bool suspended = lastfm_is_suspended();
+    const bool suspended = lastfmIsSuspended();
 
     // Policy: while suspended, freeze scrobble progress (do not count time).
     if (!suspended)
@@ -261,7 +261,7 @@ void LastfmTracker::submitScrobbleIfNeeded()
         return;
 
     // Policy: Only submit from Media Library
-    if (lastfm_only_scrobble_from_media_library() && currentHandle.is_valid())
+    if (lastfmOnlyScrobbleFromMediaLibrary() && currentHandle.is_valid())
     {
         if (!isTrackInMediaLibrary(currentHandle))
             return;
@@ -301,13 +301,13 @@ void LastfmTracker::submitScrobbleIfNeeded()
     pendingDueToMissingMetadata = false;
 
     // Eligible, but suspended -> remember and defer.
-    if (lastfm_is_suspended())
+    if (lastfmIsSuspended())
     {
         thresholdReachedButDeferred = true;
         return;
     }
 
-    if (!lastfm_is_authenticated())
+    if (!lastfmIsAuthenticated())
         return;
 
     scrobbleSent = true;

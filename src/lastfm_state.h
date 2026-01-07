@@ -12,20 +12,20 @@
 // cfg-backed state (no UI, no dialogs)
 
 // Returns the current cached auth state (from config)
-LastfmAuthState lastfm_get_auth_state();
+LastfmAuthState lastfmGetAuthState();
 
 // Used by the auth layer to persist successful auth.
-void lastfm_set_auth_state(const LastfmAuthState& state);
+void lastfmSetAuthState(const LastfmAuthState& state);
 
-bool lastfm_is_authenticated();
-bool lastfm_is_suspended();
+bool lastfmIsAuthenticated();
+bool lastfmIsSuspended();
 
 // Mutators
-void lastfm_clear_authentication();
-void lastfm_clear_suspension();
-void lastfm_suspend_current_user();
+void lastfmClearAuthentication();
+void lastfmClearSuspension();
+void lastfmSuspendCurrentUser();
 
 // Queue ownership (prevents cross-account submission)
-pfc::string8 lastfm_get_queue_owner_username();
-void lastfm_set_queue_owner_username(const char* username);
-void lastfm_clear_queue_owner_username();
+pfc::string8 lastfmGetQueueOwnerUsername();
+void lastfmSetQueueOwnerUsername(const char* username);
+void lastfmClearQueueOwnerUsername();

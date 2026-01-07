@@ -32,4 +32,4 @@ void setPrefsPaneRadioChoice(int value); // clamps to [0..2]
 bool getPrefsPaneCheckbox();
 void setPrefsPaneCheckbox(bool enabled);
 
-bool lastfm_disable_nowplaying();
+bool lastfmDisableNowplaying();

@@ -21,12 +21,12 @@ enum class LfmLogLevel : int
 extern std::atomic<int> lfmLogLevel;
 
 // Defined in lastfm_prefs_pane.cpp
-void lastfm_sync_log_level_from_prefs();
+void lastfmSyncLogLevelFromPrefs();
 
 #define LFM_INFO(expr)                                                                                                 \
     do                                                                                                                 \
     {                                                                                                                  \
-        lastfm_sync_log_level_from_prefs();                                                                            \
+        lastfmSyncLogLevelFromPrefs();                                                                                 \
         if (lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::INFO))                                                 \
         {                                                                                                              \
             console::formatter lfm_f;                                                                                  \
@@ -37,7 +37,7 @@ void lastfm_sync_log_level_from_prefs();
 #define LFM_DEBUG(expr)                                                                                                \
     do                                                                                                                 \
     {                                                                                                                  \
-        lastfm_sync_log_level_from_prefs();                                                                            \
+        lastfmSyncLogLevelFromPrefs();                                                                                 \
         if (lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::DEBUG_LOG))                                            \
         {                                                                                                              \
             console::formatter f;                                                                                      \

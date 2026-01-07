@@ -48,7 +48,7 @@ void LastfmScrobbler::sendNowPlayingOnly(const LastfmTrackInfo& track)
     if (!client.isAuthenticated() || client.isSuspended())
         return;
 
-    if (lastfm_disable_nowplaying())
+    if (lastfmDisableNowplaying())
         return;
 
     worker.postNowPlaying(track);
@@ -79,7 +79,7 @@ void LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
         return;
 
     // Hard opt-out: NP disabled by prefs
-    if (lastfm_disable_nowplaying())
+    if (lastfmDisableNowplaying())
     {
         LFM_DEBUG("NowPlaying disabled by prefs.");
         return;

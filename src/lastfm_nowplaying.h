@@ -10,7 +10,7 @@
 #include <string>
 
 // Sends a Last.fm track.updateNowPlaying request for the given track.
-// Returns true if the HTTP request completed successfully (not necessarily
-// that Last.fm accepted it), false on network/HTTP failure.
+// Returns true if Last.fm responds with valid JSON and no API error.
+// Returns false on HTTP failure, invalid JSON, or API error.
 bool sendNowPlaying(const std::string& artist, const std::string& title, const std::string& album,
                     double durationSeconds);

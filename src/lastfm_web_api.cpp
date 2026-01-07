@@ -19,28 +19,104 @@
 #include <cstring>
 #include <map>
 #include <string>
+#include <cassert>
 
 namespace
 {
-static bool iContains(const std::string& haystack, const char* needle)
+struct ApiOutcome
 {
-    if (!needle || !*needle)
-        return false;
+    LastfmScrobbleResult result = LastfmScrobbleResult::OTHER_ERROR;
+    int apiError = 0;
+    std::string apiMessage;
+    bool hasJson = false;
+};
 
-    auto lower = [](unsigned char c) { return (unsigned char)std::tolower(c); };
+static ApiOutcome classifyResponse(bool httpOk, const std::string& httpError, const pfc::string8& body)
+{
+    ApiOutcome out;
 
-    std::string h;
-    h.reserve(haystack.size());
-    for (unsigned char c : haystack)
-        h.push_back((char)lower(c));
+    // Transport failure
+    if (!httpOk)
+    {
+        LFM_INFO("Last.fm HTTP failure: " << (httpError.empty() ? "unknown error" : httpError.c_str()));
+        out.result = LastfmScrobbleResult::TEMPORARY_ERROR;
+        return out;
+    }
 
-    std::string n;
-    n.reserve(std::strlen(needle));
-    for (const char* p = needle; *p; ++p)
-        n.push_back((char)lower((unsigned char)*p));
+    const char* bodyC = body.c_str();
 
-    return h.find(n) != std::string::npos;
+    lastfm::util::LastfmApiErrorInfo apiInfo = lastfm::util::extractLastfmApiError(bodyC);
+
+    if (!apiInfo.hasJson)
+    {
+        LFM_INFO("Last.fm response is not valid JSON (size=" << body.get_length() << ")");
+        out.result = LastfmScrobbleResult::TEMPORARY_ERROR;
+        return out;
+    }
+
+    out.hasJson = true;
+
+    if (apiInfo.hasError)
+    {
+        out.apiError = apiInfo.errorCode;
+        out.apiMessage = apiInfo.message;
+
+        switch (apiInfo.errorCode)
+        {
+        case 9:
+            out.result = LastfmScrobbleResult::INVALID_SESSION;
+            break;
+
+        case 11:
+        case 16:
+            out.result = LastfmScrobbleResult::TEMPORARY_ERROR;
+            break;
+
+        default:
+            out.result = LastfmScrobbleResult::OTHER_ERROR;
+            break;
+        }
+
+        LFM_INFO("Last.fm API error " << apiInfo.errorCode << (apiInfo.message.empty() ? "" : ": ")
+                                      << apiInfo.message.c_str());
+        return out;
+    }
+
+    // Success
+    out.result = LastfmScrobbleResult::SUCCESS;
+    return out;
 }
+
+#ifdef LFM_DEBUG
+
+static void selfTest_extractLastfmApiError()
+{
+    {
+        auto info = lastfm::util::extractLastfmApiError(nullptr);
+        assert(!info.hasJson);
+    }
+
+    {
+        auto info = lastfm::util::extractLastfmApiError("not json at all");
+        assert(!info.hasJson);
+    }
+
+    {
+        auto info = lastfm::util::extractLastfmApiError("{\"foo\":1}");
+        assert(info.hasJson);
+        assert(!info.hasError);
+    }
+
+    {
+        auto info = lastfm::util::extractLastfmApiError("{\"error\":9,\"message\":\"Invalid session key\"}");
+        assert(info.hasJson);
+        assert(info.hasError);
+        assert(info.errorCode == 9);
+        assert(!info.message.empty());
+    }
+}
+
+#endif
 } // namespace
 
 bool LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
@@ -51,6 +127,10 @@ bool LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
 LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
                                             std::time_t startTimestamp)
 {
+#ifdef LFM_DEBUG
+    static bool tested = (selfTest_extractLastfmApiError(), true);
+#endif
+
     LastfmAuthState authState = getAuthState();
     if (!authState.isAuthenticated || authState.sessionKey.empty())
     {
@@ -119,43 +199,14 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
     pfc::string8 body;
     std::string httpError;
 
-    if (!lastfm::util::httpPostToString(url.c_str(), body, httpError))
-    {
-        if (!httpError.empty() && (iContains(httpError, "403") || iContains(httpError, "forbidden")))
-        {
-            LFM_INFO("Scrobble: HTTP 403 / Forbidden (" << httpError.c_str() << "). Treating as invalid session.");
-            return LastfmScrobbleResult::INVALID_SESSION;
-        }
+    bool httpOk = lastfm::util::httpPostToString(url.c_str(), body, httpError);
 
-        LFM_INFO("Scrobble: HTTP request failed: " << (httpError.empty() ? "unknown error" : httpError.c_str()));
-        return LastfmScrobbleResult::TEMPORARY_ERROR;
-    }
+    ApiOutcome outcome = classifyResponse(httpOk, httpError, body);
 
-    const char* bodyC = body.c_str();
-    LFM_DEBUG("Scrobble response received. (size=" << body.get_length() << ")");
-
-    if (!lastfm::util::jsonHasKey(bodyC, "error"))
+    if (outcome.result == LastfmScrobbleResult::SUCCESS)
     {
         LFM_DEBUG("Scrobble OK: " << track.artist.c_str() << " - " << track.title.c_str());
-        return LastfmScrobbleResult::SUCCESS;
     }
 
-    int errCode = 0;
-    if (lastfm::util::jsonFindIntValue(bodyC, "error", errCode))
-    {
-        if (errCode == 9)
-        {
-            LFM_INFO("Scrobble failed: Invalid session key (API error 9).");
-            return LastfmScrobbleResult::INVALID_SESSION;
-        }
-
-        if (errCode == 11 || errCode == 16)
-        {
-            LFM_INFO("Scrobble failed: Temporary Last.fm API error (" << errCode << ").");
-            return LastfmScrobbleResult::TEMPORARY_ERROR;
-        }
-    }
-
-    LFM_INFO("Scrobble failed: API error.");
-    return LastfmScrobbleResult::OTHER_ERROR;
+    return outcome.result;
 }

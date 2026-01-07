@@ -8,7 +8,7 @@
 #pragma once
 
 // Advanced Preferences registration (Preferences → Advanced).
-void lastfm_register_prefs_pane();
+void lastfmRegisterPrefsPane();
 
 // Advanced → Tools → Foo Scrobbler → Scrobbling
-bool lastfm_only_scrobble_from_media_library();
+bool lastfmOnlyScrobbleFromMediaLibrary();

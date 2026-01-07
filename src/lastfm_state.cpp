@@ -35,7 +35,7 @@ static cfg_bool cfgLastfmSuspended(GUID_CFG_LASTFM_SUSPENDED, false);
 
 static std::mutex authMutex;
 
-LastfmAuthState lastfm_get_auth_state()
+LastfmAuthState lastfmGetAuthState()
 {
     std::lock_guard<std::mutex> lock(authMutex);
     LastfmAuthState state;
@@ -46,7 +46,7 @@ LastfmAuthState lastfm_get_auth_state()
     return state;
 }
 
-void lastfm_set_auth_state(const LastfmAuthState& state)
+void lastfmSetAuthState(const LastfmAuthState& state)
 {
     std::lock_guard<std::mutex> lock(authMutex);
     cfgLastfmAuthenticated.set(state.isAuthenticated);
@@ -56,19 +56,19 @@ void lastfm_set_auth_state(const LastfmAuthState& state)
         cfgLastfmSuspended.set(false);
 }
 
-bool lastfm_is_authenticated()
+bool lastfmIsAuthenticated()
 {
     std::lock_guard<std::mutex> lock(authMutex);
     return cfgLastfmAuthenticated.get();
 }
 
-bool lastfm_is_suspended()
+bool lastfmIsSuspended()
 {
     std::lock_guard<std::mutex> lock(authMutex);
     return cfgLastfmSuspended.get();
 }
 
-void lastfm_clear_authentication()
+void lastfmClearAuthentication()
 {
     LFM_DEBUG("Clearing cfg state.");
 
@@ -83,11 +83,11 @@ void lastfm_clear_authentication()
     }
 
     pfc::string_formatter f;
-    f << "Now authenticated=" << (lastfm_is_authenticated() ? 1 : 0) << ", user='" << user << "'";
+    f << "Now authenticated=" << (lastfmIsAuthenticated() ? 1 : 0) << ", user='" << user << "'";
     LFM_INFO(f.c_str());
 }
 
-void lastfm_clear_suspension()
+void lastfmClearSuspension()
 {
     LFM_DEBUG("Clearing suspend state.");
 
@@ -99,11 +99,11 @@ void lastfm_clear_suspension()
     }
 
     pfc::string_formatter f;
-    f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
+    f << "Suspended=" << (lastfmIsSuspended() ? "yes" : "no") << ", user='" << user << "'";
     LFM_INFO(f.c_str());
 }
 
-void lastfm_suspend_current_user()
+void lastfmSuspendCurrentUser()
 {
     LFM_DEBUG("Suspending current user.");
 
@@ -115,23 +115,23 @@ void lastfm_suspend_current_user()
     }
 
     pfc::string_formatter f;
-    f << "Suspended=" << (lastfm_is_suspended() ? "yes" : "no") << ", user='" << user << "'";
+    f << "Suspended=" << (lastfmIsSuspended() ? "yes" : "no") << ", user='" << user << "'";
     LFM_INFO(f.c_str());
 }
 
-pfc::string8 lastfm_get_queue_owner_username()
+pfc::string8 lastfmGetQueueOwnerUsername()
 {
     std::lock_guard<std::mutex> lock(authMutex);
     return cfgLastfmQueueOwner.get();
 }
 
-void lastfm_set_queue_owner_username(const char* username)
+void lastfmSetQueueOwnerUsername(const char* username)
 {
     std::lock_guard<std::mutex> lock(authMutex);
     cfgLastfmQueueOwner.set(username ? username : "");
 }
 
-void lastfm_clear_queue_owner_username()
+void lastfmClearQueueOwnerUsername()
 {
     std::lock_guard<std::mutex> lock(authMutex);
     cfgLastfmQueueOwner.set("");

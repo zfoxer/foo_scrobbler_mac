@@ -10,6 +10,7 @@
 
 #include <CommonCrypto/CommonDigest.h>
 
+#include <string>
 #include <cctype>
 #include <cstring>
 
@@ -371,6 +372,33 @@ bool jsonHasKey(const char* json, const char* key)
     }
 
     return false;
+}
+
+LastfmApiErrorInfo extractLastfmApiError(const char* body)
+{
+    LastfmApiErrorInfo info;
+
+    if (!body)
+        return info;
+
+    const char* p = body;
+    while (*p && std::isspace((unsigned char)*p))
+        ++p;
+
+    if (*p != '{' || std::strchr(p, '}') == nullptr)
+        return info;
+
+    info.hasJson = true;
+
+    int errCode = 0;
+    if (jsonFindIntValue(body, "error", errCode))
+    {
+        info.hasError = true;
+        info.errorCode = errCode;
+        jsonFindStringValue(body, "message", info.message);
+    }
+
+    return info;
 }
 
 } // namespace util

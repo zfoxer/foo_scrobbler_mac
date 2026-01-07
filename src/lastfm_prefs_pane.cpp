@@ -50,7 +50,7 @@ static advconfig_branch_factory g_lastfmPrefsConsoleBranchFactory("Console info"
 static advconfig_branch_factory g_lastfmPrefsScrobblingBranchFactory("Scrobbling", GUID_LASTFM_PREFS_BRANCH_SCROBBLING,
                                                                      GUID_LASTFM_PREFS_BRANCH, 1);
 
-static bool adv_get_checkbox_state(const GUID& g)
+static bool advGetCheckboxState(const GUID& g)
 {
     service_ptr_t<advconfig_entry_checkbox> e;
     if (!advconfig_entry::g_find_t(e, g))
@@ -58,7 +58,7 @@ static bool adv_get_checkbox_state(const GUID& g)
     return e->get_state();
 }
 
-static void adv_set_checkbox_state(const GUID& g, bool v)
+static void advSetCheckboxState(const GUID& g, bool v)
 {
     service_ptr_t<advconfig_entry_checkbox> e;
     if (!advconfig_entry::g_find_t(e, g))
@@ -93,34 +93,34 @@ static service_factory_single_t<advconfig_entry_checkbox_impl>
     g_checkbox1("Only scrobble from media library", "foo_scrobbler.scrobbling.only_from_library",
                 GUID_LASTFM_PREFS_CHECKBOX_1, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 1.0, false, false, 0);
 
-static void ensure_radio_default_adv()
+static void ensureRadioDefaultAdv()
 {
-    const bool r0 = adv_get_checkbox_state(GUID_LASTFM_PREFS_RADIO_0);
-    const bool r1 = adv_get_checkbox_state(GUID_LASTFM_PREFS_RADIO_1);
-    const bool r2 = adv_get_checkbox_state(GUID_LASTFM_PREFS_RADIO_2);
+    const bool r0 = advGetCheckboxState(GUID_LASTFM_PREFS_RADIO_0);
+    const bool r1 = advGetCheckboxState(GUID_LASTFM_PREFS_RADIO_1);
+    const bool r2 = advGetCheckboxState(GUID_LASTFM_PREFS_RADIO_2);
 
     if (r0 || r1 || r2)
         return;
 
     // Default = Basic
-    adv_set_checkbox_state(GUID_LASTFM_PREFS_RADIO_1, true);
+    advSetCheckboxState(GUID_LASTFM_PREFS_RADIO_1, true);
 }
 
-static int get_console_radio_choice()
+static int getConsoleRadioChoice()
 {
-    ensure_radio_default_adv();
+    ensureRadioDefaultAdv();
 
-    if (adv_get_checkbox_state(GUID_LASTFM_PREFS_RADIO_2))
+    if (advGetCheckboxState(GUID_LASTFM_PREFS_RADIO_2))
         return 2;
-    if (adv_get_checkbox_state(GUID_LASTFM_PREFS_RADIO_1))
+    if (advGetCheckboxState(GUID_LASTFM_PREFS_RADIO_1))
         return 1;
     return 0;
 }
 
 } // namespace
-void lastfm_sync_log_level_from_prefs()
+void lastfmSyncLogLevelFromPrefs()
 {
-    const int choice = get_console_radio_choice();
+    const int choice = getConsoleRadioChoice();
 
     const int desired = (choice == 0)   ? static_cast<int>(LfmLogLevel::OFF)
                         : (choice == 1) ? static_cast<int>(LfmLogLevel::INFO)
@@ -129,18 +129,18 @@ void lastfm_sync_log_level_from_prefs()
     lfmLogLevel.store(desired);
 }
 
-void lastfm_register_prefs_pane()
+void lastfmRegisterPrefsPane()
 {
     // Force sync once at startup, so atomic matches prefs immediately.
-    lastfm_sync_log_level_from_prefs();
+    lastfmSyncLogLevelFromPrefs();
 
     pfc::string_formatter f;
-    f << "PrefsPane: Advanced prefs registered. consoleChoice=" << get_console_radio_choice()
+    f << "PrefsPane: Advanced prefs registered. consoleChoice=" << getConsoleRadioChoice()
       << " logLevel=" << lfmLogLevel.load();
     LFM_DEBUG(f.c_str());
 }
 
-bool lastfm_only_scrobble_from_media_library()
+bool lastfmOnlyScrobbleFromMediaLibrary()
 {
-    return adv_get_checkbox_state(GUID_LASTFM_PREFS_CHECKBOX_1);
+    return advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_1);
 }

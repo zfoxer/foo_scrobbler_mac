@@ -16,7 +16,7 @@
 static const GUID GUID_LASTFM_PREFS_CHECKBOX_0 = {
     0x290f410b, 0x7c8d, 0x45b7, {0x8b, 0x2e, 0x8d, 0xd4, 0xf9, 0x41, 0x5a, 0x82}};
 
-bool lastfm_disable_nowplaying()
+bool lastfmDisableNowplaying()
 {
     service_ptr_t<advconfig_entry_checkbox> e;
     if (!advconfig_entry::g_find_t(e, GUID_LASTFM_PREFS_CHECKBOX_0))
@@ -26,55 +26,55 @@ bool lastfm_disable_nowplaying()
 
 LastfmAuthState getAuthState()
 {
-    return lastfm_get_auth_state();
+    return lastfmGetAuthState();
 }
 
 void setAuthState(const LastfmAuthState& state)
 {
-    lastfm_set_auth_state(state);
+    lastfmSetAuthState(state);
 }
 
 bool isAuthenticated()
 {
-    return lastfm_is_authenticated();
+    return lastfmIsAuthenticated();
 }
 
 void clearAuthentication()
 {
-    lastfm_clear_authentication();
+    lastfmClearAuthentication();
 }
 
 void clearSuspension()
 {
-    lastfm_clear_suspension();
+    lastfmClearSuspension();
 }
 
 bool isSuspended()
 {
-    return lastfm_is_suspended();
+    return lastfmIsSuspended();
 }
 
 void suspendCurrentUser()
 {
-    lastfm_suspend_current_user();
+    lastfmSuspendCurrentUser();
 }
 
 int getPrefsPaneRadioChoice()
 {
-    return lastfm_get_prefs_pane_radio_choice();
+    return lastfmGetPrefsPaneRadioChoice();
 }
 
 void setPrefsPaneRadioChoice(int value)
 {
-    lastfm_set_prefs_pane_radio_choice(value);
+    lastfmSetPrefsPaneRadioChoice(value);
 }
 
 bool getPrefsPaneCheckbox()
 {
-    return lastfm_get_prefs_pane_checkbox();
+    return lastfmGetPrefsPaneCheckbox();
 }
 
 void setPrefsPaneCheckbox(bool enabled)
 {
-    lastfm_set_prefs_pane_checkbox(enabled);
+    lastfmSetPrefsPaneCheckbox(enabled);
 }

@@ -232,19 +232,19 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
                 auto& core = LastfmCore::instance();
 
                 // Prevent cross-account submission:
-                const pfc::string8 owner = lastfm_get_queue_owner_username();
+                const pfc::string8 owner = lastfmGetQueueOwnerUsername();
                 const std::string newUser = state.username;
 
                 if (owner.is_empty())
                 {
                     // First time: claim ownership.
-                    lastfm_set_queue_owner_username(newUser.c_str());
+                    lastfmSetQueueOwnerUsername(newUser.c_str());
                 }
                 else if (std::string(owner.c_str()) != newUser)
                 {
                     // Different user: wipe pending scrobbles before draining.
                     core.scrobbler().clearQueue();
-                    lastfm_set_queue_owner_username(newUser.c_str());
+                    lastfmSetQueueOwnerUsername(newUser.c_str());
                 }
                 // else same user -> keep queue as-is
                 core.scrobbler().onAuthenticationRecovered();

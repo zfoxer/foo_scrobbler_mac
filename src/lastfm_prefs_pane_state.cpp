@@ -36,14 +36,14 @@ static int clampRadioChoice(int v)
 }
 } // namespace
 
-int lastfm_get_prefs_pane_radio_choice()
+int lastfmGetPrefsPaneRadioChoice()
 {
     std::lock_guard<std::mutex> lock(prefsPaneMutex);
     const t_int64 raw = cfgLastfmPrefsPaneRadio.get();
     return clampRadioChoice(static_cast<int>(raw));
 }
 
-void lastfm_set_prefs_pane_radio_choice(int value)
+void lastfmSetPrefsPaneRadioChoice(int value)
 {
     value = clampRadioChoice(value);
 
@@ -52,13 +52,13 @@ void lastfm_set_prefs_pane_radio_choice(int value)
     LFM_DEBUG("PrefsPane: set radio choice.");
 }
 
-bool lastfm_get_prefs_pane_checkbox()
+bool lastfmGetPrefsPaneCheckbox()
 {
     std::lock_guard<std::mutex> lock(prefsPaneMutex);
     return cfgLastfmPrefsPaneCheckbox.get();
 }
 
-void lastfm_set_prefs_pane_checkbox(bool enabled)
+void lastfmSetPrefsPaneCheckbox(bool enabled)
 {
     std::lock_guard<std::mutex> lock(prefsPaneMutex);
     cfgLastfmPrefsPaneCheckbox.set(enabled);
