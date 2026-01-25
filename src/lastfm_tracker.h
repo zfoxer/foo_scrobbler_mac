@@ -34,11 +34,13 @@ class LastfmTracker : public play_callback_static
     void resetState();
     void submitScrobbleIfNeeded();
     void updateFromTrack(const metadb_handle_ptr& track);
+    void handleDynamicStreamUpdate(const file_info& info);
 
     std::time_t startWallclock = 0;
     bool isPlaying = false;
     bool scrobbleSent = false;
     double playbackTime = 0.0;
+    bool isCurrentStream = false;
 
     LastfmTrackInfo current;
 
@@ -55,4 +57,18 @@ class LastfmTracker : public play_callback_static
 
     metadb_handle_ptr currentHandle;
     LastfmRules rules;
+
+    // Dynamic stream scrobble (network sources only)
+    bool dynamicActive = false;
+    bool dynamicPending = false; // cached after >= 30s effective listening
+    bool dynamicSubmitted = false;
+    LastfmTrackInfo dynamicPendingTrack{};
+    double dynamicPendingPlaybackTime = 0.0;
+    std::time_t dynamicPendingStartWallclock = 0;
+    std::time_t dynamicSegmentStartWallclock = 0;
+
+    // Helpers (network-only)
+    void resetDynamicSegmentState();
+    void maybeCacheDynamicScrobble();
+    void submitDynamicPendingIfAny();
 };

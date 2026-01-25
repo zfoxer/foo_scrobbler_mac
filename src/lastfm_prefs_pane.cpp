@@ -34,11 +34,23 @@ static const GUID GUID_LASTFM_PREFS_CHECKBOX_0 = {
 static const GUID GUID_LASTFM_PREFS_CHECKBOX_1 = {
     0xd9de934c, 0xf066, 0x4926, {0x82, 0xa0, 0x60, 0x19, 0x95, 0xe8, 0x16, 0x36}};
 
+static const GUID GUID_LASTFM_PREFS_DYNAMIC_RADIO_0 = {
+    0x38f2fe8f, 0xa3e5, 0x4933, {0x94, 0x1c, 0x84, 0x44, 0xc0, 0x9e, 0x09, 0x4a}}; // No dynamic sources
+
+static const GUID GUID_LASTFM_PREFS_DYNAMIC_RADIO_1 = {
+    0x31925388, 0x7774, 0x4365, {0xac, 0x67, 0x8e, 0x8d, 0x85, 0x14, 0x5d, 0x6a}}; // NP only
+
+static const GUID GUID_LASTFM_PREFS_DYNAMIC_RADIO_2 = {
+    0x6ff22bed, 0x84a5, 0x4f40, {0x89, 0x96, 0x87, 0x4a, 0x58, 0x54, 0x0b, 0x3b}}; // NP & Scrobbling (default)
+
 static const GUID GUID_LASTFM_PREFS_BRANCH_CONSOLE = {
     0x19302d7d, 0x38b3, 0x4e75, {0xaa, 0xe1, 0x21, 0x32, 0xac, 0x99, 0x16, 0xbe}};
 
 static const GUID GUID_LASTFM_PREFS_BRANCH_SCROBBLING = {
     0xebb7cd61, 0x95f3, 0x4b40, {0x9a, 0x7b, 0x9b, 0x54, 0xa6, 0xb3, 0x11, 0x49}};
+
+static const GUID GUID_LASTFM_PREFS_BRANCH_DYNAMIC = {
+    0xe370b8f5, 0xd383, 0x451d, {0x88, 0x58, 0x27, 0x62, 0x63, 0x4f, 0x34, 0xfd}};
 
 // Branches
 static advconfig_branch_factory g_lastfmPrefsBranchFactory("Foo Scrobbler", GUID_LASTFM_PREFS_BRANCH,
@@ -49,6 +61,10 @@ static advconfig_branch_factory g_lastfmPrefsConsoleBranchFactory("Console info"
 
 static advconfig_branch_factory g_lastfmPrefsScrobblingBranchFactory("Scrobbling", GUID_LASTFM_PREFS_BRANCH_SCROBBLING,
                                                                      GUID_LASTFM_PREFS_BRANCH, 1);
+
+static advconfig_branch_factory g_lastfmPrefsDynamicBranchFactory("Dynamic sources (overridden by library-only)",
+                                                                  GUID_LASTFM_PREFS_BRANCH_DYNAMIC,
+                                                                  GUID_LASTFM_PREFS_BRANCH, 2);
 
 static bool advGetCheckboxState(const GUID& g)
 {
@@ -93,6 +109,19 @@ static service_factory_single_t<advconfig_entry_checkbox_impl>
     g_checkbox1("Only scrobble from media library", "foo_scrobbler.scrobbling.only_from_library",
                 GUID_LASTFM_PREFS_CHECKBOX_1, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 1.0, false, false, 0);
 
+// Dynamic sources (3-choice radio group)
+static service_factory_single_t<advconfig_entry_checkbox_impl>
+    g_dynamicRadio0("No dynamic sources", "foo_scrobbler.dynamic.no", GUID_LASTFM_PREFS_DYNAMIC_RADIO_0,
+                    GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 0.0, false, true, 0);
+
+static service_factory_single_t<advconfig_entry_checkbox_impl>
+    g_dynamicRadio1("Only NP notifications", "foo_scrobbler.dynamic.np_only", GUID_LASTFM_PREFS_DYNAMIC_RADIO_1,
+                    GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 1.0, false, true, 0);
+
+static service_factory_single_t<advconfig_entry_checkbox_impl>
+    g_dynamicRadio2("NP & Scrobbling", "foo_scrobbler.dynamic.np_and_scrobble", GUID_LASTFM_PREFS_DYNAMIC_RADIO_2,
+                    GUID_LASTFM_PREFS_BRANCH_DYNAMIC, 2.0, true, true, 0);
+
 static void ensureRadioDefaultAdv()
 {
     const bool r0 = advGetCheckboxState(GUID_LASTFM_PREFS_RADIO_0);
@@ -117,7 +146,39 @@ static int getConsoleRadioChoice()
     return 0;
 }
 
+static void ensureDynamicRadioDefaultAdv()
+{
+    const bool r0 = advGetCheckboxState(GUID_LASTFM_PREFS_DYNAMIC_RADIO_0);
+    const bool r1 = advGetCheckboxState(GUID_LASTFM_PREFS_DYNAMIC_RADIO_1);
+    const bool r2 = advGetCheckboxState(GUID_LASTFM_PREFS_DYNAMIC_RADIO_2);
+
+    if (r0 || r1 || r2)
+        return;
+
+    // Default = NP & Scrobbling
+    advSetCheckboxState(GUID_LASTFM_PREFS_DYNAMIC_RADIO_2, true);
+}
+
+static int getDynamicSourcesMode()
+{
+    ensureDynamicRadioDefaultAdv();
+
+    if (advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_1))
+    {
+        static std::atomic<bool> logged{false};
+        if (!logged.exchange(true))
+            LFM_DEBUG("Dynamic sources: overridden to 'No dynamic sources' because Only-from-library is enabled.");
+        return 0;
+    }
+
+    if (advGetCheckboxState(GUID_LASTFM_PREFS_DYNAMIC_RADIO_2))
+        return 2;
+    if (advGetCheckboxState(GUID_LASTFM_PREFS_DYNAMIC_RADIO_1))
+        return 1;
+    return 0;
+}
 } // namespace
+
 void lastfmSyncLogLevelFromPrefs()
 {
     const int choice = getConsoleRadioChoice();
@@ -143,4 +204,14 @@ void lastfmRegisterPrefsPane()
 bool lastfmOnlyScrobbleFromMediaLibrary()
 {
     return advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_1);
+}
+
+int lastfmDynamicSourcesMode()
+{
+    return getDynamicSourcesMode();
+}
+
+bool lastfmDisableNowPlaying()
+{
+    return advGetCheckboxState(GUID_LASTFM_PREFS_CHECKBOX_0);
 }

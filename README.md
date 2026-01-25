@@ -1,5 +1,5 @@
-### Foo Scrobbler for Mac (c) 2025-2026 by Konstantinos Kyriakopoulos
-#### Version: 0.9.7 — Released under GNU GPLv3
+### Foo Scrobbler for Mac - (c) 2025-2026 by Konstantinos Kyriakopoulos
+#### Version: 0.9.9 — Released under GNU GPLv3
 
 ### Intro
 
@@ -55,6 +55,8 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
+0.9.9    2026-01-25    Supporting dynamic sources like radio streams, etc.
+
 0.9.7    2026-01-08    Improved Last.fm web client error handling.
 
 0.9.6    2026-01-04    If a different user authenticates, the local scrobble cache is cleared.
