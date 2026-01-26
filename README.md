@@ -1,6 +1,6 @@
 ### Foo Scrobbler for Mac — (c) 2025-2026 by Konstantinos Kyriakopoulos
 #### Version: 0.9.9 — foo_scrobbler_mac — Released under GNU GPLv3
-#### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation).
+#### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
 
 ### Intro
 
