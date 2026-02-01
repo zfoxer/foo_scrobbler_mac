@@ -1,5 +1,7 @@
-### Foo Scrobbler for Mac — (c) 2025-2026 by Konstantinos Kyriakopoulos
+### Foo Scrobbler for Mac
 #### Version: 0.9.9 — foo_scrobbler_mac — Released under GNU GPLv3
+#### © 2025-2026 by Konstantinos Kyriakopoulos
+
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
 
 ### Intro
@@ -14,7 +16,7 @@ Supports macOS ≥ 11.5 on both Intel and ARM.
 - **Native macOS Last.fm scrobbling**  
   Fully integrated with foobar2000 for macOS. No compatibility layers or wrapper apps.
 
-- **Smart submission logic**  
+- **Rule-based submission logic**  
   Scrobbles only when playback is meaningful (e.g., ≥ 50% or ≥ 240 seconds).
 
 - **Automatic offline caching**  
