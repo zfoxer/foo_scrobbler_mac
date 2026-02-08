@@ -121,7 +121,7 @@ static void selfTest_extractLastfmApiError()
 
 bool LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
 {
-    return sendNowPlaying(track.artist, track.title, track.album, track.durationSeconds);
+    return sendNowPlaying(track.artist, track.title, track.album, track.albumArtist, track.durationSeconds);
 }
 
 LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
@@ -168,6 +168,8 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
 
     if (!track.album.empty())
         params["album"] = track.album;
+    if (!track.albumArtist.empty())
+        params["albumArtist"] = track.albumArtist;
     if (track.durationSeconds > 0.0)
         params["duration"] = std::to_string(static_cast<int>(track.durationSeconds));
 

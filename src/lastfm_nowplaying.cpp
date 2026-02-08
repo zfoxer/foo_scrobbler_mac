@@ -22,7 +22,7 @@ namespace
 
 static bool buildNowPlayingParams(std::map<std::string, std::string>& params, std::string& apiSecretOut,
                                   const std::string& artist, const std::string& title, const std::string& album,
-                                  double durationSeconds)
+                                  const std::string& albumArtist, double durationSeconds)
 {
     LastfmAuthState state = getAuthState();
     if (!state.isAuthenticated || state.sessionKey.empty())
@@ -55,6 +55,9 @@ static bool buildNowPlayingParams(std::map<std::string, std::string>& params, st
 
     if (!album.empty())
         params["album"] = album;
+
+    if (!albumArtist.empty())
+        params["albumArtist"] = albumArtist;
 
     if (durationSeconds > 0.0)
     {
@@ -137,12 +140,12 @@ static bool postNowPlayingAndInterpret(const char* urlCStr)
 } // namespace
 
 bool sendNowPlaying(const std::string& artist, const std::string& title, const std::string& album,
-                    double durationSeconds)
+                    const std::string& albumArtist, double durationSeconds)
 {
     std::map<std::string, std::string> params;
     std::string apiSecret;
 
-    if (!buildNowPlayingParams(params, apiSecret, artist, title, album, durationSeconds))
+    if (!buildNowPlayingParams(params, apiSecret, artist, title, album, albumArtist, durationSeconds))
         return false;
 
     const pfc::string8 url = buildNowPlayingUrl(params, apiSecret);

@@ -15,5 +15,6 @@ struct LastfmTrackInfo
     std::string title;
     std::string album;
     std::string mbid;
+    std::string albumArtist;
     double durationSeconds = 0.0;
 };

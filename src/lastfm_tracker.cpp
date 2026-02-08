@@ -278,6 +278,21 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
     current.title = getTag("title", "TITLE");
     current.album = getTag("album", "ALBUM");
 
+    auto getAlbumArtist = [&](void) -> std::string
+    {
+        static const char* keys[] = {"album artist", "ALBUM ARTIST", "album_artist",
+                                     "ALBUM_ARTIST", "albumartist",  "ALBUMARTIST"};
+        for (auto k : keys)
+        {
+            std::string v = cleanTagValue(info.meta_get(k, 0));
+            if (!v.empty())
+                return v;
+        }
+        return {};
+    };
+
+    current.albumArtist = getAlbumArtist();
+
     // Do NOT split TITLE for network streams at track-start.
     // Many streams put station info in TITLE like "Station - something" and we'd spam NP.
     if (!isCurrentStream && current.artist.empty() && !current.title.empty())

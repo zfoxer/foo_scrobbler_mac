@@ -72,6 +72,7 @@ struct QueuedScrobble
     std::string artist;
     std::string title;
     std::string album;
+    std::string albumArtist;
     double durationSeconds = 0.0;
     double playbackSeconds = 0.0;
     std::time_t startTimestamp = 0;
@@ -220,6 +221,8 @@ static std::string serializeScrobble(const QueuedScrobble& q)
     out += '\t';
     out += escapeField(q.album);
     out += '\t';
+    out += escapeField(q.albumArtist);
+    out += '\t';
     out += std::to_string(q.durationSeconds);
     out += '\t';
     out += std::to_string(q.playbackSeconds);
@@ -268,25 +271,40 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
             pos = tab + 1;
         }
 
-        if (parts.size() < 5)
-            continue;
+        if (parts.size() < 10)
+            continue; // minimum legacy row size
 
         QueuedScrobble q;
+
         q.artist = unescapeField(parts[0]);
         q.title = unescapeField(parts[1]);
         q.album = unescapeField(parts[2]);
-        q.durationSeconds = std::atof(parts[3].c_str());
-        q.playbackSeconds = std::atof(parts[4].c_str());
-        if (parts.size() > 5)
-            q.startTimestamp = std::atoll(parts[5].c_str());
-        if (parts.size() > 6)
-            q.refreshOnSubmit = parts[6] == "1";
-        if (parts.size() > 7)
-            q.retryCount = std::atoi(parts[7].c_str());
-        if (parts.size() > 8)
-            q.nextRetryTimestamp = std::atoll(parts[8].c_str());
-        if (parts.size() > 9)
-            q.id = static_cast<std::uint64_t>(std::strtoull(parts[9].c_str(), nullptr, 10));
+
+        const bool hasAlbumArtist = (parts.size() >= 11); // new format has 11 columns incl. id
+        size_t i = 3;
+
+        if (hasAlbumArtist)
+        {
+            q.albumArtist = unescapeField(parts[i++]); // parts[3]
+        }
+        else
+        {
+            q.albumArtist.clear();
+        }
+
+        q.durationSeconds = std::atof(parts[i++].c_str());
+        q.playbackSeconds = std::atof(parts[i++].c_str());
+
+        if (parts.size() > i)
+            q.startTimestamp = std::atoll(parts[i++].c_str());
+        if (parts.size() > i)
+            q.refreshOnSubmit = parts[i++] == "1";
+        if (parts.size() > i)
+            q.retryCount = std::atoi(parts[i++].c_str());
+        if (parts.size() > i)
+            q.nextRetryTimestamp = std::atoll(parts[i++].c_str());
+        if (parts.size() > i)
+            q.id = static_cast<std::uint64_t>(std::strtoull(parts[i++].c_str(), nullptr, 10));
         else
             q.id = computeLegacyId(q);
 
@@ -375,6 +393,8 @@ void LastfmQueue::refreshPendingScrobbleMetadata(const LastfmTrackInfo& track)
             it->title = track.title;
         if (!track.album.empty())
             it->album = track.album;
+        if (!track.albumArtist.empty())
+            it->albumArtist = track.albumArtist;
         if (track.durationSeconds > 0.0)
             it->durationSeconds = track.durationSeconds;
 
@@ -393,6 +413,7 @@ void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double pla
     q.artist = track.artist;
     q.title = track.title;
     q.album = track.album;
+    q.albumArtist = track.albumArtist;
     q.durationSeconds = track.durationSeconds;
     q.playbackSeconds = playbackSeconds;
     q.startTimestamp = startTimestamp;
@@ -457,7 +478,13 @@ void LastfmQueue::retryQueuedScrobbles()
         if (isShuttingDown())
             break;
 
-        LastfmTrackInfo t{q.artist, q.title, q.album, "", q.durationSeconds};
+        LastfmTrackInfo t;
+        t.artist = q.artist;
+        t.title = q.title;
+        t.album = q.album;
+        t.albumArtist = q.albumArtist;
+        t.durationSeconds = q.durationSeconds;
+
         auto res = client.scrobble(t, q.playbackSeconds, q.startTimestamp);
 
         RetryUpdate u;

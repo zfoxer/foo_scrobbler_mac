@@ -13,4 +13,4 @@
 // Returns true if Last.fm responds with valid JSON and no API error.
 // Returns false on HTTP failure, invalid JSON, or API error.
 bool sendNowPlaying(const std::string& artist, const std::string& title, const std::string& album,
-                    double durationSeconds);
+                    const std::string& albumArtist, double durationSeconds);
