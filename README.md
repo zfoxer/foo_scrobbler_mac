@@ -1,5 +1,5 @@
 ### Foo Scrobbler for Mac
-#### Version: 0.9.9 — foo_scrobbler_mac — Released under GNU GPLv3
+#### Version: 1.0.0 — foo_scrobbler_mac — Released under GNU GPLv3
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
@@ -58,6 +58,8 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
+1.0.0    2026-02-08    Minor modifications to logging.
+
 0.9.9    2026-01-25    Supporting dynamic sources like radio streams, etc.
 
 0.9.7    2026-01-08    Improved Last.fm web client error handling.

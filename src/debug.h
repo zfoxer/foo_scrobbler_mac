@@ -41,6 +41,6 @@ void lastfmSyncLogLevelFromPrefs();
         if (lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::DEBUG_LOG))                                            \
         {                                                                                                              \
             console::formatter f;                                                                                      \
-            f << "foo_scrobbler_mac [DEBUG]: " << expr;                                                                \
+            f << "foo_scrobbler_mac: " << expr;                                                                \
         }                                                                                                              \
     } while (0)

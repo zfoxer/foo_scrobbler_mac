@@ -205,7 +205,7 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
 
     if (outcome.result == LastfmScrobbleResult::SUCCESS)
     {
-        LFM_DEBUG("Scrobble OK: " << track.artist.c_str() << " - " << track.title.c_str());
+        LFM_INFO("Scrobble OK: " << track.artist.c_str() << " - " << track.title.c_str());
     }
 
     return outcome.result;
