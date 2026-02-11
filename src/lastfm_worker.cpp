@@ -279,7 +279,7 @@ void LastfmWorker::handleDrain()
     const auto now = Clock::now();
 
     const std::size_t pending0 = queue_.getPendingScrobbleCount();
-    const bool enforceCooldown = pending0 >= COOLDOWN_LIMIT;
+    const bool enforceCooldown = pending0 > COOLDOWN_LIMIT;
 
     if (enforceCooldown)
     {

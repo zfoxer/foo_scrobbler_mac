@@ -26,7 +26,7 @@
 class LastfmWorker
 {
   public:
-    static const int COOLDOWN_LIMIT = 101;
+    static const int COOLDOWN_LIMIT = 50;
     using Clock = std::chrono::steady_clock;
     bool isShuttingDown() const noexcept
     {
