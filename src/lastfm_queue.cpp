@@ -336,6 +336,115 @@ struct RetryUpdate
     std::time_t newNextRetryTimestamp = 0;
 };
 
+static std::vector<RetryUpdate>
+dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
+                             const std::function<bool()>& isShuttingDown, LastfmClient& client,
+                             const std::function<void()>& onInvalidSession, int64_t dailyBudget)
+{
+    const std::time_t nowCheck = std::time(nullptr);
+
+    std::vector<RetryUpdate> updates;
+    updates.reserve(maxToAttempt);
+
+    bool invalidSessionSeen = false;
+    unsigned attempted = 0;
+
+    for (const auto& q : snapshot)
+    {
+        if (invalidSessionSeen || attempted >= maxToAttempt)
+            break;
+
+        if (q.nextRetryTimestamp > 0 && q.nextRetryTimestamp > nowCheck)
+            continue;
+
+        // Final mandatory-tag validation
+        if (q.artist.empty() || q.title.empty())
+        {
+            LFM_INFO("Queue: pending still invalid metadata, deferring.");
+            continue;
+        }
+
+        ++attempted;
+
+        if (isShuttingDown && isShuttingDown())
+            break;
+
+        LastfmTrackInfo t;
+        t.artist = q.artist;
+        t.title = q.title;
+        t.album = q.album;
+        t.albumArtist = q.albumArtist;
+        t.durationSeconds = q.durationSeconds;
+
+        auto res = client.scrobble(t, q.playbackSeconds, q.startTimestamp);
+
+        RetryUpdate u;
+        u.id = q.id;
+
+        if (res == LastfmScrobbleResult::SUCCESS)
+        {
+            u.remove = true;
+            updates.push_back(u);
+
+            if (isShuttingDown && isShuttingDown())
+                break;
+
+            // Count only accepted scrobbles against daily budget
+            cfgLastfmScrobblesToday.set(cfgLastfmScrobblesToday.get() + 1);
+
+            if (dailyBudget > 0 && cfgLastfmScrobblesToday.get() >= dailyBudget)
+                break;
+
+            continue;
+        }
+
+        if (res == LastfmScrobbleResult::INVALID_SESSION)
+        {
+            invalidSessionSeen = true;
+
+            // Avoid thrashing: back off globally until auth is fixed.
+            if (onInvalidSession)
+                onInvalidSession();
+            break;
+        }
+
+        const std::time_t nowSchedule = std::time(nullptr);
+        u.newRetryCount = std::min(q.retryCount + 1, 100);
+        u.newNextRetryTimestamp = nowSchedule + std::min(u.newRetryCount * kRetryStepSeconds, kRetryMaxSeconds);
+
+        updates.push_back(u);
+    }
+
+    return updates;
+}
+
+static void mergeRetryUpdates(std::vector<QueuedScrobble>& latest, const std::vector<RetryUpdate>& updates)
+{
+    for (const auto& u : updates)
+    {
+        for (auto it = latest.begin(); it != latest.end();)
+        {
+            if (it->id != u.id)
+            {
+                ++it;
+                continue;
+            }
+
+            if (u.remove)
+                it = latest.erase(it);
+            else
+            {
+                it->retryCount = u.newRetryCount;
+                it->nextRetryTimestamp = u.newNextRetryTimestamp;
+                ++it;
+            }
+
+            // IDs are unique. Once matched, stop scanning.
+            break;
+        }
+    }
+}
+
 static bool lastfmDailyBudgetExhausted(const std::function<bool()>& isShuttingDown)
 {
     if (isShuttingDown && isShuttingDown())
@@ -463,78 +572,8 @@ void LastfmQueue::retryQueuedScrobbles()
     if (snapshot.empty())
         return;
 
-    const std::time_t nowCheck = std::time(nullptr);
-    std::vector<RetryUpdate> updates;
-    updates.reserve(maxToAttempt);
-
-    bool invalidSessionSeen = false;
-    unsigned attempted = 0;
-
-    for (const auto& q : snapshot)
-    {
-        if (invalidSessionSeen || attempted >= maxToAttempt)
-            break;
-
-        if (q.nextRetryTimestamp > 0 && q.nextRetryTimestamp > nowCheck)
-            continue;
-
-        // Final mandatory-tag validation
-        if (q.artist.empty() || q.title.empty())
-        {
-            LFM_INFO("Queue: pending still invalid metadata, deferring.");
-            continue;
-        }
-
-        ++attempted;
-
-        if (isShuttingDown())
-            break;
-
-        LastfmTrackInfo t;
-        t.artist = q.artist;
-        t.title = q.title;
-        t.album = q.album;
-        t.albumArtist = q.albumArtist;
-        t.durationSeconds = q.durationSeconds;
-
-        auto res = client.scrobble(t, q.playbackSeconds, q.startTimestamp);
-
-        RetryUpdate u;
-        u.id = q.id;
-
-        if (res == LastfmScrobbleResult::SUCCESS)
-        {
-            u.remove = true;
-            updates.push_back(u);
-
-            if (isShuttingDown())
-                break;
-
-            // Count only accepted scrobbles against daily budget
-            cfgLastfmScrobblesToday.set(cfgLastfmScrobblesToday.get() + 1);
-
-            if (dailyBudget > 0 && cfgLastfmScrobblesToday.get() >= dailyBudget)
-                break;
-
-            continue;
-        }
-
-        if (res == LastfmScrobbleResult::INVALID_SESSION)
-        {
-            invalidSessionSeen = true;
-
-            // Avoid thrashing: back off globally until auth is fixed.
-            if (onInvalidSession)
-                onInvalidSession();
-            break;
-        }
-
-        const std::time_t nowSchedule = std::time(nullptr);
-        u.newRetryCount = std::min(q.retryCount + 1, 100);
-        u.newNextRetryTimestamp = nowSchedule + std::min(u.newRetryCount * kRetryStepSeconds, kRetryMaxSeconds);
-
-        updates.push_back(u);
-    }
+    const auto updates =
+        dispatchAndBuildRetryUpdates(snapshot, maxToAttempt, isShuttingDown, client, onInvalidSession, dailyBudget);
 
     if (updates.empty())
         return;
@@ -545,29 +584,7 @@ void LastfmQueue::retryQueuedScrobbles()
     std::lock_guard<std::mutex> lock(mutex);
     auto latest = loadPendingScrobblesImpl();
 
-    for (const auto& u : updates)
-    {
-        for (auto it = latest.begin(); it != latest.end();)
-        {
-            if (it->id != u.id)
-            {
-                ++it;
-                continue;
-            }
-
-            if (u.remove)
-                it = latest.erase(it);
-            else
-            {
-                it->retryCount = u.newRetryCount;
-                it->nextRetryTimestamp = u.newNextRetryTimestamp;
-                ++it;
-            }
-
-            // IDs are unique. Once matched, stop scanning.
-            break;
-        }
-    }
+    mergeRetryUpdates(latest, updates);
 
     if (isShuttingDown())
         return;

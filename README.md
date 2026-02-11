@@ -56,7 +56,7 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
-1.0.2    2026-02-XX    Fix: Minor queue daily budget bypassing.
+1.0.2    2026-02-XX    Fix: Minor queue daily budget bypassing. Also, drain cooldown limit set to 50.
 
 1.0.1    2026-02-08    Fix: Include Album Artist in Now Playing and scrobble submissions (compilations support).
 
