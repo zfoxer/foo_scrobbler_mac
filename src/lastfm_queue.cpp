@@ -441,6 +441,20 @@ void LastfmQueue::retryQueuedScrobbles()
 
     if (lastfmDailyBudgetExhausted(isShuttingDown))
         return;
+    
+    const int64_t dailyBudget = static_cast<int64_t>(cfgLastfmDailyBudget.get());
+    const int64_t todayCount  = static_cast<int64_t>(cfgLastfmScrobblesToday.get());
+
+    int64_t remaining = (dailyBudget > 0) ? (dailyBudget - todayCount) : INT64_MAX;
+    remaining = std::max<int64_t>(0, remaining);
+
+    if (dailyBudget > 0 && remaining <= 0)
+        return;
+
+    const unsigned maxToAttempt =
+        (dailyBudget > 0)
+            ? (unsigned)std::min<int64_t>((int64_t)kMaxDispatchBatch, remaining)
+            : (unsigned)kMaxDispatchBatch;
 
     std::vector<QueuedScrobble> snapshot;
     {
@@ -453,14 +467,14 @@ void LastfmQueue::retryQueuedScrobbles()
 
     const std::time_t nowCheck = std::time(nullptr);
     std::vector<RetryUpdate> updates;
-    updates.reserve(kMaxDispatchBatch);
+    updates.reserve(maxToAttempt);
 
     bool invalidSessionSeen = false;
     unsigned attempted = 0;
 
     for (const auto& q : snapshot)
     {
-        if (invalidSessionSeen || attempted >= kMaxDispatchBatch)
+        if (invalidSessionSeen || attempted >= maxToAttempt)
             break;
 
         if (q.nextRetryTimestamp > 0 && q.nextRetryTimestamp > nowCheck)
@@ -500,6 +514,9 @@ void LastfmQueue::retryQueuedScrobbles()
 
             // Count only accepted scrobbles against daily budget
             cfgLastfmScrobblesToday.set(cfgLastfmScrobblesToday.get() + 1);
+            
+            if (dailyBudget > 0 && cfgLastfmScrobblesToday.get() >= dailyBudget)
+                break;
 
             continue;
         }

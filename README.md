@@ -1,5 +1,5 @@
 ### Foo Scrobbler for Mac
-#### Version: 1.0.1 — foo_scrobbler_mac — Released under GNU GPLv3
+#### Version: 1.0.2 — foo_scrobbler_mac — Released under GNU GPLv3
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
@@ -13,8 +13,8 @@ Supports macOS ≥ 11.5 on both Intel and ARM.
 
 ### Key Features
 
-- **Native macOS Last.fm scrobbling**  
-  Fully integrated with foobar2000 for macOS. No compatibility layers or wrapper apps.
+- **Native macOS Last.fm scrobbling, built specifically for foobar2000**  
+  Fully integrated with foobar2000 for macOS. No compatibility layers or wrapper apps. Not a port.
 
 - **Rule-based submission logic**  
   Scrobbles only when playback is meaningful (e.g., ≥ 50% or ≥ 240 seconds).
@@ -36,9 +36,7 @@ Supports macOS ≥ 11.5 on both Intel and ARM.
 
 - **Open-source (GPLv3)**  
   Transparent and extensible.
-
-- **Built specifically for foobar2000 on macOS**  
-  Not a port.
+  
 
 ### Usage
 
@@ -58,6 +56,8 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 ### Changelog
 
 <pre>
+1.0.2    2026-02-XX    Fix: Minor queue daily budget bypassing.
+
 1.0.1    2026-02-08    Fix: Include Album Artist in Now Playing and scrobble submissions (compilations support).
 
 1.0.0    2026-02-08    Minor modifications to logging.
