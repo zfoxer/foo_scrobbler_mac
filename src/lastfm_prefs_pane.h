@@ -17,3 +17,11 @@ bool lastfmOnlyScrobbleFromMediaLibrary();
 int lastfmDynamicSourcesMode();
 
 bool lastfmDisableNowPlaying();
+
+int lastfmTagArtistSource();
+int lastfmTagAlbumArtistSource();
+int lastfmTagTitleSource();
+int lastfmTagAlbumSource();
+
+bool lastfmTagFallbackArtistAlbum();
+bool lastfmTagTreatVariousArtistsAsEmpty();

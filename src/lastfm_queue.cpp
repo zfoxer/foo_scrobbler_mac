@@ -42,11 +42,11 @@ static const GUID GUID_CFG_LASTFM_DAY_STAMP = {
     0xb9d93960, 0x37ab, 0x4bd5, {0x89, 0xb1, 0x9d, 0xd3, 0x09, 0x73, 0xea, 0xbd}};
 
 // Dispatch at most 10 per run
-static constexpr size_t kMaxDispatchBatch = 10;
+static constexpr size_t K_MAX_DISPATCH_BATCH = 10;
 
 // Linear backoff: 60s, 120s, 180s… capped
-static constexpr int kRetryStepSeconds = 60;
-static constexpr int kRetryMaxSeconds = 60 * 60; // 1h cap
+static constexpr int K_RETRY_STEP_SECONDS = 60;
+static constexpr int K_RETRY_MAX_SECONDS = 60 * 60; // 1h cap
 
 static cfg_string cfgLastfmPendingScrobbles(GUID_CFG_LASTFM_PENDING_SCROBBLES, "");
 
@@ -410,7 +410,7 @@ dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsign
 
         const std::time_t nowSchedule = std::time(nullptr);
         u.newRetryCount = std::min(q.retryCount + 1, 100);
-        u.newNextRetryTimestamp = nowSchedule + std::min(u.newRetryCount * kRetryStepSeconds, kRetryMaxSeconds);
+        u.newNextRetryTimestamp = nowSchedule + std::min(u.newRetryCount * K_RETRY_STEP_SECONDS, K_RETRY_MAX_SECONDS);
 
         updates.push_back(u);
     }
@@ -560,8 +560,9 @@ void LastfmQueue::retryQueuedScrobbles()
     if (dailyBudget > 0 && remaining <= 0)
         return;
 
-    const unsigned maxToAttempt = (dailyBudget > 0) ? (unsigned)std::min<int64_t>((int64_t)kMaxDispatchBatch, remaining)
-                                                    : (unsigned)kMaxDispatchBatch;
+    const unsigned maxToAttempt = (dailyBudget > 0)
+                                      ? (unsigned)std::min<int64_t>((int64_t)K_MAX_DISPATCH_BATCH, remaining)
+                                      : (unsigned)K_MAX_DISPATCH_BATCH;
 
     std::vector<QueuedScrobble> snapshot;
     {
@@ -626,8 +627,8 @@ std::chrono::seconds LastfmQueue::drainCooldown()
 
     if (cooldown < 0)
         cooldown = 0;
-    else if (cooldown > 3600)
-        cooldown = 3600;
+    else if (cooldown > K_RETRY_MAX_SECONDS)
+        cooldown = K_RETRY_MAX_SECONDS;
 
     return std::chrono::seconds(cooldown);
 }

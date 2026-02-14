@@ -225,6 +225,128 @@ static bool extractStreamArtistTitle(const file_info& info, std::string& outArti
 
     return false;
 }
+
+static std::string getTagCase(const file_info& info, const char* lower, const char* upper)
+{
+    std::string v = cleanTagValue(info.meta_get(lower, 0));
+    if (!v.empty())
+        return v;
+    return cleanTagValue(info.meta_get(upper, 0));
+}
+
+static std::string getTagAny(const file_info& info, std::initializer_list<const char*> keys)
+{
+    for (const char* k : keys)
+    {
+        std::string v = cleanTagValue(info.meta_get(k, 0));
+        if (!v.empty())
+            return v;
+    }
+    return {};
+}
+
+// Map your radio choice -> actual tag fetch.
+static std::string getArtistByChoice(const file_info& info)
+{
+    switch (lastfmTagArtistSource())
+    {
+    case 1:
+        return getTagAny(
+            info, {"album artist", "ALBUM ARTIST", "album_artist", "ALBUM_ARTIST", "albumartist", "ALBUMARTIST"});
+    case 2:
+        return getTagAny(info, {"performer", "PERFORMER"});
+    case 3:
+        return getTagAny(info, {"composer", "COMPOSER"});
+    case 4:
+        return getTagAny(info, {"conductor", "CONDUCTOR"});
+    case 0:
+    default:
+        return getTagCase(info, "artist", "ARTIST");
+    }
+}
+
+static std::string getAlbumArtistByChoice(const file_info& info)
+{
+    switch (lastfmTagAlbumArtistSource())
+    {
+    case 1:
+        return getTagCase(info, "artist", "ARTIST");
+    case 2:
+        return getTagAny(info, {"performer", "PERFORMER"});
+    case 3:
+        return getTagAny(info, {"composer", "COMPOSER"});
+    case 4:
+        return getTagAny(info, {"conductor", "CONDUCTOR"});
+    case 0:
+    default:
+        return getTagAny(
+            info, {"album artist", "ALBUM ARTIST", "album_artist", "ALBUM_ARTIST", "albumartist", "ALBUMARTIST"});
+    }
+}
+
+static std::string getTitleByChoice(const file_info& info)
+{
+    switch (lastfmTagTitleSource())
+    {
+    case 1:
+        return getTagAny(info, {"work", "WORK"});
+    case 2:
+        return getTagAny(info, {"movement", "MOVEMENT"});
+    case 3:
+        return getTagAny(info, {"part", "PART"});
+    case 4:
+        return getTagAny(info, {"subtitle", "SUBTITLE"});
+    case 0:
+    default:
+        return getTagCase(info, "title", "TITLE");
+    }
+}
+
+static std::string getAlbumByChoice(const file_info& info)
+{
+    switch (lastfmTagAlbumSource())
+    {
+    case 1:
+        return getTagAny(info, {"release", "RELEASE"});
+    case 2:
+        return getTagAny(info, {"work", "WORK"});
+    case 3:
+        return getTagAny(info, {"albumtitle", "ALBUMTITLE"});
+    case 4:
+        return getTagAny(info, {"discname", "DISCNAME"});
+    case 0:
+    default:
+        return getTagCase(info, "album", "ALBUM");
+    }
+}
+
+static void applyFallbackIfEnabled(std::string& artist, std::string& album, const file_info& info)
+{
+    if (!lastfmTagFallbackArtistAlbum())
+        return;
+
+    // Only fallback when user selected something non-default and it came back empty.
+    if (artist.empty() && lastfmTagArtistSource() != 0)
+        artist = getTagCase(info, "artist", "ARTIST");
+
+    if (album.empty() && lastfmTagAlbumSource() != 0)
+        album = getTagCase(info, "album", "ALBUM");
+}
+
+static void applyVariousArtistsRule(std::string& albumArtist)
+{
+    if (!lastfmTagTreatVariousArtistsAsEmpty())
+        return;
+
+    if (albumArtist.empty())
+        return;
+
+    std::string s = albumArtist;
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+
+    if (s == "various artists")
+        albumArtist.clear();
+}
 } // namespace
 
 unsigned LastfmTracker::get_flags()
@@ -252,7 +374,6 @@ void LastfmTracker::resetState()
     startWallclock = 0;
 
     resetDynamicSegmentState();
-    isCurrentStream = false;
 }
 
 void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
@@ -266,32 +387,13 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
         return;
     }
 
-    auto getTag = [&](const char* lower, const char* upper) -> std::string
-    {
-        std::string v = cleanTagValue(info.meta_get(lower, 0));
-        if (!v.empty())
-            return v;
-        return cleanTagValue(info.meta_get(upper, 0));
-    };
+    current.artist = getArtistByChoice(info);
+    current.title = getTitleByChoice(info);
+    current.album = getAlbumByChoice(info);
+    current.albumArtist = getAlbumArtistByChoice(info);
 
-    current.artist = getTag("artist", "ARTIST");
-    current.title = getTag("title", "TITLE");
-    current.album = getTag("album", "ALBUM");
-
-    auto getAlbumArtist = [&](void) -> std::string
-    {
-        static const char* keys[] = {"album artist", "ALBUM ARTIST", "album_artist",
-                                     "ALBUM_ARTIST", "albumartist",  "ALBUMARTIST"};
-        for (auto k : keys)
-        {
-            std::string v = cleanTagValue(info.meta_get(k, 0));
-            if (!v.empty())
-                return v;
-        }
-        return {};
-    };
-
-    current.albumArtist = getAlbumArtist();
+    applyFallbackIfEnabled(current.artist, current.album, info);
+    applyVariousArtistsRule(current.albumArtist);
 
     // Do NOT split TITLE for network streams at track-start.
     // Many streams put station info in TITLE like "Station - something" and we'd spam NP.
@@ -316,6 +418,7 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
 
 void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
 {
+    isCurrentStream = isNetworkStreamPath(track);
     LFM_DEBUG("Track path: " << (track->get_path() ? track->get_path() : "<null>")
                              << " stream=" << (isCurrentStream ? "yes" : "no"));
 
@@ -329,13 +432,10 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
     startWallclock = std::time(nullptr);
 
     updateFromTrack(track);
-    isCurrentStream = isNetworkStreamPath(track);
-
-    const bool isStream = isCurrentStream;
 
     if (current.artist.empty() || current.title.empty())
     {
-        if (isStream)
+        if (isCurrentStream)
         {
             LFM_DEBUG("Stream: missing artist/title at start, waiting for dynamic metadata.");
             pendingDueToMissingMetadata = true;
@@ -371,8 +471,7 @@ void LastfmTracker::on_playback_time(double time)
     // Policy: while suspended, freeze scrobble progress (do not count time).
     if (!suspended)
     {
-        const bool isStream = isCurrentStream;
-        if (isPlaying && (current.durationSeconds > 0.0 || isStream))
+        if (isPlaying && (current.durationSeconds > 0.0 || isCurrentStream))
         {
             if (!haveLastReportedTime)
             {
@@ -403,23 +502,21 @@ void LastfmTracker::on_playback_time(double time)
         file_info_impl info;
         if (currentHandle->get_info(info))
         {
-            auto getTag = [&](const char* lower, const char* upper) -> std::string
-            {
-                std::string v = cleanTagValue(info.meta_get(lower, 0));
-                if (!v.empty())
-                    return v;
-                return cleanTagValue(info.meta_get(upper, 0));
-            };
+            std::string newArtist = getArtistByChoice(info);
+            std::string newTitle = getTitleByChoice(info);
+            std::string newAlbum = getAlbumByChoice(info);
+            std::string newAlbumArtist = getAlbumArtistByChoice(info);
 
-            const std::string newArtist = getTag("artist", "ARTIST");
-            const std::string newTitle = getTag("title", "TITLE");
-            const std::string newAlbum = getTag("album", "ALBUM");
+            applyFallbackIfEnabled(newArtist, newAlbum, info);
+            applyVariousArtistsRule(newAlbumArtist);
 
-            if (newArtist != current.artist || newTitle != current.title || newAlbum != current.album)
+            if (newArtist != current.artist || newTitle != current.title || newAlbum != current.album ||
+                newAlbumArtist != current.albumArtist)
             {
                 current.artist = newArtist;
                 current.title = newTitle;
                 current.album = newAlbum;
+                current.albumArtist = newAlbumArtist;
 
                 if (!suspended)
                 {
@@ -505,9 +602,13 @@ void LastfmTracker::submitScrobbleIfNeeded()
         file_info_impl info;
         if (currentHandle->get_info(info))
         {
-            current.artist = cleanTagValue(info.meta_get("artist", 0));
-            current.title = cleanTagValue(info.meta_get("title", 0));
-            current.album = cleanTagValue(info.meta_get("album", 0));
+            current.artist = getArtistByChoice(info);
+            current.title = getTitleByChoice(info);
+            current.album = getAlbumByChoice(info);
+            current.albumArtist = getAlbumArtistByChoice(info);
+
+            applyFallbackIfEnabled(current.artist, current.album, info);
+            applyVariousArtistsRule(current.albumArtist);
         }
     }
 
