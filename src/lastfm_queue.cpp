@@ -20,6 +20,8 @@
 #include <vector>
 #include <cstdint>
 #include <random>
+#include <cctype>
+#include <cerrno>
 
 namespace
 {
@@ -80,52 +82,6 @@ struct QueuedScrobble
     int retryCount = 0;
     std::time_t nextRetryTimestamp = 0;
 };
-
-static std::uint64_t fnv1a64Append(std::uint64_t h, const void* data, std::size_t n)
-{
-    const unsigned char* p = static_cast<const unsigned char*>(data);
-    for (std::size_t i = 0; i < n; ++i)
-    {
-        h ^= static_cast<std::uint64_t>(p[i]);
-        h *= 1099511628211ull;
-    }
-    return h;
-}
-
-static std::uint64_t fnv1a64Str(std::uint64_t h, const std::string& s)
-{
-    return fnv1a64Append(h, s.data(), s.size());
-}
-
-static std::uint64_t computeLegacyId(const QueuedScrobble& q)
-{
-    std::uint64_t h = 1469598103934665603ull;
-    h = fnv1a64Str(h, q.artist);
-    h = fnv1a64Str(h, q.title);
-    h = fnv1a64Str(h, q.album);
-
-    const auto ts = static_cast<std::int64_t>(q.startTimestamp);
-    h = fnv1a64Append(h, &ts, sizeof(ts));
-
-    const auto dur = q.durationSeconds;
-    h = fnv1a64Append(h, &dur, sizeof(dur));
-
-    const auto pb = q.playbackSeconds;
-    h = fnv1a64Append(h, &pb, sizeof(pb));
-
-    const auto ro = static_cast<std::int32_t>(q.retryCount);
-    h = fnv1a64Append(h, &ro, sizeof(ro));
-
-    const auto nr = static_cast<std::int64_t>(q.nextRetryTimestamp);
-    h = fnv1a64Append(h, &nr, sizeof(nr));
-
-    const auto rf = static_cast<std::uint8_t>(q.refreshOnSubmit ? 1 : 0);
-    h = fnv1a64Append(h, &rf, sizeof(rf));
-
-    if (h == 0)
-        h = 1;
-    return h;
-}
 
 static std::uint64_t nextQueueId()
 {
@@ -271,45 +227,34 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
             pos = tab + 1;
         }
 
-        if (parts.size() < 10)
-            continue; // minimum legacy row size
+        // 11 columns. Legacy rows are ignored safely.
+        if (parts.size() < 11)
+            continue;
 
         QueuedScrobble q;
 
         q.artist = unescapeField(parts[0]);
         q.title = unescapeField(parts[1]);
         q.album = unescapeField(parts[2]);
+        q.albumArtist = unescapeField(parts[3]);
+        q.durationSeconds = std::atof(parts[4].c_str());
+        q.playbackSeconds = std::atof(parts[5].c_str());
+        q.startTimestamp = static_cast<std::time_t>(std::atoll(parts[6].c_str()));
+        q.refreshOnSubmit = (parts[7] == "1");
+        q.retryCount = std::atoi(parts[8].c_str());
+        q.nextRetryTimestamp = static_cast<std::time_t>(std::atoll(parts[9].c_str()));
+        q.id = static_cast<std::uint64_t>(std::strtoull(parts[10].c_str(), nullptr, 10));
 
-        const bool hasAlbumArtist = (parts.size() >= 11); // new format has 11 columns incl. id
-        size_t i = 3;
-
-        if (hasAlbumArtist)
-        {
-            q.albumArtist = unescapeField(parts[i++]); // parts[3]
-        }
-        else
-        {
-            q.albumArtist.clear();
-        }
-
-        q.durationSeconds = std::atof(parts[i++].c_str());
-        q.playbackSeconds = std::atof(parts[i++].c_str());
-
-        if (parts.size() > i)
-            q.startTimestamp = std::atoll(parts[i++].c_str());
-        if (parts.size() > i)
-            q.refreshOnSubmit = parts[i++] == "1";
-        if (parts.size() > i)
-            q.retryCount = std::atoi(parts[i++].c_str());
-        if (parts.size() > i)
-            q.nextRetryTimestamp = std::atoll(parts[i++].c_str());
-        if (parts.size() > i)
-            q.id = static_cast<std::uint64_t>(std::strtoull(parts[i++].c_str(), nullptr, 10));
-        else
-            q.id = computeLegacyId(q);
-
+        // Require valid non-zero id; otherwise ignore row (prevents crashes / bad merges).
         if (q.id == 0)
-            q.id = computeLegacyId(q);
+            continue;
+        
+        // Guards
+        if (q.artist.empty() || q.title.empty())
+            continue;
+
+        if (q.startTimestamp <= 0)
+            continue;
 
         result.push_back(q);
     }

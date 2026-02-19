@@ -59,8 +59,9 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 <summary><strong>Expand</strong></summary>
 
 <pre>
-1.0.2    2026-02-XX    Add tag mapping support. Access is from advanced preferences.
+1.0.2    2026-02-XX    Added tag mapping support. Feature access is from the advanced preferences section.
                        Fix: Minor queue daily limit bypassing. Drain cooldown limit now set to 50 from 100.
+                       Removed cache old format compatibility support (related to album-artist field).
 
 1.0.1    2026-02-08    Fix: Include Album Artist in Now Playing and scrobble submissions (compilations support).
 
