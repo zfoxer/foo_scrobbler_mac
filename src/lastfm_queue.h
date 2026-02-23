@@ -19,6 +19,7 @@
 class LastfmQueue
 {
   public:
+    static constexpr const char* QUEUE_VERSION = "#FSQ1";
     LastfmQueue(LastfmClient& client, std::function<void()> onInvalidSession);
 
     void setShuttingDownFlag(std::atomic<bool>* flag)

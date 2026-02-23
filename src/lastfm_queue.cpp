@@ -208,13 +208,13 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
         return result;
 
     const char* line = data;
-    
+
     // Optional header handling (FSQ1). Headerless legacy is accepted for migration.
     {
         const char* nl = std::strchr(line, '\n');
         const std::string first = nl ? std::string(line, nl - line) : std::string(line);
 
-        if (first == "#FSQ1")
+        if (first == LastfmQueue::QUEUE_VERSION)
         {
             line = nl ? (nl + 1) : (line + first.size());
         }
@@ -225,7 +225,7 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
         }
         // else: headerless legacy → keep line as-is
     }
-    
+
     while (*line)
     {
         const char* end = std::strchr(line, '\n');
@@ -275,7 +275,7 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
         // Require valid non-zero id; otherwise ignore row (prevents crashes / bad merges).
         if (q.id == 0)
             continue;
-        
+
         // Guards
         if (q.artist.empty() || q.title.empty())
             continue;
@@ -292,7 +292,8 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
 static void savePendingScrobblesImpl(const std::vector<QueuedScrobble>& items)
 {
     pfc::string8 raw;
-    raw += "#FSQ1\n";
+    raw += LastfmQueue::QUEUE_VERSION;
+    raw += "\n";
     for (const auto& q : items)
     {
         raw += serializeScrobble(q).c_str();
@@ -400,8 +401,8 @@ dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsign
             {
                 u.remove = true;
                 LFM_INFO("Queue: dropping scrobble after repeated OTHER_ERRORs: "
-                         << q.artist.c_str() << " - " << q.title.c_str()
-                         << " (otherErrorCount=" << u.newOtherErrorCount << ")");
+                         << q.artist.c_str() << " - " << q.title.c_str() << " (otherErrorCount=" << u.newOtherErrorCount
+                         << ")");
             }
         }
         else
@@ -413,8 +414,8 @@ dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsign
             {
                 u.remove = true;
                 LFM_INFO("Queue: dropping scrobble after repeated unknown errors: "
-                         << q.artist.c_str() << " - " << q.title.c_str()
-                         << " (otherErrorCount=" << u.newOtherErrorCount << ")");
+                         << q.artist.c_str() << " - " << q.title.c_str() << " (otherErrorCount=" << u.newOtherErrorCount
+                         << ")");
             }
         }
 
@@ -626,7 +627,10 @@ bool LastfmQueue::hasDueScrobble(std::time_t now) const
 void LastfmQueue::clearAll()
 {
     std::lock_guard<std::mutex> lock(mutex);
-    cfgLastfmPendingScrobbles.set("#FSQ1\n");
+    pfc::string8 s;
+    s += LastfmQueue::QUEUE_VERSION;
+    s += "\n";
+    cfgLastfmPendingScrobbles.set(s);
     LFM_INFO("Queue: cleared all pending scrobbles.");
 }
 
