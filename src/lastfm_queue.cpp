@@ -22,6 +22,7 @@
 #include <random>
 #include <cctype>
 #include <cerrno>
+#include <atomic>
 
 namespace
 {
@@ -80,6 +81,7 @@ struct QueuedScrobble
     std::time_t startTimestamp = 0;
     bool refreshOnSubmit = false;
     int retryCount = 0;
+    int otherErrorCount = 0;
     std::time_t nextRetryTimestamp = 0;
 };
 
@@ -192,6 +194,8 @@ static std::string serializeScrobble(const QueuedScrobble& q)
     out += std::to_string((long long)q.nextRetryTimestamp);
     out += '\t';
     out += std::to_string((unsigned long long)q.id);
+    out += '\t';
+    out += std::to_string(q.otherErrorCount);
     return out;
 }
 
@@ -204,6 +208,24 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
         return result;
 
     const char* line = data;
+    
+    // Optional header handling (FSQ1). Headerless legacy is accepted for migration.
+    {
+        const char* nl = std::strchr(line, '\n');
+        const std::string first = nl ? std::string(line, nl - line) : std::string(line);
+
+        if (first == "#FSQ1")
+        {
+            line = nl ? (nl + 1) : (line + first.size());
+        }
+        else if (!first.empty() && first[0] == '#')
+        {
+            // Unknown header → treat as corrupt/unsupported.
+            return result;
+        }
+        // else: headerless legacy → keep line as-is
+    }
+    
     while (*line)
     {
         const char* end = std::strchr(line, '\n');
@@ -227,7 +249,7 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
             pos = tab + 1;
         }
 
-        // 11 columns. Legacy rows are ignored safely.
+        // FSQ1 supports 11 columns (no otherErrorCount) or 12 columns (with otherErrorCount).
         if (parts.size() < 11)
             continue;
 
@@ -244,6 +266,11 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
         q.retryCount = std::atoi(parts[8].c_str());
         q.nextRetryTimestamp = static_cast<std::time_t>(std::atoll(parts[9].c_str()));
         q.id = static_cast<std::uint64_t>(std::strtoull(parts[10].c_str(), nullptr, 10));
+        q.otherErrorCount = (parts.size() >= 12) ? std::atoi(parts[11].c_str()) : 0;
+        if (q.otherErrorCount < 0)
+            q.otherErrorCount = 0;
+        else if (q.otherErrorCount > 100)
+            q.otherErrorCount = 100;
 
         // Require valid non-zero id; otherwise ignore row (prevents crashes / bad merges).
         if (q.id == 0)
@@ -265,6 +292,7 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
 static void savePendingScrobblesImpl(const std::vector<QueuedScrobble>& items)
 {
     pfc::string8 raw;
+    raw += "#FSQ1\n";
     for (const auto& q : items)
     {
         raw += serializeScrobble(q).c_str();
@@ -278,6 +306,7 @@ struct RetryUpdate
     std::uint64_t id = 0;
     bool remove = false;
     int newRetryCount = 0;
+    int newOtherErrorCount = 0;
     std::time_t newNextRetryTimestamp = 0;
 };
 
@@ -325,6 +354,7 @@ dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsign
 
         RetryUpdate u;
         u.id = q.id;
+        u.newOtherErrorCount = q.otherErrorCount;
 
         if (res == LastfmScrobbleResult::SUCCESS)
         {
@@ -354,8 +384,45 @@ dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsign
         }
 
         const std::time_t nowSchedule = std::time(nullptr);
+
         u.newRetryCount = std::min(q.retryCount + 1, 100);
-        u.newNextRetryTimestamp = nowSchedule + std::min(u.newRetryCount * K_RETRY_STEP_SECONDS, K_RETRY_MAX_SECONDS);
+
+        if (res == LastfmScrobbleResult::TEMPORARY_ERROR)
+        {
+            // Transient: do not accumulate OTHER_ERRORs
+            u.newOtherErrorCount = 0;
+        }
+        else if (res == LastfmScrobbleResult::OTHER_ERROR)
+        {
+            u.newOtherErrorCount = q.otherErrorCount + 1;
+
+            if (u.newOtherErrorCount >= 5)
+            {
+                u.remove = true;
+                LFM_INFO("Queue: dropping scrobble after repeated OTHER_ERRORs: "
+                         << q.artist.c_str() << " - " << q.title.c_str()
+                         << " (otherErrorCount=" << u.newOtherErrorCount << ")");
+            }
+        }
+        else
+        {
+            // Future-proof: treat any unknown non-success like OTHER_ERROR (bounded)
+            u.newOtherErrorCount = q.otherErrorCount + 1;
+
+            if (u.newOtherErrorCount >= 5)
+            {
+                u.remove = true;
+                LFM_INFO("Queue: dropping scrobble after repeated unknown errors: "
+                         << q.artist.c_str() << " - " << q.title.c_str()
+                         << " (otherErrorCount=" << u.newOtherErrorCount << ")");
+            }
+        }
+
+        if (!u.remove)
+        {
+            u.newNextRetryTimestamp =
+                nowSchedule + std::min(u.newRetryCount * K_RETRY_STEP_SECONDS, K_RETRY_MAX_SECONDS);
+        }
 
         updates.push_back(u);
     }
@@ -380,6 +447,7 @@ static void mergeRetryUpdates(std::vector<QueuedScrobble>& latest, const std::ve
             else
             {
                 it->retryCount = u.newRetryCount;
+                it->otherErrorCount = u.newOtherErrorCount;
                 it->nextRetryTimestamp = u.newNextRetryTimestamp;
                 ++it;
             }
@@ -473,6 +541,7 @@ void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double pla
     q.startTimestamp = startTimestamp;
     q.refreshOnSubmit = refreshOnSubmit;
     q.id = nextQueueId();
+    q.otherErrorCount = 0;
 
     std::lock_guard<std::mutex> lock(mutex);
     auto items = loadPendingScrobblesImpl();
@@ -557,7 +626,7 @@ bool LastfmQueue::hasDueScrobble(std::time_t now) const
 void LastfmQueue::clearAll()
 {
     std::lock_guard<std::mutex> lock(mutex);
-    cfgLastfmPendingScrobbles.set("");
+    cfgLastfmPendingScrobbles.set("#FSQ1\n");
     LFM_INFO("Queue: cleared all pending scrobbles.");
 }
 
