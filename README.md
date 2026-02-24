@@ -59,11 +59,11 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 <summary><strong>Expand</strong></summary>
 
 <pre>
-1.0.2    2026-02-25    Drop queued scrobbles after 5 consecutive unclassified scrobble errors.
-                       Add tag mapping support (Advanced preferences).
-                       Fix: Minor bypass of daily queue drain limit.
-                       Change: Small-queue cooldown ignore threshold reduced to 50 (from 100).
-                       Remove legacy queue-format compatibility (pre-album-artist field).
+1.0.2    2026-02-25    Added tag mapping support (Advanced preferences).
+                       Discard queued scrobbles after 5 consecutive unclassified responses from Last.fm.
+                       Fixed: Minor bypass of daily queue drain limit.
+                       Changed: Small-queue cooldown ignore threshold reduced to 50 (from 100).
+                       Removed legacy queue-format compatibility (pre-AlbumArtist field).
 
 1.0.1    2026-02-08    Fix: Include Album Artist in Now Playing and scrobble submissions (compilations support).
 
