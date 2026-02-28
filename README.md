@@ -4,11 +4,12 @@
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
 
-### Intro
-
 Foo Scrobbler (foo_scrobbler_mac) is a native Last.fm scrobbling plugin for foobar2000 on macOS. Submits tracks based on precise playback rules, caches scrobbles when offline, and operates silently after one-time authentication. Built using the official foobar2000 plugin API, it focuses on reliability, low overhead, and correct metadata handling. Fully open-source under GPLv3.
 
 Supports macOS ≥ 11.5 on both Intel and ARM.  
+
+This is the GitHub site of the [macOS version](https://github.com/zfoxer/foo_scrobbler_mac).  
+For the Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_win).  
 
 
 ### Key Features
