@@ -1,10 +1,10 @@
 ### Foo Scrobbler for Mac
-#### Version: 1.0.2 — foo_scrobbler_mac — Released under GNU GPLv3
+#### Version: 1.0.5 — foo_scrobbler_mac — Released under GNU GPLv3
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
 
-Foo Scrobbler (foo_scrobbler_mac) is a native Last.fm scrobbling plugin for foobar2000 on macOS. Submits tracks based on precise playback rules, caches scrobbles when offline, and operates silently after one-time authentication. Built using the official foobar2000 plugin API, it focuses on reliability, low overhead, and correct metadata handling. Fully open-source under GPLv3.
+Foo Scrobbler (foo_scrobbler_mac) is a native Last.fm scrobbling plugin for foobar2000 on macOS. Submits tracks based on precise playback rules, caches scrobbles when offline, and operates silently after one-time authentication. Built using the official foobar plugin API, it focuses on reliability, low overhead, and correct metadata handling. Fully open-source under GPLv3.
 
 Supports macOS ≥ 11.5 on both Intel and ARM.  
 
@@ -60,11 +60,14 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 <summary><strong>Expand</strong></summary>
 
 <pre>
+1.0.5    2026-03-XX    Added regular expressions (regex) support to filter out submissions (Advanced prefs).
+                       Language support increased from C++17 → 20.
+
 1.0.2    2026-02-25    Added tag mapping support (Advanced preferences).
                        Discard queued scrobbles after 5 consecutive unclassified responses from Last.fm.
                        Fixed: Minor bypass of daily queue drain limit.
                        Changed: Small-queue cooldown ignore threshold reduced to 50 (from 100).
-                       Removed legacy queue-format compatibility (pre-AlbumArtist field).
+                       Removed old queue-format compatibility (pre-AlbumArtist field).
 
 1.0.1    2026-02-08    Fix: Include Album Artist in Now Playing and scrobble submissions (compilations support).
 

@@ -139,6 +139,12 @@ static const GUID GUID_LASTFM_TAG_ALBUM_RADIO_3 = {
 static const GUID GUID_LASTFM_TAG_ALBUM_RADIO_4 = {
     /* DISCNAME */ 0x50f68c18, 0x5f3c, 0x4ab6, {0x8a, 0x1e, 0x85, 0x7b, 0x1a, 0x2f, 0x92, 0x51}};
 
+static const GUID GUID_LASTFM_PREFS_EXCLUDE_ARTISTS = {
+    0x1657f061, 0x825c, 0x4b22, {0xb6, 0x69, 0xdc, 0x72, 0xcb, 0xfd, 0x93, 0xe1}};
+
+static const GUID GUID_LASTFM_PREFS_EXCLUDE_TITLES = {
+    0xf168a4ff, 0xeb5b, 0x4e4c, {0xa5, 0x02, 0x65, 0x91, 0x08, 0x37, 0xdf, 0x0a}};
+
 // Branches
 static advconfig_branch_factory g_lastfmPrefsBranchFactory("Foo Scrobbler", GUID_LASTFM_PREFS_BRANCH,
                                                            advconfig_branch::guid_branch_tools, -50);
@@ -327,6 +333,14 @@ static service_factory_single_t<advconfig_entry_checkbox_impl>
     g_tagArtistRadio4("CONDUCTOR", "foo_scrobbler.tags.artist.conductor", GUID_LASTFM_TAG_ARTIST_RADIO_4,
                       GUID_LASTFM_PREFS_BRANCH_TAG_ARTIST, 4.0, false, true, 0);
 
+static service_factory_single_t<advconfig_entry_string_impl>
+    g_excludeArtists("Exclude artists (text or regex; ';' separated)", "foo_scrobbler.scrobbling.exclude_artists",
+                     GUID_LASTFM_PREFS_EXCLUDE_ARTISTS, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 2.0, "", 0);
+
+static service_factory_single_t<advconfig_entry_string_impl>
+    g_excludeTitles("Exclude titles (text or regex; ';' separated)", "foo_scrobbler.scrobbling.exclude_titles",
+                    GUID_LASTFM_PREFS_EXCLUDE_TITLES, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 3.0, "", 0);
+
 static void enforceOneOfN(const GUID* ids, std::size_t n, std::size_t defaultIndex)
 {
     std::size_t firstOn = n; // "none"
@@ -502,6 +516,26 @@ static int getTagAlbumSourceChoice()
         return 1;
     return 0;
 }
+
+static std::string advGetStringState(const GUID& g)
+{
+    service_ptr_t<advconfig_entry_string> e;
+    if (!advconfig_entry::g_find_t(e, g))
+        return {};
+
+    pfc::string8 v;
+    e->get_state(v);
+    return std::string(v.c_str());
+}
+
+static void advSetStringState(const GUID& g, const char* s)
+{
+    service_ptr_t<advconfig_entry_string> e;
+    if (!advconfig_entry::g_find_t(e, g))
+        return;
+
+    e->set_state(s ? s : "");
+}
 } // namespace
 
 void lastfmSyncLogLevelFromPrefs()
@@ -569,4 +603,14 @@ int lastfmTagTitleSource()
 int lastfmTagAlbumSource()
 {
     return getTagAlbumSourceChoice();
+}
+
+std::string lastfmExcludedArtistsPatternList()
+{
+    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_ARTISTS);
+}
+
+std::string lastfmExcludedTitlesPatternList()
+{
+    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_TITLES);
 }

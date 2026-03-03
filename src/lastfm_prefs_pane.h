@@ -25,3 +25,6 @@ int lastfmTagAlbumSource();
 
 bool lastfmTagFallbackArtistAlbum();
 bool lastfmTagTreatVariousArtistsAsEmpty();
+
+std::string lastfmExcludedArtistsPatternList();
+std::string lastfmExcludedTitlesPatternList();
