@@ -1,10 +1,10 @@
 ### Foo Scrobbler for Mac
-#### Version: 1.0.5 — foo_scrobbler_mac — Released under GNU GPLv3
+#### Version: 1.0.5 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
 
-Foo Scrobbler (foo_scrobbler_mac) is a native Last.fm scrobbling plugin for foobar2000 on macOS. Submits tracks based on precise playback rules, caches scrobbles when offline, and operates silently after one-time authentication. Built using the official foobar plugin API, it focuses on reliability, low overhead, and correct metadata handling. Fully open-source under GPLv3.
+Foo Scrobbler (foo_scrobbler_mac) is a native Last.fm scrobbling plugin for foobar2000 on macOS. Submits tracks based on precise playback rules, caches scrobbles when offline, and operates silently after one-time authentication. Built using the official foobar plugin API, it focuses on reliability, low overhead, and correct metadata handling. Fully open-source under MIT Licence.
 
 Supports macOS ≥ 11.5 on both Intel and ARM.  
 
@@ -35,7 +35,7 @@ For the Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/fo
 - **Strict playback validation**  
   Prevents malformed or duplicate scrobbles.
 
-- **Open-source (GPLv3)**  
+- **Open-source (MIT License)**  
   Transparent and extensible.
   
 
@@ -48,11 +48,11 @@ Authentication requires only an active Last.fm account. Users grant access once 
 
 ### Licensing Notice
 
-This project is licensed under the GNU GPLv3.
+This project is licensed under the MIT License.
 
-The SDK is proprietary and **not covered by the GPL license**. It remains the property of its original author (Peter Pawlowski / foobar2000).
+The SDK is proprietary and **not covered by the MIT license**. It remains the property of its original author (Peter Pawlowski / foobar2000).
 
-Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
+Only the source code of the Foo Scrobbler plugin is licensed under the MIT License.
 
 ### Changelog
 
