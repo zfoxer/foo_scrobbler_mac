@@ -19,7 +19,7 @@ static const GUID FOO_SCROBBLER_MAC_GUID = {
 DECLARE_COMPONENT_VERSION("Foo Scrobbler", FOOSCROBBLER_VERSION,
                           "A Last.fm scrobbler for foobar2000 (macOS).\n"
                           "(c) 2025-2026 Konstantinos Kyriakopoulos.\n"
-                          "GPLv3-licensed source.");
+                          "MIT-licensed source.");
 
 // Ensures the binary filename is correct
 VALIDATE_COMPONENT_FILENAME("foo_scrobbler_mac.component");

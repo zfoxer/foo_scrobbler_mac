@@ -62,6 +62,7 @@ Only the source code of the Foo Scrobbler plugin is licensed under GPLv3.
 <pre>
 1.0.5    2026-03-XX    Added regular expressions (regex) support to filter out submissions (Advanced prefs).
                        Language support increased from C++17 → 20.
+                       Switched to MIT License.
 
 1.0.2    2026-02-25    Added tag mapping support (Advanced preferences).
                        Discard queued scrobbles after 5 consecutive unclassified responses from Last.fm.
