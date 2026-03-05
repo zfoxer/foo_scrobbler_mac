@@ -857,6 +857,28 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
         return;
     }
 
+    // De-dupe dynamic metadata updates (foobar may call both dynamic callbacks for the same change).
+    // Keyed by stream URL + artist + title so the same track on another station still passes.
+    static std::string lastPath;
+    static std::string lastArtist;
+    static std::string lastTitle;
+
+    const char* p = currentHandle->get_path();
+    const std::string path = p ? p : "";
+
+    if (path != lastPath)
+    {
+        lastPath = path;
+        lastArtist.clear();
+        lastTitle.clear();
+    }
+
+    if (newArtist == lastArtist && newTitle == lastTitle)
+        return;
+
+    lastArtist = newArtist;
+    lastTitle = newTitle;
+
     if (newArtist == current.artist && newTitle == current.title && newAlbum == current.album)
         return;
 
