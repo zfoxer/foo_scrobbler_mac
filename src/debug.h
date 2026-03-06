@@ -20,7 +20,6 @@ enum class LfmLogLevel : int
 
 extern std::atomic<int> lfmLogLevel;
 
-// Defined in lastfm_prefs_pane.cpp
 void lastfmSyncLogLevelFromPrefs();
 
 #define LFM_INFO(expr)                                                                                                 \

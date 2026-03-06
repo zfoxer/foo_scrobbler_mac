@@ -49,17 +49,17 @@ static std::string cleanTagValue(const char* value)
     if (norm == "unknown" || norm == "unknownartist" || norm == "unknowntrack")
         return {};
 
-    bool hasAlnum = false;
+    bool hasVisibleContent = false;
     for (unsigned char c : s)
     {
-        if (std::isalnum(c))
+        if (!std::isspace(c))
         {
-            hasAlnum = true;
+            hasVisibleContent = true;
             break;
         }
     }
 
-    if (!hasAlnum)
+    if (!hasVisibleContent)
         return {};
 
     return s;

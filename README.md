@@ -60,7 +60,8 @@ Only the source code of the Foo Scrobbler plugin is licensed under the MIT Licen
 <summary><strong>Expand</strong></summary>
 
 <pre>
-1.0.5    2026-03-07    Added regular expressions (regex) support to filter out submissions (Advanced prefs).
+1.0.5    2026-03-07    Added support for regular expressions (regex) to filter out submissions (Advanced prefs).
+                       Fixed: Unicode track titles, are now handled correctly for Now Playing and scrobbling.
                        Language support increased from C++17 → 20.
                        Switched to MIT License.
 
