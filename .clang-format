@@ -20,8 +20,8 @@ BraceWrapping:
 
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: None
-AllowShortBlocksOnASingleLine: true
+AllowShortFunctionsOnASingleLine: false
+AllowShortBlocksOnASingleLine: false
 
 AlignConsecutiveDeclarations:
   Enabled: false

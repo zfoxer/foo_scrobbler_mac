@@ -812,10 +812,7 @@ void LastfmTracker::submitScrobbleIfNeeded()
     pendingDueToMissingMetadata = false;
 
     if (isExcludedByFilters(current.artist, current.title))
-    {
-        scrobbleSent = true; // prevent repeated retry attempts
         return;
-    }
 
     // Eligible, but suspended -> remember and defer.
     if (lastfmIsSuspended())
