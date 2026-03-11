@@ -37,8 +37,8 @@ static bool buildNowPlayingParams(std::map<std::string, std::string>& params, st
         return false;
     }
 
-    const std::string apiKey = __s66_x3();
-    const std::string apiSecret = __s64_x9();
+    const std::string apiKey = __key();
+    const std::string apiSecret = __sec();
 
     if (apiKey.empty() || apiSecret.empty())
     {

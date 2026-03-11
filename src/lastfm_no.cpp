@@ -10,12 +10,12 @@
 // Auto-generated at build time by the Xcode Run Script.
 #include "../generated/no.generated.h"
 
-std::string __s66_x3()
+std::string __key()
 {
-    return _s66_x3();
+    return _key();
 }
 
-std::string __s64_x9()
+std::string __sec()
 {
-    return _s64_x9();
+    return _sec();
 }

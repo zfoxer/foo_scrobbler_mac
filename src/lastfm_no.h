@@ -9,5 +9,5 @@
 
 #include <string>
 
-std::string __s66_x3();
-std::string __s64_x9();
+std::string __key();
+std::string __sec();
