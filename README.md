@@ -60,7 +60,7 @@ Only the source code of the Foo Scrobbler plugin is licensed under the MIT Licen
 <summary><strong>Expand</strong></summary>
 
 <pre>
-1.0.6    2026-03-14    Added support for foobar's Title Formatting for input tags. Removed previous tag mapping.
+1.0.6    2026-03-12    Added support for foobar Title Formatting for input tags. Removed previous tag mapping.
 
 1.0.5    2026-03-07    Added support for regular expressions (regex) to filter out submissions (Advanced prefs).
                        Fixed: Unicode track titles, are now handled correctly for Now Playing and scrobbling.
