@@ -95,6 +95,8 @@ static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
     out.album = cleanTagValue(info.meta_get("album", 0));
 
     const char* mbid = info.meta_get("musicbrainz_trackid", 0);
+    if (!mbid)
+        mbid = info.meta_get("MUSICBRAINZ_TRACKID", 0);
     out.mbid = mbid ? mbid : "";
 
     out.durationSeconds = info.get_length();

@@ -76,6 +76,7 @@ struct QueuedScrobble
     std::string title;
     std::string album;
     std::string albumArtist;
+    std::string mbid;
     double durationSeconds = 0.0;
     double playbackSeconds = 0.0;
     std::time_t startTimestamp = 0;
@@ -196,6 +197,8 @@ static std::string serializeScrobble(const QueuedScrobble& q)
     out += std::to_string((unsigned long long)q.id);
     out += '\t';
     out += std::to_string(q.otherErrorCount);
+    out += '\t';
+    out += escapeField(q.mbid);
     return out;
 }
 
@@ -209,12 +212,12 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
 
     const char* line = data;
 
-    // Optional header handling (FSQ1). Headerless legacy is accepted for migration.
+    // Optional header handling (FSQ2 / FSQ1). Headerless legacy is accepted for migration.
     {
         const char* nl = std::strchr(line, '\n');
         const std::string first = nl ? std::string(line, nl - line) : std::string(line);
 
-        if (first == LastfmQueue::QUEUE_VERSION)
+        if (first == LastfmQueue::QUEUE_VERSION || first == "#FSQ1")
         {
             line = nl ? (nl + 1) : (line + first.size());
         }
@@ -249,7 +252,9 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
             pos = tab + 1;
         }
 
-        // FSQ1 supports 11 columns (no otherErrorCount) or 12 columns (with otherErrorCount).
+        // Supported row shapes:
+        // legacy / FSQ1: 11 columns (no otherErrorCount) or 12 columns (with otherErrorCount)
+        // FSQ2: 13 columns (with otherErrorCount + mbid)
         if (parts.size() < 11)
             continue;
 
@@ -267,6 +272,7 @@ static std::vector<QueuedScrobble> loadPendingScrobblesImpl()
         q.nextRetryTimestamp = static_cast<std::time_t>(std::atoll(parts[9].c_str()));
         q.id = static_cast<std::uint64_t>(std::strtoull(parts[10].c_str(), nullptr, 10));
         q.otherErrorCount = (parts.size() >= 12) ? std::atoi(parts[11].c_str()) : 0;
+        q.mbid = (parts.size() >= 13) ? unescapeField(parts[12]) : "";
         if (q.otherErrorCount < 0)
             q.otherErrorCount = 0;
         else if (q.otherErrorCount > 100)
@@ -349,6 +355,7 @@ dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsign
         t.title = q.title;
         t.album = q.album;
         t.albumArtist = q.albumArtist;
+        t.mbid = q.mbid;
         t.durationSeconds = q.durationSeconds;
 
         auto res = client.scrobble(t, q.playbackSeconds, q.startTimestamp);
@@ -518,6 +525,8 @@ void LastfmQueue::refreshPendingScrobbleMetadata(const LastfmTrackInfo& track)
             it->album = track.album;
         if (!track.albumArtist.empty())
             it->albumArtist = track.albumArtist;
+        if (!track.mbid.empty())
+            it->mbid = track.mbid;
         if (track.durationSeconds > 0.0)
             it->durationSeconds = track.durationSeconds;
 
@@ -537,6 +546,7 @@ void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double pla
     q.title = track.title;
     q.album = track.album;
     q.albumArtist = track.albumArtist;
+    q.mbid = track.mbid;
     q.durationSeconds = track.durationSeconds;
     q.playbackSeconds = playbackSeconds;
     q.startTimestamp = startTimestamp;

@@ -119,7 +119,7 @@ static void selfTest_extractLastfmApiError()
 
 static bool buildNowPlayingParams(std::map<std::string, std::string>& params, std::string& apiSecretOut,
                                   const std::string& artist, const std::string& title, const std::string& album,
-                                  const std::string& albumArtist, double durationSeconds)
+                                  const std::string& albumArtist, const std::string& mbid, double durationSeconds)
 {
     LastfmAuthState state = getAuthState();
     if (!state.isAuthenticated || state.sessionKey.empty())
@@ -155,6 +155,9 @@ static bool buildNowPlayingParams(std::map<std::string, std::string>& params, st
 
     if (!albumArtist.empty())
         params["albumArtist"] = albumArtist;
+
+    if (!mbid.empty())
+        params["mbid"] = mbid;
 
     if (durationSeconds > 0.0)
     {
@@ -222,7 +225,7 @@ bool LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
     std::map<std::string, std::string> params;
     std::string apiSecret;
 
-    if (!buildNowPlayingParams(params, apiSecret, track.artist, track.title, track.album, track.albumArtist,
+    if (!buildNowPlayingParams(params, apiSecret, track.artist, track.title, track.album, track.albumArtist, track.mbid,
                                track.durationSeconds))
     {
         return false;
@@ -278,6 +281,8 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
         params["album"] = track.album;
     if (!track.albumArtist.empty())
         params["albumArtist"] = track.albumArtist;
+    if (!track.mbid.empty())
+        params["mbid"] = track.mbid;
     if (track.durationSeconds > 0.0)
         params["duration"] = std::to_string(static_cast<int>(track.durationSeconds));
 

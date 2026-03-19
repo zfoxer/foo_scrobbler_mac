@@ -1,5 +1,5 @@
 ### Foo Scrobbler for Mac
-#### Version: 1.0.6 — foo_scrobbler_mac — Released under MIT License
+#### Version: 1.0.7 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
@@ -60,6 +60,9 @@ Only the source code of the Foo Scrobbler plugin is licensed under the MIT Licen
 <summary><strong>Expand</strong></summary>
 
 <pre>
+1.0.7    2026-04-XX    Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.
+                       Merged NP code into WebAPI.
+
 1.0.6    2026-03-12    Added support for foobar Title Formatting for input tags. Removed previous tag mapping.
 
 1.0.5    2026-03-07    Added support for regular expressions (regex) to filter out submissions (Advanced prefs).
