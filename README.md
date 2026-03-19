@@ -60,8 +60,8 @@ Only the source code of the Foo Scrobbler plugin is licensed under the MIT Licen
 <summary><strong>Expand</strong></summary>
 
 <pre>
-1.0.7    2026-04-XX    Handle Last.fm rate-limit error 29 with queue cooldown.
-		       Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.
+1.0.7    2026-03-20    Handle Last.fm rate-limit error 29 with queue cooldown.
+                       Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.
                        Merged NP code into WebAPI.
 
 1.0.6    2026-03-12    Added support for foobar Title Formatting for input tags. Removed previous tag mapping.
