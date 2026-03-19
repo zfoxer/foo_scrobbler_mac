@@ -39,7 +39,7 @@ class LastfmQueue
 
     // Introspection
     std::size_t getPendingScrobbleCount() const;
-    bool hasDueScrobble(std::time_t now) const;
+    bool hasDueScrobble(std::time_t now);
 
     // Clear all pending scrobbles (persistent storage).
     void clearAll();
@@ -48,9 +48,13 @@ class LastfmQueue
     static std::chrono::seconds drainCooldown();
 
   private:
+    void enterRateLimitCooldownLocked(std::time_t now, std::time_t cooldownSeconds);
+    bool isRateLimitedLocked(std::time_t now);
     std::atomic<bool>* shuttingDown_ = nullptr;
     LastfmClient& client;
     std::function<void()> onInvalidSession;
 
     mutable std::mutex mutex;
+    std::time_t rateLimitedUntil_ = 0;
+    bool rateLimitLogged_ = false;
 };

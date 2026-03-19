@@ -70,7 +70,9 @@ static ApiOutcome classifyResponse(bool httpOk, const std::string& httpError, co
         case 16:
             out.result = LastfmScrobbleResult::TEMPORARY_ERROR;
             break;
-
+        case 29:
+            out.result = LastfmScrobbleResult::RATE_LIMITED;
+            break;
         default:
             out.result = LastfmScrobbleResult::OTHER_ERROR;
             break;

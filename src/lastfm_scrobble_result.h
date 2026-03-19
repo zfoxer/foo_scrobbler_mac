@@ -11,6 +11,7 @@ enum class LastfmScrobbleResult
 {
     SUCCESS,
     TEMPORARY_ERROR,
+    RATE_LIMITED,
     INVALID_SESSION,
     OTHER_ERROR
 };
