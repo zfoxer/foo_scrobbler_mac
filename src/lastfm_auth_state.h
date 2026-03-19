@@ -9,9 +9,6 @@
 
 #include <string>
 
-namespace LastfmPlugin
-{
-
 struct LastfmAuthState
 {
     bool isAuthenticated = false;
@@ -19,7 +16,3 @@ struct LastfmAuthState
     std::string username;   // Last.fm username
     std::string sessionKey; // 'sk' from Last.fm
 };
-
-} // namespace LastfmPlugin
-
-using LastfmPlugin::LastfmAuthState;

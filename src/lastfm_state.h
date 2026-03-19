@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "lastfm_types.h"
+#include "lastfm_auth_state.h"
 
 // cfg-backed state (no UI, no dialogs)
 

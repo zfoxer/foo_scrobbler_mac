@@ -9,7 +9,7 @@
 
 #include <string>
 
-#include "lastfm_types.h"
+#include "lastfm_auth_state.h"
 
 // NOTE: State is implemented in lastfm_state.* now.
 LastfmAuthState getAuthState();

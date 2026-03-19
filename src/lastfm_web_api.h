@@ -9,7 +9,7 @@
 
 #include <ctime>
 
-#include "lastfm_results.h"
+#include "lastfm_scrobble_result.h"
 #include "lastfm_track_info.h"
 
 class LastfmWebApi

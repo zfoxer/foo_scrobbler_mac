@@ -9,7 +9,7 @@
 
 #include <string>
 
-#include "lastfm_types.h"
+#include "lastfm_auth_state.h"
 #include "lastfm_ui.h"
 
 // Starts the browser-based Last.fm auth flow.

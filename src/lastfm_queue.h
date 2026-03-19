@@ -13,7 +13,7 @@
 #include <functional>
 #include <mutex>
 
-#include "lastfm_types.h"
+#include "lastfm_auth_state.h"
 #include "lastfm_client.h"
 
 class LastfmQueue

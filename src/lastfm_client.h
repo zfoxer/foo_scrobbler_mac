@@ -12,7 +12,7 @@
 
 #include "lastfm_auth_api.h"
 #include "lastfm_track_info.h"
-#include "lastfm_results.h"
+#include "lastfm_scrobble_result.h"
 #include "lastfm_web_api.h"
 
 class LastfmClient final : public ILastfmAuthApi

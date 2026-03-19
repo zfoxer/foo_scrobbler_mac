@@ -9,7 +9,6 @@
 #include "lastfm_no.h"
 #include "lastfm_ui.h"
 #include "lastfm_util.h"
-#include "lastfm_nowplaying.h"
 #include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
@@ -117,11 +116,120 @@ static void selfTest_extractLastfmApiError()
 }
 
 #endif
+
+static bool buildNowPlayingParams(std::map<std::string, std::string>& params, std::string& apiSecretOut,
+                                  const std::string& artist, const std::string& title, const std::string& album,
+                                  const std::string& albumArtist, double durationSeconds)
+{
+    LastfmAuthState state = getAuthState();
+    if (!state.isAuthenticated || state.sessionKey.empty())
+    {
+        LFM_INFO("NowPlaying: not authenticated, skipping.");
+        return false;
+    }
+
+    if (artist.empty() || title.empty())
+    {
+        LFM_INFO("Missing track info, not submitting.");
+        return false;
+    }
+
+    const std::string apiKey = __key();
+    const std::string apiSecret = __sec();
+
+    if (apiKey.empty() || apiSecret.empty())
+    {
+        LFM_INFO("NowPlaying: API key/secret not configured.");
+        return false;
+    }
+
+    apiSecretOut = apiSecret;
+
+    params = {
+        {"api_key", apiKey},      {"artist", artist}, {"track", title}, {"method", "track.updateNowPlaying"},
+        {"sk", state.sessionKey},
+    };
+
+    if (!album.empty())
+        params["album"] = album;
+
+    if (!albumArtist.empty())
+        params["albumArtist"] = albumArtist;
+
+    if (durationSeconds > 0.0)
+    {
+        int dur = static_cast<int>(durationSeconds + 0.5);
+        params["duration"] = std::to_string(dur);
+    }
+
+    return true;
+}
+
+static pfc::string8 buildNowPlayingUrl(const std::map<std::string, std::string>& params, const std::string& apiSecret)
+{
+    std::string sigSrc;
+    for (const auto& kv : params)
+    {
+        sigSrc += kv.first;
+        sigSrc += kv.second;
+    }
+    sigSrc += apiSecret;
+
+    const std::string apiSig = lastfm::util::md5HexLower(sigSrc);
+
+    pfc::string8 url;
+    url << "https://ws.audioscrobbler.com/2.0/?";
+
+    bool first = true;
+    for (const auto& kv : params)
+    {
+        if (!first)
+            url << "&";
+        first = false;
+
+        const std::string encodedVal = lastfm::util::urlEncode(kv.second);
+        url << kv.first.c_str() << "=" << encodedVal.c_str();
+    }
+
+    url << "&api_sig=" << apiSig.c_str() << "&format=json";
+    return url;
+}
+
+static bool postNowPlayingAndClassify(const char* urlCStr)
+{
+    pfc::string8 body;
+    std::string httpError;
+
+    const bool httpOk = lastfm::util::httpPostToString(urlCStr, body, httpError);
+
+    if (httpOk)
+        LFM_DEBUG("NowPlaying response received. (size=" << body.get_length() << ")");
+
+    const ApiOutcome outcome = classifyResponse(httpOk, httpError, body);
+
+    if (outcome.result == LastfmScrobbleResult::SUCCESS)
+    {
+        LFM_DEBUG("NowPlaying OK.");
+        return true;
+    }
+
+    return false;
+}
 } // namespace
 
 bool LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
 {
-    return sendNowPlaying(track.artist, track.title, track.album, track.albumArtist, track.durationSeconds);
+    std::map<std::string, std::string> params;
+    std::string apiSecret;
+
+    if (!buildNowPlayingParams(params, apiSecret, track.artist, track.title, track.album, track.albumArtist,
+                               track.durationSeconds))
+    {
+        return false;
+    }
+
+    const pfc::string8 url = buildNowPlayingUrl(params, apiSecret);
+    return postNowPlayingAndClassify(url.c_str());
 }
 
 LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
