@@ -1,5 +1,5 @@
 //
-//  lastfm_types.h
+//  lastfm_auth_state.h
 //  foo_scrobbler_mac
 //
 //  (c) 2025-2026 by Konstantinos Kyriakopoulos

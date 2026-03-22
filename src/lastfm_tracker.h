@@ -10,6 +10,7 @@
 #include <foobar2000/SDK/foobar2000.h>
 
 #include <ctime>
+#include <string>
 
 #include "lastfm_rules.h"
 #include "lastfm_track_info.h"
@@ -31,6 +32,8 @@ class LastfmTracker : public play_callback_static
     void on_volume_change(float volume) override;
 
   private:
+    void fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTrackInfo& out);
+    void recompileTfIfNeeded();
     void resetState();
     void submitScrobbleIfNeeded();
     void updateFromTrack(const metadb_handle_ptr& track);
@@ -58,6 +61,17 @@ class LastfmTracker : public play_callback_static
     metadb_handle_ptr currentHandle;
     LastfmRules rules;
 
+    service_ptr_t<titleformat_object> artistTf_;
+    service_ptr_t<titleformat_object> albumArtistTf_;
+    service_ptr_t<titleformat_object> titleTf_;
+    service_ptr_t<titleformat_object> albumTf_;
+    service_ptr_t<titleformat_object> fallbackArtistTf_;
+
+    std::string cachedArtistTfExpr_;
+    std::string cachedAlbumArtistTfExpr_;
+    std::string cachedTitleTfExpr_;
+    std::string cachedAlbumTfExpr_;
+
     // Dynamic stream scrobble (network sources only)
     bool dynamicActive = false;
     bool dynamicPending = false; // cached after >= 30s effective listening
@@ -66,6 +80,9 @@ class LastfmTracker : public play_callback_static
     double dynamicPendingPlaybackTime = 0.0;
     std::time_t dynamicPendingStartWallclock = 0;
     std::time_t dynamicSegmentStartWallclock = 0;
+    std::string dedupLastPath_;
+    std::string dedupLastArtist_;
+    std::string dedupLastTitle_;
 
     // Helpers (network-only)
     void resetDynamicSegmentState();

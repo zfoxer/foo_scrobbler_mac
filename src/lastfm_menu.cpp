@@ -10,14 +10,13 @@
 #include "lastfm_core.h"
 #include "lastfm_track_info.h"
 #include "lastfm_state.h"
+#include "lastfm_util.h"
 #include "debug.h"
 
 #include <foobar2000/SDK/foobar2000.h>
 
 #include <string>
 #include <cstdlib>
-#include <cctype>
-
 static const GUID GUID_LASTFM_AUTHENTICATE = {
     0xb2f2b721, 0xdc90, 0x45ee, {0xa5, 0xb6, 0x46, 0x4d, 0xb5, 0x4f, 0x5d, 0x5f}};
 
@@ -47,37 +46,6 @@ static void openBrowserUrl(const std::string& url)
 #endif
 }
 
-static std::string cleanTagValue(const char* value)
-{
-    if (!value)
-        return {};
-
-    std::string s(value);
-
-    std::size_t start = 0;
-    while (start < s.size() && std::isspace((unsigned char)s[start]))
-        ++start;
-
-    std::size_t end = s.size();
-    while (end > start && std::isspace((unsigned char)s[end - 1]))
-        --end;
-
-    if (start == end)
-        return {};
-
-    s = s.substr(start, end - start);
-
-    std::string norm;
-    for (char c : s)
-        if (!std::isspace((unsigned char)c))
-            norm.push_back((char)std::tolower((unsigned char)c));
-
-    if (norm == "unknown" || norm == "unknownartist" || norm == "unknowntrack")
-        return {};
-
-    return s;
-}
-
 static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
 {
     out = LastfmTrackInfo{};
@@ -90,9 +58,9 @@ static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
     if (!handle->get_info(info))
         return false;
 
-    out.artist = cleanTagValue(info.meta_get("artist", 0));
-    out.title = cleanTagValue(info.meta_get("title", 0));
-    out.album = cleanTagValue(info.meta_get("album", 0));
+    out.artist = lastfm::util::cleanTagValue(info.meta_get("artist", 0));
+    out.title = lastfm::util::cleanTagValue(info.meta_get("title", 0));
+    out.album = lastfm::util::cleanTagValue(info.meta_get("album", 0));
 
     const char* mbid = info.meta_get("musicbrainz_trackid", 0);
     if (!mbid)

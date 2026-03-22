@@ -35,6 +35,37 @@ static std::string redact_url_for_log(const char* url)
     return s;
 }
 
+std::string cleanTagValue(const char* value)
+{
+    if (!value)
+        return {};
+
+    std::string s(value);
+
+    std::size_t start = 0;
+    while (start < s.size() && std::isspace((unsigned char)s[start]))
+        ++start;
+
+    std::size_t end = s.size();
+    while (end > start && std::isspace((unsigned char)s[end - 1]))
+        --end;
+
+    if (start == end)
+        return {};
+
+    s = s.substr(start, end - start);
+
+    std::string norm;
+    for (char c : s)
+        if (!std::isspace((unsigned char)c))
+            norm.push_back((char)std::tolower((unsigned char)c));
+
+    if (norm == "unknown" || norm == "unknownartist" || norm == "unknowntrack")
+        return {};
+
+    return s;
+}
+
 std::string md5HexLower(const std::string& data)
 {
     unsigned char digest[CC_MD5_DIGEST_LENGTH];

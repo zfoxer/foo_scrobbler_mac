@@ -9,6 +9,7 @@
 #include "lastfm_tracker.h"
 #include "lastfm_core.h"
 #include "lastfm_state.h"
+#include "lastfm_util.h"
 #include "debug.h"
 
 #include <algorithm>
@@ -22,50 +23,6 @@
 
 namespace
 {
-static std::string cleanTagValue(const char* value)
-{
-    if (!value)
-        return {};
-
-    std::string s(value);
-
-    std::size_t start = 0;
-    while (start < s.size() && std::isspace((unsigned char)s[start]))
-        ++start;
-
-    std::size_t end = s.size();
-    while (end > start && std::isspace((unsigned char)s[end - 1]))
-        --end;
-
-    if (start == end)
-        return {};
-
-    s = s.substr(start, end - start);
-
-    std::string norm;
-    for (char c : s)
-        if (!std::isspace((unsigned char)c))
-            norm.push_back((char)std::tolower((unsigned char)c));
-
-    if (norm == "unknown" || norm == "unknownartist" || norm == "unknowntrack")
-        return {};
-
-    bool hasVisibleContent = false;
-    for (unsigned char c : s)
-    {
-        if (!std::isspace(c))
-        {
-            hasVisibleContent = true;
-            break;
-        }
-    }
-
-    if (!hasVisibleContent)
-        return {};
-
-    return s;
-}
-
 static bool isVariousArtistsValue(const std::string& value)
 {
     std::string s = value;
@@ -73,18 +30,14 @@ static bool isVariousArtistsValue(const std::string& value)
     return s == "various artists";
 }
 
-static std::string evalTitleFormat(const metadb_handle_ptr& track, const char* expr)
+static std::string evalTitleFormat(const metadb_handle_ptr& track, const service_ptr_t<titleformat_object>& script)
 {
-    if (!track.is_valid() || !expr || !*expr)
+    if (!track.is_valid() || !script.is_valid())
         return {};
-
-    service_ptr_t<titleformat_object> script;
-    static_api_ptr_t<titleformat_compiler> compiler;
-    compiler->compile_safe(script, expr);
 
     pfc::string8 out;
     track->format_title(nullptr, out, script, nullptr);
-    return cleanTagValue(out.c_str());
+    return lastfm::util::cleanTagValue(out.c_str());
 }
 
 static void applyVariousArtistsRule(std::string& albumArtist)
@@ -100,44 +53,6 @@ static void applyVariousArtistsRule(std::string& albumArtist)
 
     if (s == "various artists")
         albumArtist.clear();
-}
-
-static std::string evalArtistTf(const metadb_handle_ptr& track)
-{
-    const std::string artistExpr = lastfmArtistTf();
-    std::string artist = evalTitleFormat(track, artistExpr.c_str());
-
-    if (!lastfmTagTreatVariousArtistsAsEmpty())
-        return artist;
-
-    std::string albumArtist = evalTitleFormat(track, lastfmAlbumArtistTf().c_str());
-    applyVariousArtistsRule(albumArtist);
-
-    // If artist evaluated to "Various Artists" and album artist collapses to empty,
-    // try plain ARTIST as fallback.
-    if (isVariousArtistsValue(artist) && albumArtist.empty())
-    {
-        std::string fallbackArtist = evalTitleFormat(track, "[%ARTIST%]");
-        if (!fallbackArtist.empty())
-            return fallbackArtist;
-    }
-
-    return artist;
-}
-
-static std::string evalAlbumArtistTf(const metadb_handle_ptr& track)
-{
-    return evalTitleFormat(track, lastfmAlbumArtistTf().c_str());
-}
-
-static std::string evalTitleTf(const metadb_handle_ptr& track)
-{
-    return evalTitleFormat(track, lastfmTitleTf().c_str());
-}
-
-static std::string evalAlbumTf(const metadb_handle_ptr& track)
-{
-    return evalTitleFormat(track, lastfmAlbumTf().c_str());
 }
 
 static bool isTrackInMediaLibrary(const metadb_handle_ptr& track)
@@ -227,8 +142,8 @@ static bool parseArtistTitleFromCombined(const std::string& combined, std::strin
         const std::string left = combined.substr(0, pos);
         const std::string right = combined.substr(pos + std::strlen(sep));
 
-        artist = cleanTagValue(left.c_str());
-        title = cleanTagValue(right.c_str());
+        artist = lastfm::util::cleanTagValue(left.c_str());
+        title = lastfm::util::cleanTagValue(right.c_str());
 
         if (artist.empty() || title.empty())
             continue;
@@ -248,7 +163,7 @@ static bool extractStreamArtistTitle(const file_info& info, std::string& outArti
     outTitle.clear();
     outAlbum.clear();
 
-    auto get1 = [&](const char* key) -> std::string { return cleanTagValue(info.meta_get(key, 0)); };
+    auto get1 = [&](const char* key) -> std::string { return lastfm::util::cleanTagValue(info.meta_get(key, 0)); };
 
     auto firstOf = [&](const char* const* keys, std::size_t n) -> std::string
     {
@@ -482,16 +397,70 @@ static bool isExcludedByFilters(const std::string& artist, const std::string& ti
     return false;
 }
 
-static void fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTrackInfo& out)
+} // namespace
+
+void LastfmTracker::recompileTfIfNeeded()
 {
-    out.artist = evalArtistTf(track);
-    out.title = evalTitleTf(track);
-    out.album = evalAlbumTf(track);
-    out.albumArtist = evalAlbumArtistTf(track);
+    static_api_ptr_t<titleformat_compiler> compiler;
+
+    const std::string artistExpr = lastfmArtistTf();
+    if (artistExpr != cachedArtistTfExpr_)
+    {
+        cachedArtistTfExpr_ = artistExpr;
+        artistTf_.release();
+        if (!artistExpr.empty())
+            compiler->compile_safe(artistTf_, artistExpr.c_str());
+    }
+
+    const std::string albumArtistExpr = lastfmAlbumArtistTf();
+    if (albumArtistExpr != cachedAlbumArtistTfExpr_)
+    {
+        cachedAlbumArtistTfExpr_ = albumArtistExpr;
+        albumArtistTf_.release();
+        if (!albumArtistExpr.empty())
+            compiler->compile_safe(albumArtistTf_, albumArtistExpr.c_str());
+    }
+
+    const std::string titleExpr = lastfmTitleTf();
+    if (titleExpr != cachedTitleTfExpr_)
+    {
+        cachedTitleTfExpr_ = titleExpr;
+        titleTf_.release();
+        if (!titleExpr.empty())
+            compiler->compile_safe(titleTf_, titleExpr.c_str());
+    }
+
+    const std::string albumExpr = lastfmAlbumTf();
+    if (albumExpr != cachedAlbumTfExpr_)
+    {
+        cachedAlbumTfExpr_ = albumExpr;
+        albumTf_.release();
+        if (!albumExpr.empty())
+            compiler->compile_safe(albumTf_, albumExpr.c_str());
+    }
+
+    if (!fallbackArtistTf_.is_valid())
+        compiler->compile_safe(fallbackArtistTf_, "[%ARTIST%]");
+}
+
+void LastfmTracker::fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTrackInfo& out)
+{
+    recompileTfIfNeeded();
+
+    out.artist = evalTitleFormat(track, artistTf_);
+    out.title = evalTitleFormat(track, titleTf_);
+    out.album = evalTitleFormat(track, albumTf_);
+    out.albumArtist = evalTitleFormat(track, albumArtistTf_);
 
     applyVariousArtistsRule(out.albumArtist);
+
+    if (lastfmTagTreatVariousArtistsAsEmpty() && isVariousArtistsValue(out.artist) && out.albumArtist.empty())
+    {
+        std::string fallbackArtist = evalTitleFormat(track, fallbackArtistTf_);
+        if (!fallbackArtist.empty())
+            out.artist = fallbackArtist;
+    }
 }
-} // namespace
 
 unsigned LastfmTracker::get_flags()
 {
@@ -805,25 +774,21 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
 
     // De-dupe dynamic metadata updates (foobar may call both dynamic callbacks for the same change).
     // Keyed by stream URL + artist + title so the same track on another station still passes.
-    static std::string lastPath;
-    static std::string lastArtist;
-    static std::string lastTitle;
-
     const char* p = currentHandle->get_path();
     const std::string path = p ? p : "";
 
-    if (path != lastPath)
+    if (path != dedupLastPath_)
     {
-        lastPath = path;
-        lastArtist.clear();
-        lastTitle.clear();
+        dedupLastPath_ = path;
+        dedupLastArtist_.clear();
+        dedupLastTitle_.clear();
     }
 
-    if (newArtist == lastArtist && newTitle == lastTitle)
+    if (newArtist == dedupLastArtist_ && newTitle == dedupLastTitle_)
         return;
 
-    lastArtist = newArtist;
-    lastTitle = newTitle;
+    dedupLastArtist_ = newArtist;
+    dedupLastTitle_ = newTitle;
 
     if (newArtist == current.artist && newTitle == current.title && newAlbum == current.album)
         return;
@@ -913,6 +878,9 @@ void LastfmTracker::resetDynamicSegmentState()
     dynamicPendingStartWallclock = 0;
 
     dynamicSegmentStartWallclock = 0;
+    dedupLastPath_.clear();
+    dedupLastArtist_.clear();
+    dedupLastTitle_.clear();
 }
 
 void LastfmTracker::maybeCacheDynamicScrobble()

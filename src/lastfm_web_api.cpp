@@ -66,6 +66,7 @@ static ApiOutcome classifyResponse(bool httpOk, const std::string& httpError, co
             out.result = LastfmScrobbleResult::INVALID_SESSION;
             break;
 
+        case 8:
         case 11:
         case 16:
             out.result = LastfmScrobbleResult::TEMPORARY_ERROR;

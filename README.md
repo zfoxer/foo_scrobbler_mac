@@ -1,5 +1,5 @@
 ### Foo Scrobbler for Mac
-#### Version: 1.0.7 — foo_scrobbler_mac — Released under MIT License
+#### Version: 1.0.9 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
@@ -60,6 +60,11 @@ Only the source code of the Foo Scrobbler plugin is licensed under the MIT Licen
 <summary><strong>Expand</strong></summary>
 
 <pre>
+1.0.9    2026-XX-XX    Avoid reparsing the persisted scrobble queue on every access.
+                       Cache compiled titleformat scripts instead of rebuilding them during playback.
+                       Replace unsafe static locals in stream dedup with per-instance tracker state.
+                       Last.fm back-end error 8 treated as temp, not having limited retries before discarding.
+
 1.0.7    2026-03-20    Handle Last.fm rate-limit error 29 with queue cooldown.
                        Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.
                        Merged NP code into WebAPI.
