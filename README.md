@@ -60,10 +60,10 @@ Only the source code of the Foo Scrobbler plugin is licensed under the MIT Licen
 <summary><strong>Expand</strong></summary>
 
 <pre>
-1.0.9    2026-XX-XX    Avoid reparsing the persisted scrobble queue on every access.
-                       Cache compiled titleformat scripts instead of rebuilding them during playback.
+1.0.9    2026-03-26    Avoid reparsing the persisted scrobble queue on every access.
+                       Cache compiled Title Format scripts instead of rebuilding them during playback.
                        Replace unsafe static locals in stream dedup with per-instance tracker state.
-                       Last.fm back-end error 8 treated as temp, not having limited retries before discarding.
+                       Treat Last.fm back-end error 8 as temp, not having limited retries before discarding.
 
 1.0.7    2026-03-20    Handle Last.fm rate-limit error 29 with queue cooldown.
                        Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.
