@@ -17,6 +17,12 @@
 
 #include <string>
 #include <cstdlib>
+
+#if defined(_WIN32)
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
 static const GUID GUID_LASTFM_AUTHENTICATE = {
     0xb2f2b721, 0xdc90, 0x45ee, {0xa5, 0xb6, 0x46, 0x4d, 0xb5, 0x4f, 0x5d, 0x5f}};
 
@@ -41,6 +47,8 @@ static void openBrowserUrl(const std::string& url)
         return;
     std::string cmd = "open \"" + url + "\"";
     std::system(cmd.c_str());
+#elif defined(_WIN32)
+    ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 #else
     LFM_INFO("Open manually: (url omitted)");
 #endif
