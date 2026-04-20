@@ -38,6 +38,9 @@ For the Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/fo
 - **Open-source (MIT License)**  
   Transparent and extensible.
   
+<p align="left">
+  <img src="screen05.png" alt="Foo Scrobbler screenshot" width="800" />
+</p>
 
 ### Usage
 
