@@ -1,3 +1,11 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/foo-scrobbler_dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/foo-scrobbler_light.svg">
+    <img alt="Foo Scrobbler" src="assets/foo-scrobbler_light.svg" width="420">
+  </picture>
+</p>
+
 ### Foo Scrobbler for Mac
 #### Version: 1.0.9 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
@@ -39,7 +47,7 @@ For the Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/fo
   Transparent and extensible.
   
 <p align="left">
-  <img src="screen05.png" alt="Foo Scrobbler screenshot" width="800" />
+  <img src="assets/prefs_shot.png" alt="Foo Scrobbler screenshot" width="800" />
 </p>
 
 ### Usage
@@ -51,11 +59,11 @@ Authentication requires only an active Last.fm account. Users grant access once 
 
 ### Licensing Notice
 
-This project is licensed under the MIT License.
+The source code of this project is licensed under the MIT License.
 
-The SDK is proprietary and **not covered by the MIT license**. It remains the property of its original author (Peter Pawlowski / foobar2000).
+The SDK is proprietary and is not covered by the MIT License. It remains the property of its original author (Peter Pawlowski / foobar2000).
 
-Only the source code of the Foo Scrobbler plugin is licensed under the MIT License.
+The project logo and related visual brand assets are not covered by the MIT License and remain the intellectual property of Konstantinos Kyriakopoulos. All rights reserved.
 
 ### Changelog
 

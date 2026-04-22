@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="900" viewBox="0 0 2200 900">
+  <g transform="translate(50,20)">
+    <g fill="none" stroke="#f2f3f5" stroke-linecap="round" stroke-linejoin="round" stroke-width="62">
+      <path d="M110 200 V660" />
+      <path d="M110 200 H370" />
+      <path d="M110 380 H305" />
+      <path d="M760 235
+               C728 208, 686 202, 618 202
+               C545 202, 500 232, 500 292
+               C500 354, 556 382, 628 382
+               H690
+               C749 382, 785 410, 785 462
+               C785 532, 728 562, 645 562
+               H610
+               L682 596" />
+    </g>
+    <g fill="#c61f3a">
+      <path d="M315 446 L350 468 L315 490 Z"/>
+      <rect x="385" y="418" width="24" height="94" rx="12"/>
+      <rect x="428" y="385" width="31" height="160" rx="16"/>
+      <rect x="478" y="346" width="38" height="235" rx="19"/>
+      <rect x="536" y="385" width="31" height="160" rx="16"/>
+      <rect x="585" y="418" width="24" height="94" rx="12"/>
+      <circle cx="638" cy="468" r="10"/>
+    </g>
+  </g>
+  <text x="940" y="545" font-family="Arial, Helvetica, sans-serif" font-size="190" fill="#c61f3a" font-weight="500">Foo</text>
+  <text x="1270" y="545" font-family="Arial, Helvetica, sans-serif" font-size="190" fill="#f2f3f5" font-weight="400">Scrobbler</text>
+</svg>
