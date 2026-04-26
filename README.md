@@ -23,28 +23,37 @@ For the Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/fo
 ### Key Features
 
 - **Native macOS Last.fm scrobbling, built specifically for foobar2000**  
-  Fully integrated with foobar2000 for macOS. No compatibility layers or wrapper apps. Not a port.
+  Fully integrated with foobar2000 for macOS. No compatibility layers or wrapper apps. Not a port.  
 
 - **Rule-based submission logic**  
-  Scrobbles only when playback is meaningful (e.g., ≥ 50% or ≥ 240 seconds).
+  Scrobbles only when playback is meaningful (e.g., ≥ 50% or ≥ 240 seconds).  
 
 - **Automatic offline caching**  
-  If Last.fm or the network is unavailable, scrobbles are stored and submitted automatically later.
+  If Last.fm or the network is unavailable, scrobbles are stored and submitted automatically later.  
 
 - **Accurate “Now Playing” handling**  
-  Fully aligned with Last.fm Scrobbling 2.0 API specifications.
+  Fully aligned with Last.fm Scrobbling 2.0 API specification.  
 
 - **Minimal user interaction**  
-  Authentication required only once.
+  Authentication is required only once.  
 
 - **Lightweight and efficient**  
-  Runs inside foobar2000 without performance loss. Not relying on third-party dependencies.
+  Runs inside foobar2000 without performance loss. Does not rely on third-party dependencies.  
 
 - **Strict playback validation**  
-  Prevents malformed or duplicate scrobbles.
+  Prevents malformed or duplicate scrobbles.  
+
+- **Full radio streaming and dynamic sources support**  
+  Advanced stream metadata handling.  
+
+- **Regex & Title Formatting support**  
+  Title Formatting for input tags & Regular expressions for filtering scrobbles.  
+
+- **Full console logging**  
+  Reports every impactful internal scrobbling action.  
 
 - **Open-source (MIT License)**  
-  Transparent and extensible.
+  Transparent and extensible.  
   
 <p align="left">
   <img src="assets/prefs_shot.png" alt="Foo Scrobbler screenshot" width="800" />
