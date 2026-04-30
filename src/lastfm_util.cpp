@@ -8,8 +8,6 @@
 #include "lastfm_util.h"
 #include "debug.h"
 
-#include <CommonCrypto/CommonDigest.h>
-
 #include <string>
 #include <cctype>
 #include <cstring>
@@ -68,21 +66,10 @@ std::string cleanTagValue(const char* value)
 
 std::string md5HexLower(const std::string& data)
 {
-    unsigned char digest[CC_MD5_DIGEST_LENGTH];
-    CC_MD5(data.data(), (CC_LONG)data.size(), digest);
+    const auto digest = hasher_md5::get()->process_single(data.data(), data.size());
+    pfc::string8 hex = pfc::format_hexdump_lowercase(digest.m_data, sizeof(digest.m_data), "");
 
-    static const char hex[] = "0123456789abcdef";
-    std::string out;
-    out.reserve(CC_MD5_DIGEST_LENGTH * 2);
-
-    for (int i = 0; i < CC_MD5_DIGEST_LENGTH; ++i)
-    {
-        const unsigned char b = digest[i];
-        out.push_back(hex[(b >> 4) & 0x0F]);
-        out.push_back(hex[b & 0x0F]);
-    }
-
-    return out;
+    return std::string(hex.c_str());
 }
 
 std::string urlEncode(const std::string& value)
