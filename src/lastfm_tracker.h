@@ -38,12 +38,15 @@ class LastfmTracker : public play_callback_static
     void submitScrobbleIfNeeded();
     void updateFromTrack(const metadb_handle_ptr& track);
     void handleDynamicStreamUpdate(const file_info& info);
+    bool refreshFooScrobblerTagAllows();
 
     std::time_t startWallclock = 0;
     bool isPlaying = false;
     bool scrobbleSent = false;
     double playbackTime = 0.0;
     bool isCurrentStream = false;
+    bool currentFooScrobblerTagAllows = true;
+    bool fooScrobblerTagBlockLogged = false;
 
     LastfmTrackInfo current;
 
@@ -55,7 +58,7 @@ class LastfmTracker : public play_callback_static
     // We keep tracking tag changes and will submit once metadata becomes valid.
     bool pendingDueToMissingMetadata = false;
 
-    // Track became eligible while suspended; defer submission until stop/new-track boundary.
+    // Track became eligible while suspended/tag-disabled; defer submission until stop/new-track boundary.
     bool thresholdReachedButDeferred = false;
 
     metadb_handle_ptr currentHandle;

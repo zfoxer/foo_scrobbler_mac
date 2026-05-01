@@ -473,10 +473,13 @@ void LastfmTracker::resetState()
     isPlaying = false;
     scrobbleSent = false;
     playbackTime = 0.0;
+    isCurrentStream = false;
 
     effectiveListenedSeconds = 0.0;
     lastReportedTime = 0.0;
     haveLastReportedTime = false;
+    currentFooScrobblerTagAllows = true;
+    fooScrobblerTagBlockLogged = false;
 
     pendingDueToMissingMetadata = false;
     thresholdReachedButDeferred = false;
@@ -489,6 +492,25 @@ void LastfmTracker::resetState()
     resetDynamicSegmentState();
 }
 
+bool LastfmTracker::refreshFooScrobblerTagAllows()
+{
+    if (isCurrentStream || !currentHandle.is_valid())
+    {
+        currentFooScrobblerTagAllows = true;
+        return true;
+    }
+
+    file_info_impl info;
+    if (!currentHandle->get_info(info))
+    {
+        currentFooScrobblerTagAllows = true;
+        return true;
+    }
+
+    currentFooScrobblerTagAllows = lastfm::util::fooScrobblerTagAllowsSubmission(info);
+    return currentFooScrobblerTagAllows;
+}
+
 void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
 {
     currentHandle = track;
@@ -499,6 +521,8 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
         resetState();
         return;
     }
+
+    currentFooScrobblerTagAllows = isCurrentStream || lastfm::util::fooScrobblerTagAllowsSubmission(info);
 
     fillTrackInfoFromTf(track, current);
 
@@ -525,9 +549,9 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
 
 void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
 {
-    isCurrentStream = isNetworkStreamPath(track);
+    const bool newIsStream = isNetworkStreamPath(track);
     LFM_DEBUG("Track path: " << (track->get_path() ? track->get_path() : "<null>")
-                             << " stream=" << (isCurrentStream ? "yes" : "no"));
+                             << " stream=" << (newIsStream ? "yes" : "no"));
 
     // Natural boundary: submit previous track (if eligible) before switching state.
     submitDynamicPendingIfAny();
@@ -535,6 +559,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
     LastfmCore::instance().scrobbler().retryAsync();
 
     resetState();
+    isCurrentStream = newIsStream;
     isPlaying = true;
     startWallclock = std::time(nullptr);
 
@@ -567,7 +592,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
         return;
     }
 
-    if (lastfmIsSuspended())
+    if (lastfmIsSuspended() || !currentFooScrobblerTagAllows)
         return;
 
     LFM_DEBUG("Now playing: " << current.artist.c_str() << " - " << current.title.c_str());
@@ -581,9 +606,24 @@ void LastfmTracker::on_playback_time(double time)
     playbackTime = time;
 
     const bool suspended = lastfmIsSuspended();
+    refreshFooScrobblerTagAllows();
+    const bool blocked = suspended || !currentFooScrobblerTagAllows;
 
-    // Policy: while suspended, freeze scrobble progress (do not count time).
-    if (!suspended)
+    if (!suspended && !currentFooScrobblerTagAllows)
+    {
+        if (!fooScrobblerTagBlockLogged)
+        {
+            LFM_DEBUG("Track ignored: FOO_SCROBBLER tag disabled.");
+            fooScrobblerTagBlockLogged = true;
+        }
+    }
+    else
+    {
+        fooScrobblerTagBlockLogged = false;
+    }
+
+    // Policy: while suspended or tag-disabled, freeze scrobble progress (do not count time).
+    if (!blocked)
     {
         if (isPlaying && (current.durationSeconds > 0.0 || isCurrentStream))
         {
@@ -632,7 +672,7 @@ void LastfmTracker::on_playback_time(double time)
                 current.album = newAlbum;
                 current.albumArtist = newAlbumArtist;
 
-                if (!suspended)
+                if (!blocked)
                 {
                     if (scrobbleSent)
                         scrobbler.refreshPendingMetadata(current);
@@ -649,7 +689,7 @@ void LastfmTracker::on_playback_time(double time)
     // Stream-only: cache a dynamic scrobble payload once we have >=30s effective listening.
     maybeCacheDynamicScrobble();
 
-    // If we deferred an eligible scrobble during suspension, do not fire mid-track after resume.
+    // If we deferred an eligible scrobble while blocked, do not fire mid-track after unblock.
     // It will be handled on stop / new-track boundaries.
     if (thresholdReachedButDeferred)
         return;
@@ -710,6 +750,8 @@ void LastfmTracker::submitScrobbleIfNeeded()
     if (effectiveListenedSeconds < threshold)
         return;
 
+    refreshFooScrobblerTagAllows();
+
     // Last-moment refresh if mandatory tags look missing.
     if (currentHandle.is_valid())
     {
@@ -732,8 +774,8 @@ void LastfmTracker::submitScrobbleIfNeeded()
     if (isExcludedByFilters(current.artist, current.title))
         return;
 
-    // Eligible, but suspended -> remember and defer.
-    if (lastfmIsSuspended())
+    // Eligible, but suspended/tag-disabled -> remember and defer.
+    if (lastfmIsSuspended() || !currentFooScrobblerTagAllows)
     {
         thresholdReachedButDeferred = true;
         return;

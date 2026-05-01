@@ -11,6 +11,7 @@
 #include <string>
 #include <cctype>
 #include <cstring>
+#include <optional>
 
 namespace lastfm
 {
@@ -62,6 +63,43 @@ std::string cleanTagValue(const char* value)
         return {};
 
     return s;
+}
+
+static std::optional<bool> parseFooScrobblerTagValue(const char* value)
+{
+    const std::string v = cleanTagValue(value);
+    if (v.empty())
+        return std::nullopt;
+
+    std::string lower;
+    lower.reserve(v.size());
+    for (unsigned char c : v)
+        lower.push_back((char)std::tolower(c));
+
+    if (lower == "true" || lower == "1" || lower == "yes" || lower == "on")
+        return true;
+
+    if (lower == "false" || lower == "0" || lower == "no" || lower == "off")
+        return false;
+
+    return std::nullopt;
+}
+
+bool fooScrobblerTagAllowsSubmission(const file_info& info)
+{
+    const t_size index = info.meta_find("FOO_SCROBBLER");
+    if (index == SIZE_MAX)
+        return true;
+
+    const t_size valueCount = info.meta_enum_value_count(index);
+    for (t_size i = 0; i < valueCount; ++i)
+    {
+        std::optional<bool> parsed = parseFooScrobblerTagValue(info.meta_enum_value(index, i));
+        if (parsed.has_value())
+            return *parsed;
+    }
+
+    return true;
 }
 
 std::string md5HexLower(const std::string& data)

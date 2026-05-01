@@ -66,6 +66,9 @@ static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
     if (!handle->get_info(info))
         return false;
 
+    if (!lastfm::util::fooScrobblerTagAllowsSubmission(info))
+        return false;
+
     out.artist = lastfm::util::cleanTagValue(info.meta_get("artist", 0));
     out.title = lastfm::util::cleanTagValue(info.meta_get("title", 0));
     out.album = lastfm::util::cleanTagValue(info.meta_get("album", 0));

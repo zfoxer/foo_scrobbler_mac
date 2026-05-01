@@ -26,6 +26,7 @@ LastfmApiErrorInfo extractLastfmApiError(const char* body);
 
 std::string cleanTagValue(const char* value);
 std::string md5HexLower(const std::string& data);
+bool fooScrobblerTagAllowsSubmission(const file_info& info);
 std::string urlEncode(const std::string& value);
 
 bool httpRequestToString(const char* method, const char* url, pfc::string8& outBody, std::string& outError);
