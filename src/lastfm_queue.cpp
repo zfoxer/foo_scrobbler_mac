@@ -238,7 +238,7 @@ void LastfmQueue::ensureCacheLoadedLocked() const
 
     const char* line = data;
 
-    // Optional header handling (FSQ2 / FSQ1). Headerless legacy is accepted for migration.
+    // Require a known queue header. Headerless legacy queues are no longer supported.
     {
         const char* nl = std::strchr(line, '\n');
         const std::string first = nl ? std::string(line, nl - line) : std::string(line);
@@ -247,8 +247,16 @@ void LastfmQueue::ensureCacheLoadedLocked() const
         {
             line = nl ? (nl + 1) : (line + first.size());
         }
-        else if (!first.empty() && first[0] == '#')
+        else
         {
+            const bool hasUnsupportedHeader = !first.empty() && first[0] == '#';
+            const char* const message =
+                hasUnsupportedHeader
+                    ? "Queue: unsupported persisted queue version; ignoring pending scrobbles."
+                    : "Queue: headerless legacy persisted queue is no longer supported; ignoring pending scrobbles.";
+
+            LFM_INFO(message);
+
             cacheLoaded_ = true;
             return;
         }
