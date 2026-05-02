@@ -377,8 +377,9 @@ class TextOrRegexFilter
 
 static TextOrRegexFilter g_excludeArtist("artist");
 static TextOrRegexFilter g_excludeTitle("title");
+static TextOrRegexFilter g_excludeAlbum("album");
 
-static bool isExcludedByFilters(const std::string& artist, const std::string& title)
+static bool isExcludedByFilters(const std::string& artist, const std::string& title, const std::string& album)
 {
     const std::string artistRules = lastfmExcludedArtistsPatternList();
     if (!artistRules.empty() && g_excludeArtist.matches(artist, artistRules))
@@ -391,6 +392,13 @@ static bool isExcludedByFilters(const std::string& artist, const std::string& ti
     if (!titleRules.empty() && g_excludeTitle.matches(title, titleRules))
     {
         g_excludeTitle.logMatchLimited(title);
+        return true;
+    }
+
+    const std::string albumRules = lastfmExcludedAlbumsPatternList();
+    if (!album.empty() && !albumRules.empty() && g_excludeAlbum.matches(album, albumRules))
+    {
+        g_excludeAlbum.logMatchLimited(album);
         return true;
     }
 
@@ -585,7 +593,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
         return;
     }
 
-    if (isExcludedByFilters(current.artist, current.title))
+    if (isExcludedByFilters(current.artist, current.title, current.album))
     {
         LFM_DEBUG("Track skipped: excluded by filters.");
         resetState();
@@ -771,7 +779,7 @@ void LastfmTracker::submitScrobbleIfNeeded()
 
     pendingDueToMissingMetadata = false;
 
-    if (isExcludedByFilters(current.artist, current.title))
+    if (isExcludedByFilters(current.artist, current.title, current.album))
         return;
 
     // Eligible, but suspended/tag-disabled -> remember and defer.
@@ -835,7 +843,7 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     if (newArtist == current.artist && newTitle == current.title && newAlbum == current.album)
         return;
 
-    if (isExcludedByFilters(newArtist, newTitle))
+    if (isExcludedByFilters(newArtist, newTitle, newAlbum))
     {
         LFM_DEBUG("Stream dynamic ignored: excluded by filters.");
         return;
@@ -944,7 +952,7 @@ void LastfmTracker::maybeCacheDynamicScrobble()
     if (effectiveListenedSeconds < 30.0)
         return;
 
-    if (isExcludedByFilters(current.artist, current.title))
+    if (isExcludedByFilters(current.artist, current.title, current.album))
         return;
 
     dynamicPending = true;
@@ -977,7 +985,7 @@ void LastfmTracker::submitDynamicPendingIfAny()
     if (!lastfmIsAuthenticated())
         return;
 
-    if (isExcludedByFilters(dynamicPendingTrack.artist, dynamicPendingTrack.title))
+    if (isExcludedByFilters(dynamicPendingTrack.artist, dynamicPendingTrack.title, dynamicPendingTrack.album))
     {
         dynamicSubmitted = true;
         dynamicPending = false;
