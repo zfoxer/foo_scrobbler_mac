@@ -91,6 +91,7 @@ class LastfmTracker : public play_callback_static
     std::string dedupLastTitle_;
 
     // Helpers (network-only)
+    void startDynamicSegment();
     void resetDynamicSegmentState();
     void maybeCacheDynamicScrobble();
     void submitDynamicPendingIfAny();

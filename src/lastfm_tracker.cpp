@@ -5,6 +5,7 @@
 //  (c) 2025-2026 by Konstantinos Kyriakopoulos
 //
 
+#include "lastfm_exclusion_filters.h"
 #include "lastfm_prefs_pane.h"
 #include "lastfm_tracker.h"
 #include "lastfm_core.h"
@@ -18,9 +19,6 @@
 #include <ctime>
 #include <string>
 #include <cstring>
-#include <regex>
-#include <mutex>
-#include <vector>
 
 namespace
 {
@@ -220,165 +218,6 @@ static bool extractStreamArtistTitle(const file_info& info, std::string& outArti
     return false;
 }
 
-class TextOrRegexFilter
-{
-  public:
-    explicit TextOrRegexFilter(const char* what) : what_(what)
-    {
-    }
-
-    bool matches(const std::string& value, const std::string& rawRules)
-    {
-        rebuildIfNeeded(rawRules);
-        std::lock_guard<std::mutex> lock(m_);
-        if (raw_.empty())
-            return false;
-
-        const std::string vLower = lowerCopy(value);
-
-        for (const auto& needle : substrLower_)
-        {
-            if (!needle.empty() && vLower.find(needle) != std::string::npos)
-                return true;
-        }
-
-        for (const auto& rx : regexes_)
-        {
-            if (std::regex_search(value, rx.re))
-                return true;
-        }
-
-        return false;
-    }
-
-    void logMatchLimited(const std::string& value)
-    {
-        int r = remaining_.load(std::memory_order_relaxed);
-        while (r > 0)
-        {
-            if (remaining_.compare_exchange_weak(r, r - 1, std::memory_order_relaxed))
-            {
-                LFM_DEBUG("Excluded by " << what_ << " filter: " << value.c_str());
-                return;
-            }
-        }
-    }
-
-  private:
-    struct Rx
-    {
-        std::string pat;
-        std::regex re;
-    };
-
-    static bool hasRegexMeta(const std::string& s)
-    {
-        for (char c : s)
-        {
-            switch (c)
-            {
-            case '.':
-            case '^':
-            case '$':
-            case '|':
-            case '?':
-            case '*':
-            case '+':
-            case '(':
-            case ')':
-            case '[':
-            case ']':
-            case '{':
-            case '}':
-            case '\\':
-                return true;
-            default:
-                break;
-            }
-        }
-        return false;
-    }
-
-    static std::string trimCopy(const std::string& in)
-    {
-        std::size_t b = 0;
-        while (b < in.size() && std::isspace((unsigned char)in[b]))
-            ++b;
-        std::size_t e = in.size();
-        while (e > b && std::isspace((unsigned char)in[e - 1]))
-            --e;
-        return (e > b) ? in.substr(b, e - b) : std::string{};
-    }
-
-    static std::string lowerCopy(const std::string& in)
-    {
-        std::string out;
-        out.reserve(in.size());
-        for (unsigned char c : in)
-            out.push_back((char)std::tolower(c));
-        return out;
-    }
-
-    void rebuildIfNeeded(const std::string& rawRules)
-    {
-        std::lock_guard<std::mutex> lock(m_);
-        if (rawRules == raw_)
-            return;
-
-        raw_ = rawRules;
-        substrLower_.clear();
-        regexes_.clear();
-
-        if (raw_.empty())
-            return;
-
-        constexpr std::size_t kMaxPatterns = 32;
-        constexpr std::size_t kMaxLen = 256;
-
-        std::size_t start = 0;
-        while (start <= raw_.size() && (substrLower_.size() + regexes_.size()) < kMaxPatterns)
-        {
-            std::size_t end = raw_.find(';', start);
-            if (end == std::string::npos)
-                end = raw_.size();
-
-            std::string entry = trimCopy(raw_.substr(start, end - start));
-            start = end + 1;
-
-            if (entry.empty())
-                continue;
-
-            if (entry.size() > kMaxLen)
-                continue;
-
-            if (!hasRegexMeta(entry))
-            {
-                substrLower_.push_back(lowerCopy(entry));
-                continue;
-            }
-
-            try
-            {
-                regexes_.push_back(Rx{entry, std::regex(entry, std::regex::ECMAScript | std::regex::icase)});
-            }
-            catch (const std::regex_error&)
-            {
-                LFM_INFO("Exclude " << what_ << ": invalid regex ignored: " << entry.c_str());
-            }
-        }
-    }
-
-    const char* what_ = "";
-    std::mutex m_;
-    std::string raw_;
-    std::vector<std::string> substrLower_;
-    std::vector<Rx> regexes_;
-    std::atomic<int> remaining_{10};
-};
-
-static TextOrRegexFilter g_excludeArtist("artist");
-static TextOrRegexFilter g_excludeTitle("title");
-static TextOrRegexFilter g_excludeAlbum("album");
 static std::atomic<int> g_excludeTfLogRemaining{10};
 
 static bool hasNonWhitespaceOutput(const char* value)
@@ -408,74 +247,28 @@ static void logTfExcludeMatchLimited(const char* value)
     }
 }
 
-static bool isExcludedByTextOrRegexFilters(const std::string& artist, const std::string& title,
-                                           const std::string& album)
-{
-    const std::string artistRules = lastfmExcludedArtistsPatternList();
-    if (!artistRules.empty() && g_excludeArtist.matches(artist, artistRules))
-    {
-        g_excludeArtist.logMatchLimited(artist);
-        return true;
-    }
-
-    const std::string titleRules = lastfmExcludedTitlesPatternList();
-    if (!titleRules.empty() && g_excludeTitle.matches(title, titleRules))
-    {
-        g_excludeTitle.logMatchLimited(title);
-        return true;
-    }
-
-    const std::string albumRules = lastfmExcludedAlbumsPatternList();
-    if (!album.empty() && !albumRules.empty() && g_excludeAlbum.matches(album, albumRules))
-    {
-        g_excludeAlbum.logMatchLimited(album);
-        return true;
-    }
-
-    return false;
-}
-
 } // namespace
 
 void LastfmTracker::recompileTfIfNeeded()
 {
     static_api_ptr_t<titleformat_compiler> compiler;
 
-    const std::string artistExpr = lastfmArtistTf();
-    if (artistExpr != cachedArtistTfExpr_)
+    auto compileIfChanged =
+        [&](const std::string& expr, std::string& cachedExpr, service_ptr_t<titleformat_object>& script)
     {
-        cachedArtistTfExpr_ = artistExpr;
-        artistTf_.release();
-        if (!artistExpr.empty())
-            compiler->compile_safe(artistTf_, artistExpr.c_str());
-    }
+        if (expr == cachedExpr)
+            return;
 
-    const std::string albumArtistExpr = lastfmAlbumArtistTf();
-    if (albumArtistExpr != cachedAlbumArtistTfExpr_)
-    {
-        cachedAlbumArtistTfExpr_ = albumArtistExpr;
-        albumArtistTf_.release();
-        if (!albumArtistExpr.empty())
-            compiler->compile_safe(albumArtistTf_, albumArtistExpr.c_str());
-    }
+        cachedExpr = expr;
+        script.release();
+        if (!expr.empty())
+            compiler->compile_safe(script, expr.c_str());
+    };
 
-    const std::string titleExpr = lastfmTitleTf();
-    if (titleExpr != cachedTitleTfExpr_)
-    {
-        cachedTitleTfExpr_ = titleExpr;
-        titleTf_.release();
-        if (!titleExpr.empty())
-            compiler->compile_safe(titleTf_, titleExpr.c_str());
-    }
-
-    const std::string albumExpr = lastfmAlbumTf();
-    if (albumExpr != cachedAlbumTfExpr_)
-    {
-        cachedAlbumTfExpr_ = albumExpr;
-        albumTf_.release();
-        if (!albumExpr.empty())
-            compiler->compile_safe(albumTf_, albumExpr.c_str());
-    }
+    compileIfChanged(lastfmArtistTf(), cachedArtistTfExpr_, artistTf_);
+    compileIfChanged(lastfmAlbumArtistTf(), cachedAlbumArtistTfExpr_, albumArtistTf_);
+    compileIfChanged(lastfmTitleTf(), cachedTitleTfExpr_, titleTf_);
+    compileIfChanged(lastfmAlbumTf(), cachedAlbumTfExpr_, albumTf_);
 
     if (!fallbackArtistTf_.is_valid())
         compiler->compile_safe(fallbackArtistTf_, "[%ARTIST%]");
@@ -655,7 +448,8 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
         return;
     }
 
-    if (isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) || isExcludedByTfExpression(track))
+    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
+        isExcludedByTfExpression(track))
     {
         LFM_DEBUG("Track skipped: excluded by filters.");
         resetState();
@@ -841,7 +635,7 @@ void LastfmTracker::submitScrobbleIfNeeded()
 
     pendingDueToMissingMetadata = false;
 
-    if (isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
+    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
         isExcludedByTfExpression(currentHandle))
         return;
 
@@ -906,7 +700,8 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     if (newArtist == current.artist && newTitle == current.title && newAlbum == current.album)
         return;
 
-    if (isExcludedByTextOrRegexFilters(newArtist, newTitle, newAlbum) || isExcludedByTfExpression(currentHandle, &info))
+    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(newArtist, newTitle, newAlbum) ||
+        isExcludedByTfExpression(currentHandle, &info))
     {
         LFM_DEBUG("Stream dynamic ignored: excluded by filters.");
         return;
@@ -927,13 +722,7 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     current.album = newAlbum;
 
     // Start a new dynamic segment from this point.
-    dynamicActive = true;
-    dynamicPending = false;
-    dynamicSubmitted = false;
-    dynamicSegmentStartWallclock = std::time(nullptr);
-
-    effectiveListenedSeconds = 0.0;
-    haveLastReportedTime = false;
+    startDynamicSegment();
 
     if (lastfmIsSuspended())
         return;
@@ -944,15 +733,6 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     if (pendingDueToMissingMetadata)
     {
         pendingDueToMissingMetadata = false;
-
-        // Start dynamic segment from first valid metadata.
-        dynamicActive = true;
-        dynamicPending = false;
-        dynamicSubmitted = false;
-        dynamicSegmentStartWallclock = std::time(nullptr);
-
-        effectiveListenedSeconds = 0.0;
-        haveLastReportedTime = false;
 
         if (lastfmDisableNowPlaying())
         {
@@ -978,6 +758,17 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
         LFM_DEBUG("Submitting dynamic NP (dynamic): " << current.artist.c_str() << " - " << current.title.c_str());
         scrobbler.sendNowPlayingOnly(current);
     }
+}
+
+void LastfmTracker::startDynamicSegment()
+{
+    dynamicActive = true;
+    dynamicPending = false;
+    dynamicSubmitted = false;
+    dynamicSegmentStartWallclock = std::time(nullptr);
+
+    effectiveListenedSeconds = 0.0;
+    haveLastReportedTime = false;
 }
 
 void LastfmTracker::resetDynamicSegmentState()
@@ -1015,7 +806,7 @@ void LastfmTracker::maybeCacheDynamicScrobble()
     if (effectiveListenedSeconds < 30.0)
         return;
 
-    if (isExcludedByTextOrRegexFilters(current.artist, current.title, current.album))
+    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album))
         return;
 
     dynamicPending = true;
@@ -1048,8 +839,8 @@ void LastfmTracker::submitDynamicPendingIfAny()
     if (!lastfmIsAuthenticated())
         return;
 
-    if (isExcludedByTextOrRegexFilters(dynamicPendingTrack.artist, dynamicPendingTrack.title,
-                                       dynamicPendingTrack.album))
+    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(dynamicPendingTrack.artist, dynamicPendingTrack.title,
+                                                                  dynamicPendingTrack.album))
     {
         dynamicSubmitted = true;
         dynamicPending = false;
