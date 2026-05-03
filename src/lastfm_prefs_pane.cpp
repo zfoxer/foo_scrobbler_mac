@@ -69,6 +69,9 @@ static const GUID GUID_LASTFM_PREFS_EXCLUDE_TITLES = {
 static const GUID GUID_LASTFM_PREFS_EXCLUDE_ALBUMS = {
     0x30f52005, 0x8cb8, 0x4358, {0x9d, 0xd0, 0x82, 0x87, 0xc8, 0x25, 0x26, 0x63}};
 
+static const GUID GUID_LASTFM_PREFS_EXCLUDE_TF = {
+    0xdfdcc309, 0x3e6b, 0x46e3, {0x99, 0x8e, 0x00, 0x18, 0x21, 0xa4, 0xbc, 0xeb}};
+
 static const GUID GUID_LASTFM_PREFS_TF_ARTIST = {
     0x9a60376f, 0xc792, 0x4af9, {0xa1, 0x39, 0xa2, 0x0a, 0xd7, 0xba, 0x03, 0x6c}};
 
@@ -189,6 +192,10 @@ static service_factory_single_t<advconfig_entry_string_impl>
 static service_factory_single_t<advconfig_entry_string_impl>
     g_excludeAlbums("Exclude albums (text or regex; ';' separated)", "foo_scrobbler.scrobbling.exclude_albums",
                     GUID_LASTFM_PREFS_EXCLUDE_ALBUMS, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 4.0, "", 0);
+
+static service_factory_single_t<advconfig_entry_string_impl>
+    g_excludeTf("Exclude by Title Formatting (reject if output is non-empty)", "foo_scrobbler.scrobbling.exclude_tf",
+                GUID_LASTFM_PREFS_EXCLUDE_TF, GUID_LASTFM_PREFS_BRANCH_SCROBBLING, 5.0, "", 0);
 
 static void enforceOneOfN(const GUID* ids, std::size_t n, std::size_t defaultIndex)
 {
@@ -332,6 +339,11 @@ std::string lastfmExcludedTitlesPatternList()
 std::string lastfmExcludedAlbumsPatternList()
 {
     return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_ALBUMS);
+}
+
+std::string lastfmExcludedTfExpression()
+{
+    return advGetStringState(GUID_LASTFM_PREFS_EXCLUDE_TF);
 }
 
 std::string lastfmArtistTf()

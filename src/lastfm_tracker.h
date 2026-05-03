@@ -39,6 +39,7 @@ class LastfmTracker : public play_callback_static
     void updateFromTrack(const metadb_handle_ptr& track);
     void handleDynamicStreamUpdate(const file_info& info);
     bool refreshFooScrobblerTagAllows();
+    bool isExcludedByTfExpression(const metadb_handle_ptr& track, const file_info* externalInfo = nullptr);
 
     std::time_t startWallclock = 0;
     bool isPlaying = false;
@@ -69,11 +70,13 @@ class LastfmTracker : public play_callback_static
     service_ptr_t<titleformat_object> titleTf_;
     service_ptr_t<titleformat_object> albumTf_;
     service_ptr_t<titleformat_object> fallbackArtistTf_;
+    service_ptr_t<titleformat_object> excludeTf_;
 
     std::string cachedArtistTfExpr_;
     std::string cachedAlbumArtistTfExpr_;
     std::string cachedTitleTfExpr_;
     std::string cachedAlbumTfExpr_;
+    std::string cachedExcludeTfExpr_;
 
     // Dynamic stream scrobble (network sources only)
     bool dynamicActive = false;

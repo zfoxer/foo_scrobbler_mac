@@ -30,3 +30,4 @@ bool lastfmTagTreatVariousArtistsAsEmpty();
 std::string lastfmExcludedArtistsPatternList();
 std::string lastfmExcludedTitlesPatternList();
 std::string lastfmExcludedAlbumsPatternList();
+std::string lastfmExcludedTfExpression();

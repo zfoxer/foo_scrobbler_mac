@@ -13,6 +13,7 @@
 #include "debug.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <ctime>
 #include <string>
@@ -378,8 +379,37 @@ class TextOrRegexFilter
 static TextOrRegexFilter g_excludeArtist("artist");
 static TextOrRegexFilter g_excludeTitle("title");
 static TextOrRegexFilter g_excludeAlbum("album");
+static std::atomic<int> g_excludeTfLogRemaining{10};
 
-static bool isExcludedByFilters(const std::string& artist, const std::string& title, const std::string& album)
+static bool hasNonWhitespaceOutput(const char* value)
+{
+    if (!value)
+        return false;
+
+    for (const unsigned char* p = reinterpret_cast<const unsigned char*>(value); *p; ++p)
+    {
+        if (!std::isspace(*p))
+            return true;
+    }
+
+    return false;
+}
+
+static void logTfExcludeMatchLimited(const char* value)
+{
+    int r = g_excludeTfLogRemaining.load(std::memory_order_relaxed);
+    while (r > 0)
+    {
+        if (g_excludeTfLogRemaining.compare_exchange_weak(r, r - 1, std::memory_order_relaxed))
+        {
+            LFM_DEBUG("Excluded by Title Formatting filter: " << (value ? value : ""));
+            return;
+        }
+    }
+}
+
+static bool isExcludedByTextOrRegexFilters(const std::string& artist, const std::string& title,
+                                           const std::string& album)
 {
     const std::string artistRules = lastfmExcludedArtistsPatternList();
     if (!artistRules.empty() && g_excludeArtist.matches(artist, artistRules))
@@ -449,6 +479,18 @@ void LastfmTracker::recompileTfIfNeeded()
 
     if (!fallbackArtistTf_.is_valid())
         compiler->compile_safe(fallbackArtistTf_, "[%ARTIST%]");
+
+    const std::string excludeExpr = lastfmExcludedTfExpression();
+    if (excludeExpr != cachedExcludeTfExpr_)
+    {
+        cachedExcludeTfExpr_ = excludeExpr;
+        excludeTf_.release();
+
+        if (!excludeExpr.empty() && !compiler->compile(excludeTf_, excludeExpr.c_str()))
+        {
+            LFM_INFO("Exclude Title Formatting: invalid expression ignored.");
+        }
+    }
 }
 
 void LastfmTracker::fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTrackInfo& out)
@@ -468,6 +510,26 @@ void LastfmTracker::fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTr
         if (!fallbackArtist.empty())
             out.artist = fallbackArtist;
     }
+}
+
+bool LastfmTracker::isExcludedByTfExpression(const metadb_handle_ptr& track, const file_info* externalInfo)
+{
+    recompileTfIfNeeded();
+
+    if (!track.is_valid() || !excludeTf_.is_valid())
+        return false;
+
+    pfc::string8 out;
+    if (externalInfo)
+        track->format_title_from_external_info(*externalInfo, nullptr, out, excludeTf_, nullptr);
+    else
+        track->format_title(nullptr, out, excludeTf_, nullptr);
+
+    if (!hasNonWhitespaceOutput(out.c_str()))
+        return false;
+
+    logTfExcludeMatchLimited(out.c_str());
+    return true;
 }
 
 unsigned LastfmTracker::get_flags()
@@ -593,7 +655,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
         return;
     }
 
-    if (isExcludedByFilters(current.artist, current.title, current.album))
+    if (isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) || isExcludedByTfExpression(track))
     {
         LFM_DEBUG("Track skipped: excluded by filters.");
         resetState();
@@ -779,7 +841,8 @@ void LastfmTracker::submitScrobbleIfNeeded()
 
     pendingDueToMissingMetadata = false;
 
-    if (isExcludedByFilters(current.artist, current.title, current.album))
+    if (isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
+        isExcludedByTfExpression(currentHandle))
         return;
 
     // Eligible, but suspended/tag-disabled -> remember and defer.
@@ -843,7 +906,7 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     if (newArtist == current.artist && newTitle == current.title && newAlbum == current.album)
         return;
 
-    if (isExcludedByFilters(newArtist, newTitle, newAlbum))
+    if (isExcludedByTextOrRegexFilters(newArtist, newTitle, newAlbum) || isExcludedByTfExpression(currentHandle, &info))
     {
         LFM_DEBUG("Stream dynamic ignored: excluded by filters.");
         return;
@@ -952,7 +1015,7 @@ void LastfmTracker::maybeCacheDynamicScrobble()
     if (effectiveListenedSeconds < 30.0)
         return;
 
-    if (isExcludedByFilters(current.artist, current.title, current.album))
+    if (isExcludedByTextOrRegexFilters(current.artist, current.title, current.album))
         return;
 
     dynamicPending = true;
@@ -985,7 +1048,8 @@ void LastfmTracker::submitDynamicPendingIfAny()
     if (!lastfmIsAuthenticated())
         return;
 
-    if (isExcludedByFilters(dynamicPendingTrack.artist, dynamicPendingTrack.title, dynamicPendingTrack.album))
+    if (isExcludedByTextOrRegexFilters(dynamicPendingTrack.artist, dynamicPendingTrack.title,
+                                       dynamicPendingTrack.album))
     {
         dynamicSubmitted = true;
         dynamicPending = false;
