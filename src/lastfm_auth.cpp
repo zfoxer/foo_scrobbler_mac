@@ -148,8 +148,6 @@ bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState
     authState.sessionKey = key;
     authState.isAuthenticated = true;
 
-    setAuthState(authState);
-
     LFM_INFO("Authentication complete. User: " << authState.username.c_str());
     lastfmPendingToken.clear();
     return true;

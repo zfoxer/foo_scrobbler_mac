@@ -17,7 +17,7 @@
 bool beginAuth(std::string& outAuthUrl);
 
 // Completes auth given a callback URL (ignored in current flow).
-// Updates authState with username + session key on success.
+// Fills authState with username + session key on success; caller persists it.
 bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState& authState);
 
 // Clears stored credentials.

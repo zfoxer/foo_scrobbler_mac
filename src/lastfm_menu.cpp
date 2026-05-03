@@ -208,8 +208,6 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
             LastfmAuthState state;
             if (authenticator.completeAuth(state))
             {
-                popup_message::g_show("Authentication complete.", "Foo Scrobbler");
-
                 auto& core = LastfmCore::instance();
 
                 // Prevent cross-account submission:
@@ -228,6 +226,10 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
                     lastfmSetQueueOwnerUsername(newUser.c_str());
                 }
                 // else same user -> keep queue as-is
+
+                lastfmSetAuthState(state);
+                popup_message::g_show("Authentication complete.", "Foo Scrobbler");
+
                 core.scrobbler().onAuthenticationRecovered();
                 core.scrobbler().retryAsync();
             }

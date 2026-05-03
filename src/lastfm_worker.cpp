@@ -148,8 +148,20 @@ void LastfmWorker::threadMain()
         {
             std::unique_lock<std::mutex> lock(mtx_);
 
+            const auto waitNow = Clock::now();
+
             if (pendingNowPlaying_.has_value())
-                nextWake = Clock::now();
+            {
+                if (lastNowPlayingSent_ == Clock::time_point::min())
+                {
+                    nextWake = waitNow;
+                }
+                else
+                {
+                    const auto nextNowPlaying = lastNowPlayingSent_ + cfg_.nowPlayingMinInterval;
+                    nextWake = std::min(nextWake, nextNowPlaying <= waitNow ? waitNow : nextNowPlaying);
+                }
+            }
 
             if (!cmds_.empty())
             {
@@ -164,8 +176,8 @@ void LastfmWorker::threadMain()
             }
             else
             {
-                cv_.wait_until(lock, nextWake, [this]()
-                               { return stopRequested_.load() || !cmds_.empty() || pendingNowPlaying_.has_value(); });
+                // Recompute timing after any notification; queued work may still be scheduled for the future.
+                cv_.wait_until(lock, nextWake);
             }
 
             // Pop first eligible command (notBefore <= now)
