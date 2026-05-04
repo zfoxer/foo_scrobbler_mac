@@ -34,6 +34,25 @@ static std::string redact_url_for_log(const char* url)
     return s;
 }
 
+static bool readHttpStreamToString(file::ptr stream, pfc::string8& outBody, std::string& outError)
+{
+    if (!stream.is_valid())
+    {
+        outError = "No response stream.";
+        return false;
+    }
+
+    pfc::string8 line;
+    while (!stream->is_eof(fb2k::noAbort))
+    {
+        line.reset();
+        stream->read_string_raw(line, fb2k::noAbort);
+        outBody += line;
+    }
+
+    return true;
+}
+
 std::string cleanTagValue(const char* value)
 {
     if (!value)
@@ -160,22 +179,8 @@ bool httpRequestToString(const char* method, const char* url, pfc::string8& outB
 
         LFM_DEBUG("HTTP " << method << " " << redact_url_for_log(url).c_str());
 
-        file::ptr stream = req->run(url, fb2k::noAbort);
-        if (!stream.is_valid())
-        {
-            outError = "No response stream.";
-            return false;
-        }
-
-        pfc::string8 line;
-        while (!stream->is_eof(fb2k::noAbort))
-        {
-            line.reset();
-            stream->read_string_raw(line, fb2k::noAbort);
-            outBody += line;
-        }
-
-        return true;
+        file::ptr stream = req->run_ex(url, fb2k::noAbort);
+        return readHttpStreamToString(stream, outBody, outError);
     }
     catch (const std::exception& e)
     {
@@ -193,6 +198,43 @@ bool httpGetToString(const char* url, pfc::string8& outBody, std::string& outErr
 bool httpPostToString(const char* url, pfc::string8& outBody, std::string& outError)
 {
     return httpRequestToString("POST", url, outBody, outError);
+}
+
+bool httpPostFormToString(const char* url, const std::string& formBody, pfc::string8& outBody, std::string& outError)
+{
+    outBody.reset();
+    outError.clear();
+
+    if (!url || !*url)
+    {
+        outError = "Invalid URL (empty).";
+        return false;
+    }
+
+    try
+    {
+        auto client = standard_api_create_t<http_client>();
+        http_request::ptr req = client->create_request("POST");
+
+        service_ptr_t<http_request_post_v2> post;
+        if (!req->service_query_t(post))
+        {
+            outError = "HTTP POST body interface is unavailable.";
+            return false;
+        }
+
+        LFM_DEBUG("HTTP POST " << redact_url_for_log(url).c_str() << " bodyBytes=" << formBody.size());
+
+        post->set_post_data(formBody.data(), formBody.size(), "application/x-www-form-urlencoded");
+        file::ptr stream = post->run_ex(url, fb2k::noAbort);
+        return readHttpStreamToString(stream, outBody, outError);
+    }
+    catch (const std::exception& e)
+    {
+        outError = e.what() ? e.what() : "HTTP exception";
+        LFM_DEBUG("HTTP POST form exception: " << (outError.empty() ? "(empty)" : outError.c_str()));
+        return false;
+    }
 }
 
 // JSON helpers

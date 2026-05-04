@@ -9,6 +9,7 @@
 
 #include <string>
 #include <ctime>
+#include <vector>
 
 #include "lastfm_auth_api.h"
 #include "lastfm_track_info.h"
@@ -27,6 +28,7 @@ class LastfmClient final : public ILastfmAuthApi
     // Web API (thin wrappers)
     bool updateNowPlaying(const LastfmTrackInfo& track);
     LastfmScrobbleResult scrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startTimestamp);
+    LastfmScrobbleResult scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests);
 
     // ILastfmAuthApi
     bool startAuth(std::string& outUrl) override;

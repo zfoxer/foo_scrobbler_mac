@@ -94,6 +94,10 @@ class LastfmQueue
     dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
                                  const std::function<bool()>& isShuttingDown, LastfmClient& client,
                                  const std::function<void()>& onInvalidSession, int64_t dailyBudget);
+    static DispatchOutcome
+    dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
+                                        const std::function<bool()>& isShuttingDown, LastfmClient& client,
+                                        const std::function<void()>& onInvalidSession, int64_t dailyBudget);
     static void mergeRetryUpdates(std::vector<QueuedScrobble>& latest, const std::vector<RetryUpdate>& updates);
 
     void enterRateLimitCooldownLocked(std::time_t now, std::time_t cooldownSeconds);

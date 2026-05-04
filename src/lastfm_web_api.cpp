@@ -18,10 +18,13 @@
 #include <cstring>
 #include <map>
 #include <string>
+#include <vector>
 #include <cassert>
 
 namespace
 {
+using ApiParams = std::map<std::string, std::string>;
+
 struct ApiOutcome
 {
     LastfmScrobbleResult result = LastfmScrobbleResult::OTHER_ERROR;
@@ -120,6 +123,79 @@ static void selfTest_extractLastfmApiError()
 
 #endif
 
+static std::string buildApiSignature(const ApiParams& params, const std::string& apiSecret)
+{
+    std::string sigSrc;
+    for (const auto& kv : params)
+    {
+        sigSrc += kv.first;
+        sigSrc += kv.second;
+    }
+    sigSrc += apiSecret;
+
+    return lastfm::util::md5HexLower(sigSrc);
+}
+
+static std::string buildSignedFormBody(const ApiParams& params, const std::string& apiSecret)
+{
+    const std::string apiSig = buildApiSignature(params, apiSecret);
+
+    std::string body;
+    bool first = true;
+    auto append = [&](const std::string& key, const std::string& value)
+    {
+        if (!first)
+            body += "&";
+        first = false;
+
+        body += lastfm::util::urlEncode(key);
+        body += "=";
+        body += lastfm::util::urlEncode(value);
+    };
+
+    for (const auto& kv : params)
+        append(kv.first, kv.second);
+
+    append("api_sig", apiSig);
+    append("format", "json");
+    return body;
+}
+
+static std::time_t resolveStartTimestamp(const LastfmScrobbleRequest& request, std::time_t now)
+{
+    if (request.startTimestamp > 0)
+        return request.startTimestamp;
+
+    if (now <= 0)
+        now = 0;
+
+    return now - static_cast<std::time_t>(request.playbackSeconds);
+}
+
+static bool appendIndexedScrobbleParams(ApiParams& params, const LastfmScrobbleRequest& request, std::size_t index,
+                                        std::time_t now)
+{
+    const LastfmTrackInfo& track = request.track;
+    if (track.artist.empty() || track.title.empty())
+        return false;
+
+    const std::string suffix = "[" + std::to_string(index) + "]";
+    params["artist" + suffix] = track.artist;
+    params["track" + suffix] = track.title;
+    params["timestamp" + suffix] = std::to_string(static_cast<long long>(resolveStartTimestamp(request, now)));
+
+    if (!track.album.empty())
+        params["album" + suffix] = track.album;
+    if (!track.albumArtist.empty())
+        params["albumArtist" + suffix] = track.albumArtist;
+    if (!track.mbid.empty())
+        params["mbid" + suffix] = track.mbid;
+    if (track.durationSeconds > 0.0)
+        params["duration" + suffix] = std::to_string(static_cast<int>(track.durationSeconds));
+
+    return true;
+}
+
 static bool buildNowPlayingParams(std::map<std::string, std::string>& params, std::string& apiSecretOut,
                                   const std::string& artist, const std::string& title, const std::string& album,
                                   const std::string& albumArtist, const std::string& mbid, double durationSeconds)
@@ -171,42 +247,13 @@ static bool buildNowPlayingParams(std::map<std::string, std::string>& params, st
     return true;
 }
 
-static pfc::string8 buildNowPlayingUrl(const std::map<std::string, std::string>& params, const std::string& apiSecret)
-{
-    std::string sigSrc;
-    for (const auto& kv : params)
-    {
-        sigSrc += kv.first;
-        sigSrc += kv.second;
-    }
-    sigSrc += apiSecret;
-
-    const std::string apiSig = lastfm::util::md5HexLower(sigSrc);
-
-    pfc::string8 url;
-    url << "https://ws.audioscrobbler.com/2.0/?";
-
-    bool first = true;
-    for (const auto& kv : params)
-    {
-        if (!first)
-            url << "&";
-        first = false;
-
-        const std::string encodedVal = lastfm::util::urlEncode(kv.second);
-        url << kv.first.c_str() << "=" << encodedVal.c_str();
-    }
-
-    url << "&api_sig=" << apiSig.c_str() << "&format=json";
-    return url;
-}
-
-static bool postNowPlayingAndClassify(const char* urlCStr)
+static bool postNowPlayingAndClassify(const std::string& formBody)
 {
     pfc::string8 body;
     std::string httpError;
 
-    const bool httpOk = lastfm::util::httpPostToString(urlCStr, body, httpError);
+    const bool httpOk =
+        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", formBody, body, httpError);
 
     if (httpOk)
         LFM_DEBUG("NowPlaying response received. (size=" << body.get_length() << ")");
@@ -234,8 +281,8 @@ bool LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
         return false;
     }
 
-    const pfc::string8 url = buildNowPlayingUrl(params, apiSecret);
-    return postNowPlayingAndClassify(url.c_str());
+    const std::string formBody = buildSignedFormBody(params, apiSecret);
+    return postNowPlayingAndClassify(formBody);
 }
 
 LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
@@ -243,6 +290,7 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
 {
 #ifdef LFM_DEBUG
     static bool tested = (selfTest_extractLastfmApiError(), true);
+    (void)tested;
 #endif
 
     LastfmAuthState authState = getAuthState();
@@ -274,7 +322,7 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
         startTs = now - static_cast<std::time_t>(playbackSeconds);
     }
 
-    std::map<std::string, std::string> params = {
+    ApiParams params = {
         {"api_key", apiKey},          {"artist", track.artist},
         {"track", track.title},       {"timestamp", std::to_string(static_cast<long long>(startTs))},
         {"method", "track.scrobble"}, {"sk", authState.sessionKey},
@@ -289,35 +337,12 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
     if (track.durationSeconds > 0.0)
         params["duration"] = std::to_string(static_cast<int>(track.durationSeconds));
 
-    std::string sig;
-    for (const auto& kv : params)
-    {
-        sig += kv.first;
-        sig += kv.second;
-    }
-    sig += apiSecret;
-    sig = lastfm::util::md5HexLower(sig);
-
-    pfc::string8 url;
-    url << "https://ws.audioscrobbler.com/2.0/?";
-
-    bool first = true;
-    for (const auto& kv : params)
-    {
-        if (!first)
-            url << "&";
-        first = false;
-
-        const std::string encodedValue = lastfm::util::urlEncode(kv.second);
-        url << kv.first.c_str() << "=" << encodedValue.c_str();
-    }
-
-    url << "&api_sig=" << sig.c_str() << "&format=json";
-
     pfc::string8 body;
     std::string httpError;
 
-    bool httpOk = lastfm::util::httpPostToString(url.c_str(), body, httpError);
+    const std::string formBody = buildSignedFormBody(params, apiSecret);
+    const bool httpOk =
+        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", formBody, body, httpError);
 
     ApiOutcome outcome = classifyResponse(httpOk, httpError, body);
 
@@ -325,6 +350,83 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
     {
         LFM_INFO("Scrobble OK: " << track.artist.c_str() << " - " << track.title.c_str());
     }
+
+    return outcome.result;
+}
+
+LastfmScrobbleResult LastfmWebApi::scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests)
+{
+#ifdef LFM_DEBUG
+    static bool tested = (selfTest_extractLastfmApiError(), true);
+    (void)tested;
+#endif
+
+    if (requests.empty())
+        return LastfmScrobbleResult::SUCCESS;
+
+    if (requests.size() > 50)
+    {
+        LFM_INFO("LastfmWebApi::scrobbleBatch(): batch too large: " << requests.size());
+        return LastfmScrobbleResult::OTHER_ERROR;
+    }
+
+    LastfmAuthState authState = getAuthState();
+    if (!authState.isAuthenticated || authState.sessionKey.empty())
+    {
+        LFM_INFO("LastfmWebApi::scrobbleBatch(): no valid auth state.");
+        return LastfmScrobbleResult::INVALID_SESSION;
+    }
+
+    const std::string apiKey = __key();
+    const std::string apiSecret = __sec();
+
+    if (apiKey.empty() || apiSecret.empty())
+    {
+        LFM_INFO("LastfmWebApi::scrobbleBatch(): API key/secret not configured.");
+        return LastfmScrobbleResult::OTHER_ERROR;
+    }
+
+    ApiParams params = {
+        {"api_key", apiKey},
+        {"method", "track.scrobble"},
+        {"sk", authState.sessionKey},
+    };
+
+    const std::time_t now = std::time(nullptr);
+    for (std::size_t i = 0; i < requests.size(); ++i)
+    {
+        if (!appendIndexedScrobbleParams(params, requests[i], i, now))
+        {
+            LFM_INFO("LastfmWebApi::scrobbleBatch(): missing artist/title at index " << (unsigned)i);
+            return LastfmScrobbleResult::OTHER_ERROR;
+        }
+    }
+
+    const std::string bodyText = buildSignedFormBody(params, apiSecret);
+
+    pfc::string8 body;
+    std::string httpError;
+
+    const bool httpOk =
+        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", bodyText, body, httpError);
+
+    ApiOutcome outcome = classifyResponse(httpOk, httpError, body);
+
+    if (outcome.result == LastfmScrobbleResult::SUCCESS)
+    {
+        if (requests.size() == 1)
+        {
+            const LastfmTrackInfo& track = requests.front().track;
+            LFM_INFO("Scrobble OK: " << track.artist.c_str() << " - " << track.title.c_str());
+        }
+        else
+        {
+            LFM_INFO("Scrobble batch OK: count=" << (unsigned)requests.size());
+        }
+    }
+    else
+        LFM_INFO("Scrobble batch failed: result=" << static_cast<int>(outcome.result)
+                                                  << " count=" << (unsigned)requests.size());
 
     return outcome.result;
 }

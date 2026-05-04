@@ -32,6 +32,7 @@ std::string urlEncode(const std::string& value);
 bool httpRequestToString(const char* method, const char* url, pfc::string8& outBody, std::string& outError);
 bool httpGetToString(const char* url, pfc::string8& outBody, std::string& outError);
 bool httpPostToString(const char* url, pfc::string8& outBody, std::string& outError);
+bool httpPostFormToString(const char* url, const std::string& formBody, pfc::string8& outBody, std::string& outError);
 
 // Minimal JSON helpers (not a full parser)
 bool jsonFindStringValue(const char* json, const char* key, std::string& out);

@@ -30,6 +30,11 @@ LastfmScrobbleResult LastfmClient::scrobble(const LastfmTrackInfo& track, double
     return api.scrobble(track, playbackSeconds, startTimestamp);
 }
 
+LastfmScrobbleResult LastfmClient::scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests)
+{
+    return api.scrobbleBatch(requests);
+}
+
 bool LastfmClient::startAuth(std::string& outUrl)
 {
     return beginAuth(outUrl);
