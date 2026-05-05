@@ -608,8 +608,7 @@ void LastfmTracker::submitScrobbleIfNeeded()
     if (duration < LastfmScrobbleConfig::MIN_TRACK_DURATION_SECONDS)
         return;
 
-    const double threshold = std::min(duration * LastfmScrobbleConfig::SCROBBLE_THRESHOLD_FACTOR,
-                                      LastfmScrobbleConfig::MAX_THRESHOLD_SECONDS);
+    const double threshold = rules.requiredPlaybackSeconds();
 
     if (effectiveListenedSeconds < threshold)
         return;

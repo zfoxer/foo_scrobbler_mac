@@ -12,7 +12,6 @@ namespace LastfmScrobbleConfig
 static constexpr double MIN_TRACK_DURATION_SECONDS = 30.0;
 static constexpr double SCROBBLE_THRESHOLD_FACTOR = 0.5;
 static constexpr double MAX_THRESHOLD_SECONDS = 240.0;
-static constexpr double LONG_TRACK_SECONDS = 480.0;
 static constexpr double DELTA = 20.0;
 } // namespace LastfmScrobbleConfig
 
@@ -23,6 +22,14 @@ struct LastfmRules
     bool paused = false;
     bool skippedEarly = false;
 
+    double requiredPlaybackSeconds() const
+    {
+        const double fiftyPercent = trackDuration * LastfmScrobbleConfig::SCROBBLE_THRESHOLD_FACTOR;
+        return (fiftyPercent < LastfmScrobbleConfig::MAX_THRESHOLD_SECONDS)
+                   ? fiftyPercent
+                   : LastfmScrobbleConfig::MAX_THRESHOLD_SECONDS;
+    }
+
     bool isEligibleToScrobble() const
     {
         using namespace LastfmScrobbleConfig;
@@ -30,10 +37,7 @@ struct LastfmRules
         if (trackDuration < MIN_TRACK_DURATION_SECONDS)
             return false;
 
-        const double fiftyPercent = trackDuration * SCROBBLE_THRESHOLD_FACTOR;
-        const double requiredTime = (trackDuration > LONG_TRACK_SECONDS) ? MAX_THRESHOLD_SECONDS : fiftyPercent;
-
-        return playbackTime >= requiredTime;
+        return playbackTime >= requiredPlaybackSeconds();
     }
 
     bool shouldScrobble() const
