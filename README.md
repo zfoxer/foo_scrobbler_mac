@@ -7,7 +7,7 @@
 </p>
 
 ### Foo Scrobbler for Mac
-#### Version: 1.0.9 — foo_scrobbler_mac — Released under MIT License
+#### Version: 1.1.0 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
@@ -80,6 +80,15 @@ The project logo and related visual brand assets are not covered by the MIT Lice
 <summary><strong>Expand</strong></summary>
 
 <pre>
+1.1.0    2026-05-08    Update queue draining with Last.fm API 2.0 batch scrobbling support.
+                       Fix rare worker races that could cause busy spins and stale queue retries.
+                       Add exclusion filtering using foobar2000 Title Formatting.
+                       Add regex filtering support for albums.
+                       Drop support for the legacy v1.0.1 short-lived queue format.
+                       Ignore scrobbling and Now Playing according to the FOO_SCROBBLER tag flag.
+                       Replace Apple MD5 hashing with the SDK-native implementation.
+                       Update the universal build to use Apple Clang 21.
+
 1.0.9    2026-03-26    Avoid reparsing the persisted scrobble queue on every access.
                        Cache compiled Title Format scripts instead of rebuilding them during playback.
                        Replace unsafe static locals in stream dedup with per-instance tracker state.
