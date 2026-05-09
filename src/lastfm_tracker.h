@@ -39,7 +39,8 @@ class LastfmTracker : public play_callback_static
     void updateFromTrack(const metadb_handle_ptr& track);
     void handleDynamicStreamUpdate(const file_info& info);
     bool refreshFooScrobblerTagAllows();
-    bool isExcludedByTfExpression(const metadb_handle_ptr& track, const file_info* externalInfo = nullptr);
+    bool isExcludedByTfExpression(const metadb_handle_ptr& track, const LastfmTrackInfo& evaluated,
+                                  const file_info* externalInfo = nullptr);
 
     std::time_t startWallclock = 0;
     bool isPlaying = false;

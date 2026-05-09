@@ -305,18 +305,29 @@ void LastfmTracker::fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTr
     }
 }
 
-bool LastfmTracker::isExcludedByTfExpression(const metadb_handle_ptr& track, const file_info* externalInfo)
+bool LastfmTracker::isExcludedByTfExpression(const metadb_handle_ptr& track, const LastfmTrackInfo& evaluated,
+                                             const file_info* externalInfo)
 {
     recompileTfIfNeeded();
 
     if (!track.is_valid() || !excludeTf_.is_valid())
         return false;
 
-    pfc::string8 out;
+    file_info_impl info;
     if (externalInfo)
-        track->format_title_from_external_info(*externalInfo, nullptr, out, excludeTf_, nullptr);
-    else
-        track->format_title(nullptr, out, excludeTf_, nullptr);
+        info.copy(*externalInfo);
+    else if (!track->get_info(info))
+        return false;
+
+    // Exclusion TF sees the same core fields that Foo Scrobbler would submit,
+    // after the configured input Title Formatting has already been evaluated.
+    info.meta_set("ARTIST", evaluated.artist.c_str());
+    info.meta_set("TITLE", evaluated.title.c_str());
+    info.meta_set("ALBUM", evaluated.album.c_str());
+    info.meta_set("ALBUM ARTIST", evaluated.albumArtist.c_str());
+
+    pfc::string8 out;
+    track->format_title_from_external_info(info, nullptr, out, excludeTf_, nullptr);
 
     if (!hasNonWhitespaceOutput(out.c_str()))
         return false;
@@ -449,7 +460,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
     }
 
     if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
-        isExcludedByTfExpression(track))
+        isExcludedByTfExpression(track, current))
     {
         LFM_DEBUG("Track skipped: excluded by filters.");
         resetState();
@@ -635,7 +646,7 @@ void LastfmTracker::submitScrobbleIfNeeded()
     pendingDueToMissingMetadata = false;
 
     if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
-        isExcludedByTfExpression(currentHandle))
+        isExcludedByTfExpression(currentHandle, current))
         return;
 
     // Eligible, but suspended/tag-disabled -> remember and defer.
@@ -699,8 +710,13 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     if (newArtist == current.artist && newTitle == current.title && newAlbum == current.album)
         return;
 
+    LastfmTrackInfo evaluated;
+    evaluated.artist = newArtist;
+    evaluated.title = newTitle;
+    evaluated.album = newAlbum;
+
     if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(newArtist, newTitle, newAlbum) ||
-        isExcludedByTfExpression(currentHandle, &info))
+        isExcludedByTfExpression(currentHandle, evaluated, &info))
     {
         LFM_DEBUG("Stream dynamic ignored: excluded by filters.");
         return;
