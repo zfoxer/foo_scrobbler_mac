@@ -33,6 +33,25 @@ struct ApiOutcome
     bool hasJson = false;
 };
 
+static const char* scrobbleResultToString(LastfmScrobbleResult result)
+{
+    switch (result)
+    {
+    case LastfmScrobbleResult::SUCCESS:
+        return "SUCCESS";
+    case LastfmScrobbleResult::TEMPORARY_ERROR:
+        return "TEMPORARY_ERROR";
+    case LastfmScrobbleResult::RATE_LIMITED:
+        return "RATE_LIMITED";
+    case LastfmScrobbleResult::INVALID_SESSION:
+        return "INVALID_SESSION";
+    case LastfmScrobbleResult::OTHER_ERROR:
+        return "OTHER_ERROR";
+    }
+
+    return "UNKNOWN";
+}
+
 static ApiOutcome classifyResponse(bool httpOk, const std::string& httpError, const pfc::string8& body)
 {
     ApiOutcome out;
@@ -425,8 +444,10 @@ LastfmScrobbleResult LastfmWebApi::scrobbleBatch(const std::vector<LastfmScrobbl
         }
     }
     else
-        LFM_INFO("Scrobble batch failed: result=" << static_cast<int>(outcome.result)
-                                                  << " count=" << (unsigned)requests.size());
+        LFM_INFO("Scrobble batch failed: result="
+                 << scrobbleResultToString(outcome.result) << " count=" << (unsigned)requests.size()
+                 << " apiError=" << outcome.apiError
+                 << " apiMessage=" << (outcome.apiMessage.empty() ? "<none>" : outcome.apiMessage.c_str()));
 
     return outcome.result;
 }
