@@ -7,7 +7,7 @@
 </p>
 
 ### Foo Scrobbler for Mac
-#### Version: 1.1.0 — foo_scrobbler_mac — Released under MIT License
+#### Version: 1.1.1 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
@@ -72,6 +72,10 @@ Authentication requires only an active Last.fm account. Users grant access once 
 <summary><strong>Expand</strong></summary>
 
 <pre>
+1.1.1    2026-05-11    Preserve order of TF input and TF exclusion filters.
+                       Improve batch scrobbling error logs.
+                       Use not-due scrobbles to fill batches for small queues.
+
 1.1.0    2026-05-08    Update queue draining with Last.fm API 2.0 batch scrobbling support.
                        Fix rare worker races that could cause busy spins and stale queue retries.
                        Add exclusion filtering using foobar2000 Title Formatting.
