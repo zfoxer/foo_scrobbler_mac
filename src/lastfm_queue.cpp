@@ -48,6 +48,9 @@ static const GUID GUID_CFG_LASTFM_DAY_STAMP = {
 // Last.fm accepts at most 50 scrobbles per track.scrobble request.
 static constexpr size_t K_MAX_DISPATCH_BATCH = 50;
 
+// Small backlogs can borrow backed-off temporary-error-ish items to fill a batch.
+static constexpr size_t K_BACKOFF_BORROW_QUEUE_LIMIT = 65;
+
 // Linear backoff: 60s, 120s, 180s… capped
 static constexpr int K_RETRY_STEP_SECONDS = 60;
 static constexpr int K_RETRY_MAX_SECONDS = 60 * 60; // 1h cap
@@ -469,10 +472,12 @@ LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& sna
                                           const std::function<void()>& onInvalidSession, int64_t dailyBudget)
 {
     const std::time_t nowCheck = std::time(nullptr);
-
     std::vector<const QueuedScrobble*> batch;
     batch.reserve(maxToAttempt);
+    const bool smallQueueBackoffBorrow = snapshot.size() <= K_BACKOFF_BORROW_QUEUE_LIMIT;
+    bool hasTrueDue = false;
 
+    // First pass: collect genuinely due scrobbles only.
     for (const auto& q : snapshot)
     {
         if (batch.size() >= maxToAttempt)
@@ -487,7 +492,29 @@ LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& sna
             continue;
         }
 
+        hasTrueDue = true;
         batch.push_back(&q);
+    }
+
+    // Second pass: for small queues, fill spare batch slots with backed-off items
+    // that have not accumulated OTHER_ERRORs. This does not change hasDueScrobble(),
+    // so backoff still controls when a drain wakes up in the first place.
+    if (hasTrueDue && smallQueueBackoffBorrow && batch.size() < maxToAttempt)
+    {
+        for (const auto& q : snapshot)
+        {
+            if (batch.size() >= maxToAttempt)
+                break;
+
+            const bool backedOff = q.nextRetryTimestamp > 0 && q.nextRetryTimestamp > nowCheck;
+            if (!backedOff || q.otherErrorCount != 0)
+                continue;
+
+            if (q.artist.empty() || q.title.empty())
+                continue;
+
+            batch.push_back(&q);
+        }
     }
 
     DispatchOutcome out;
