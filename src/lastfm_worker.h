@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -50,7 +51,8 @@ class LastfmWorker
         }
     };
 
-    explicit LastfmWorker(LastfmClient& client, LastfmQueue& queue, Config cfg = Config());
+    explicit LastfmWorker(LastfmClient& client, LastfmQueue& queue, Config cfg = Config(),
+                          std::function<void()> onInvalidSession = {});
     ~LastfmWorker();
 
     LastfmWorker(const LastfmWorker&) = delete;
@@ -96,6 +98,7 @@ class LastfmWorker
     LastfmClient& client_;
     LastfmQueue& queue_;
     Config cfg_;
+    std::function<void()> onInvalidSession_;
 
     std::mutex mtx_;
     std::condition_variable cv_;

@@ -10,11 +10,12 @@
 
 #include <algorithm>
 #include <ctime>
+#include <utility>
 
 using namespace std::chrono;
 
-LastfmWorker::LastfmWorker(LastfmClient& client, LastfmQueue& queue, Config cfg)
-    : client_(client), queue_(queue), cfg_(cfg)
+LastfmWorker::LastfmWorker(LastfmClient& client, LastfmQueue& queue, Config cfg, std::function<void()> onInvalidSession)
+    : client_(client), queue_(queue), cfg_(cfg), onInvalidSession_(std::move(onInvalidSession))
 {
 }
 
@@ -271,7 +272,9 @@ void LastfmWorker::handleNowPlayingIfReady()
     if (t->artist.empty() || t->title.empty())
         return;
 
-    (void)client_.updateNowPlaying(*t);
+    const LastfmScrobbleResult result = client_.updateNowPlaying(*t);
+    if (result == LastfmScrobbleResult::INVALID_SESSION && onInvalidSession_)
+        onInvalidSession_();
 }
 
 void LastfmWorker::handleDrain()
@@ -282,10 +285,10 @@ void LastfmWorker::handleDrain()
     if (cfg_.drainEnabled && cfg_.drainEnabled() == false)
         return;
 
-    if (authBlocked_.load())
-        return;
+    auto authUnavailable = [this]() -> bool
+    { return authBlocked_.load() || !client_.isAuthenticated() || client_.isSuspended(); };
 
-    if (!client_.isAuthenticated() || client_.isSuspended())
+    if (authUnavailable())
         return;
 
     const auto now = Clock::now();
@@ -325,6 +328,9 @@ void LastfmWorker::handleDrain()
         if (shuttingDown_.load(std::memory_order_acquire) || stopRequested_.load(std::memory_order_acquire))
             break;
 
+        if (authUnavailable())
+            break;
+
         if (enforceCooldown)
             break;
 
@@ -340,7 +346,7 @@ void LastfmWorker::handleDrain()
     // If still due, schedule a follow-up soon (paced)
     const auto pendingAfter = queue_.getPendingScrobbleCount();
     if (!shuttingDown_.load(std::memory_order_acquire) && !stopRequested_.load(std::memory_order_acquire) &&
-        pendingAfter > 0 && queue_.hasDueScrobble(std::time(nullptr)))
+        !authUnavailable() && pendingAfter > 0 && queue_.hasDueScrobble(std::time(nullptr)))
     {
         const auto delay = enforceCooldown ? cfg_.drainMinInterval : std::chrono::milliseconds(250);
         postDrainAfter(delay);

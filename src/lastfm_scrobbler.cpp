@@ -19,14 +19,16 @@
 
 LastfmScrobbler::LastfmScrobbler(LastfmClient& client)
     : client(client), queue(client, [this]() { handleInvalidSessionOnce(); }),
-      worker(client, queue,
-             []
-             {
-                 LastfmWorker::Config c;
-                 c.drainEnabled = &LastfmQueue::drainEnabled;
-                 c.drainMinInterval = LastfmQueue::drainCooldown();
-                 return c;
-             }())
+      worker(
+          client, queue,
+          []
+          {
+              LastfmWorker::Config c;
+              c.drainEnabled = &LastfmQueue::drainEnabled;
+              c.drainMinInterval = LastfmQueue::drainCooldown();
+              return c;
+          }(),
+          [this]() { handleInvalidSessionOnce(); })
 {
     queue.setShuttingDownFlag(&shuttingDown);
     worker.start();

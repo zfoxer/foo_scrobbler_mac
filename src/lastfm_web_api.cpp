@@ -266,7 +266,7 @@ static bool buildNowPlayingParams(std::map<std::string, std::string>& params, st
     return true;
 }
 
-static bool postNowPlayingAndClassify(const std::string& formBody)
+static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBody)
 {
     pfc::string8 body;
     std::string httpError;
@@ -282,14 +282,14 @@ static bool postNowPlayingAndClassify(const std::string& formBody)
     if (outcome.result == LastfmScrobbleResult::SUCCESS)
     {
         LFM_DEBUG("NowPlaying OK.");
-        return true;
+        return LastfmScrobbleResult::SUCCESS;
     }
 
-    return false;
+    return outcome.result;
 }
 } // namespace
 
-bool LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
+LastfmScrobbleResult LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
 {
     std::map<std::string, std::string> params;
     std::string apiSecret;
@@ -297,7 +297,7 @@ bool LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
     if (!buildNowPlayingParams(params, apiSecret, track.artist, track.title, track.album, track.albumArtist, track.mbid,
                                track.durationSeconds))
     {
-        return false;
+        return LastfmScrobbleResult::OTHER_ERROR;
     }
 
     const std::string formBody = buildSignedFormBody(params, apiSecret);

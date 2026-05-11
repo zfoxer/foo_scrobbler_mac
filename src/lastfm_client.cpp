@@ -19,7 +19,7 @@ bool LastfmClient::isAuthenticated() const
     return lastfmIsAuthenticated();
 }
 
-bool LastfmClient::updateNowPlaying(const LastfmTrackInfo& track)
+LastfmScrobbleResult LastfmClient::updateNowPlaying(const LastfmTrackInfo& track)
 {
     return api.updateNowPlaying(track);
 }
