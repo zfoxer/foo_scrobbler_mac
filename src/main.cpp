@@ -11,10 +11,6 @@
 #include "debug.h"
 #include "lastfm_core.h"
 
-// Component GUID
-static const GUID FOO_SCROBBLER_MAC_GUID = {
-    0xd490c10d, 0x37fe, 0x4075, {0x80, 0xb6, 0xa2, 0x4e, 0xc6, 0x16, 0x14, 0x79}};
-
 // Component version info
 DECLARE_COMPONENT_VERSION("Foo Scrobbler", FOOSCROBBLER_VERSION,
                           "A Last.fm scrobbler for foobar2000 (macOS).\n"

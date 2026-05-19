@@ -14,7 +14,6 @@
 
 #include "lastfm_rules.h"
 #include "lastfm_track_info.h"
-#include "lastfm_prefs_pane.h"
 
 class LastfmTracker : public play_callback_static
 {
@@ -38,6 +37,7 @@ class LastfmTracker : public play_callback_static
     void submitScrobbleIfNeeded();
     void updateFromTrack(const metadb_handle_ptr& track);
     void handleDynamicStreamUpdate(const file_info& info);
+    void refreshCurrentFileMetadata(bool allowDispatch);
     bool refreshFooScrobblerTagAllows();
     bool isExcludedByTfExpression(const metadb_handle_ptr& track, const LastfmTrackInfo& evaluated,
                                   const file_info* externalInfo = nullptr);

@@ -339,7 +339,8 @@ bool LastfmTracker::isExcludedByTfExpression(const metadb_handle_ptr& track, con
 unsigned LastfmTracker::get_flags()
 {
     return flag_on_playback_new_track | flag_on_playback_stop | flag_on_playback_time | flag_on_playback_seek |
-           flag_on_playback_pause | flag_on_playback_dynamic_info | flag_on_playback_dynamic_info_track;
+           flag_on_playback_pause | flag_on_playback_edited | flag_on_playback_dynamic_info |
+           flag_on_playback_dynamic_info_track;
 }
 
 void LastfmTracker::resetState()
@@ -383,6 +384,54 @@ bool LastfmTracker::refreshFooScrobblerTagAllows()
 
     currentFooScrobblerTagAllows = lastfm::util::fooScrobblerTagAllowsSubmission(info);
     return currentFooScrobblerTagAllows;
+}
+
+void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
+{
+    if (!isPlaying || isCurrentStream || !currentHandle.is_valid())
+        return;
+
+    if (!scrobbleSent && !pendingDueToMissingMetadata)
+        return;
+
+    file_info_impl info;
+    if (!currentHandle->get_info(info))
+        return;
+
+    currentFooScrobblerTagAllows = lastfm::util::fooScrobblerTagAllowsSubmission(info);
+
+    LastfmTrackInfo refreshed = current;
+    fillTrackInfoFromTf(currentHandle, refreshed);
+
+    const bool changed = refreshed.artist != current.artist || refreshed.title != current.title ||
+                         refreshed.album != current.album || refreshed.albumArtist != current.albumArtist;
+    if (!changed)
+        return;
+
+    current.artist = refreshed.artist;
+    current.title = refreshed.title;
+    current.album = refreshed.album;
+    current.albumArtist = refreshed.albumArtist;
+
+    const bool hasRequiredMetadata = !current.artist.empty() && !current.title.empty();
+    if (pendingDueToMissingMetadata && hasRequiredMetadata)
+        pendingDueToMissingMetadata = false;
+
+    if (!hasRequiredMetadata)
+        return;
+
+    if (!allowDispatch || lastfmIsSuspended() || !currentFooScrobblerTagAllows)
+        return;
+
+    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
+        isExcludedByTfExpression(currentHandle, current, &info))
+        return;
+
+    auto& scrobbler = LastfmCore::instance().scrobbler();
+    if (scrobbleSent)
+        scrobbler.refreshPendingMetadata(current);
+
+    scrobbler.sendNowPlayingOnly(current);
 }
 
 void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
@@ -525,41 +574,7 @@ void LastfmTracker::on_playback_time(double time)
         haveLastReportedTime = false;
     }
 
-    auto& scrobbler = LastfmCore::instance().scrobbler();
-    if (currentHandle.is_valid() && (scrobbleSent || pendingDueToMissingMetadata) && !isCurrentStream)
-    {
-        file_info_impl info;
-        if (currentHandle->get_info(info))
-        {
-            LastfmTrackInfo refreshed = current;
-            fillTrackInfoFromTf(currentHandle, refreshed);
-
-            std::string newArtist = refreshed.artist;
-            std::string newTitle = refreshed.title;
-            std::string newAlbum = refreshed.album;
-            std::string newAlbumArtist = refreshed.albumArtist;
-
-            if (newArtist != current.artist || newTitle != current.title || newAlbum != current.album ||
-                newAlbumArtist != current.albumArtist)
-            {
-                current.artist = newArtist;
-                current.title = newTitle;
-                current.album = newAlbum;
-                current.albumArtist = newAlbumArtist;
-
-                if (!blocked)
-                {
-                    if (scrobbleSent)
-                        scrobbler.refreshPendingMetadata(current);
-
-                    scrobbler.sendNowPlayingOnly(current);
-                }
-
-                if (pendingDueToMissingMetadata && !current.artist.empty() && !current.title.empty())
-                    pendingDueToMissingMetadata = false;
-            }
-        }
-    }
+    refreshCurrentFileMetadata(!blocked);
 
     // Stream-only: cache a dynamic scrobble payload once we have >=30s effective listening.
     maybeCacheDynamicScrobble();
@@ -766,11 +781,11 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     // Otherwise it's an update / track change.
     if (lastfmDisableNowPlaying())
     {
-        LFM_DEBUG("Dynamic NP suppressed (dynamic): " << current.artist.c_str() << " - " << current.title.c_str());
+        LFM_DEBUG("NP suppressed (dynamic): " << current.artist.c_str() << " - " << current.title.c_str());
     }
     else
     {
-        LFM_DEBUG("Submitting dynamic NP (dynamic): " << current.artist.c_str() << " - " << current.title.c_str());
+        LFM_DEBUG("Submitting NP (dynamic): " << current.artist.c_str() << " - " << current.title.c_str());
         scrobbler.sendNowPlayingOnly(current);
     }
 }
@@ -881,12 +896,13 @@ void LastfmTracker::on_playback_dynamic_info_track(const file_info& info)
     handleDynamicStreamUpdate(info);
 }
 
-// Unused callbacks (required by interface)
+// Remaining callbacks
 void LastfmTracker::on_playback_starting(play_control::t_track_command, bool)
 {
 }
 void LastfmTracker::on_playback_edited(metadb_handle_ptr)
 {
+    refreshCurrentFileMetadata(true);
 }
 void LastfmTracker::on_volume_change(float)
 {
