@@ -88,6 +88,8 @@ class LastfmQueue
     static std::string escapeField(const std::string& in);
     static std::string unescapeField(const std::string& in);
     static std::string serializeScrobble(const QueuedScrobble& q);
+    static RetryUpdate makeFailureRetryUpdate(const QueuedScrobble& q, LastfmScrobbleResult result,
+                                              std::time_t nowSchedule);
 
     static DispatchOutcome
     dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
