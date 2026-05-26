@@ -21,7 +21,7 @@ class LastfmClient final : public ILastfmAuthApi
   public:
     LastfmClient() = default;
 
-    // Auth state (from cfg via lastfm_ui)
+    // Auth state (from cfg)
     bool isAuthenticated() const;
     bool isSuspended() const;
 

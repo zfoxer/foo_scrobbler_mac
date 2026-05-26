@@ -9,8 +9,7 @@
 
 #include <string>
 
-#include "lastfm_auth_state.h"
-#include "lastfm_ui.h"
+#include "lastfm_state.h"
 
 // Starts the browser-based Last.fm auth flow.
 // Fills outAuthUrl with the URL the user should be sent to.

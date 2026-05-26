@@ -9,7 +9,7 @@
 
 #include <string>
 
-#include "lastfm_auth_state.h"
+#include "lastfm_state.h"
 
 class ILastfmAuthApi
 {

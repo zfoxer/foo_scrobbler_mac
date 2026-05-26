@@ -6,8 +6,8 @@
 //
 
 #include "lastfm_exclusion_filters.h"
-#include "lastfm_prefs_pane.h"
 #include "debug.h"
+#include "lastfm_settings.h"
 
 #include <atomic>
 #include <cctype>
@@ -178,6 +178,101 @@ static TextOrRegexFilter g_excludeArtist("artist");
 static TextOrRegexFilter g_excludeTitle("title");
 static TextOrRegexFilter g_excludeAlbum("album");
 
+static bool hasNonWhitespaceOutput(const char* value)
+{
+    if (!value)
+        return false;
+
+    for (const unsigned char* p = reinterpret_cast<const unsigned char*>(value); *p; ++p)
+    {
+        if (!std::isspace(*p))
+            return true;
+    }
+
+    return false;
+}
+
+class TitleFormattingFilter
+{
+  public:
+    bool matches(const metadb_handle_ptr& track, const LastfmTrackInfo& evaluated, const file_info* externalInfo)
+    {
+        if (!track.is_valid())
+            return false;
+
+        service_ptr_t<titleformat_object> script;
+        const std::string expr = lastfm::settings::excludedTitleFormatExpression();
+
+        {
+            std::lock_guard<std::mutex> lock(m_);
+            rebuildIfNeededLocked(expr);
+            script = script_;
+        }
+
+        if (!script.is_valid())
+            return false;
+
+        file_info_impl info;
+        if (externalInfo)
+            info.copy(*externalInfo);
+        else if (!track->get_info(info))
+            return false;
+
+        // Exclusion TF sees the same core fields that Foo Scrobbler would submit,
+        // after the configured input Title Formatting has already been evaluated.
+        info.meta_set("ARTIST", evaluated.artist.c_str());
+        info.meta_set("TITLE", evaluated.title.c_str());
+        info.meta_set("ALBUM", evaluated.album.c_str());
+        info.meta_set("ALBUM ARTIST", evaluated.albumArtist.c_str());
+
+        pfc::string8 out;
+        track->format_title_from_external_info(info, nullptr, out, script, nullptr);
+
+        if (!hasNonWhitespaceOutput(out.c_str()))
+            return false;
+
+        logMatchLimited(out.c_str());
+        return true;
+    }
+
+  private:
+    void rebuildIfNeededLocked(const std::string& expr)
+    {
+        if (expr == raw_)
+            return;
+
+        raw_ = expr;
+        script_.release();
+
+        if (raw_.empty())
+            return;
+
+        static_api_ptr_t<titleformat_compiler> compiler;
+        if (!compiler->compile(script_, raw_.c_str()))
+            LFM_INFO("Exclude Title Formatting: invalid expression ignored.");
+    }
+
+    void logMatchLimited(const char* value)
+    {
+        int r = remaining_.load(std::memory_order_relaxed);
+        while (r > 0)
+        {
+            if (remaining_.compare_exchange_weak(r, r - 1, std::memory_order_relaxed))
+            {
+                LFM_DEBUG("Excluded by Title Formatting filter: " << (value ? value : ""));
+                return;
+            }
+        }
+    }
+
+    std::mutex m_;
+    std::string raw_;
+    service_ptr_t<titleformat_object> script_;
+    std::atomic<int> remaining_{10};
+};
+
+static TitleFormattingFilter g_excludeTitleFormatting;
+
 } // namespace
 
 namespace lastfm
@@ -187,21 +282,21 @@ namespace exclusion_filters
 
 bool isExcludedByTextOrRegexFilters(const std::string& artist, const std::string& title, const std::string& album)
 {
-    const std::string artistRules = lastfmExcludedArtistsPatternList();
+    const std::string artistRules = lastfm::settings::excludedArtistsPatternList();
     if (!artistRules.empty() && g_excludeArtist.matches(artist, artistRules))
     {
         g_excludeArtist.logMatchLimited(artist);
         return true;
     }
 
-    const std::string titleRules = lastfmExcludedTitlesPatternList();
+    const std::string titleRules = lastfm::settings::excludedTitlesPatternList();
     if (!titleRules.empty() && g_excludeTitle.matches(title, titleRules))
     {
         g_excludeTitle.logMatchLimited(title);
         return true;
     }
 
-    const std::string albumRules = lastfmExcludedAlbumsPatternList();
+    const std::string albumRules = lastfm::settings::excludedAlbumsPatternList();
     if (!album.empty() && !albumRules.empty() && g_excludeAlbum.matches(album, albumRules))
     {
         g_excludeAlbum.logMatchLimited(album);
@@ -209,6 +304,12 @@ bool isExcludedByTextOrRegexFilters(const std::string& artist, const std::string
     }
 
     return false;
+}
+
+bool isExcludedByTitleFormattingFilter(const metadb_handle_ptr& track, const LastfmTrackInfo& evaluated,
+                                       const file_info* externalInfo)
+{
+    return g_excludeTitleFormatting.matches(track, evaluated, externalInfo);
 }
 
 } // namespace exclusion_filters

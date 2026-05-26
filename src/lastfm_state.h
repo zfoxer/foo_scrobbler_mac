@@ -7,9 +7,17 @@
 
 #pragma once
 
-#include "lastfm_auth_state.h"
+#include <string>
 
 // cfg-backed state (no UI, no dialogs)
+
+struct LastfmAuthState
+{
+    bool isAuthenticated = false;
+    bool isSuspended = false;
+    std::string username;   // Last.fm username
+    std::string sessionKey; // 'sk' from Last.fm
+};
 
 // Returns the current cached auth state (from config)
 LastfmAuthState lastfmGetAuthState();

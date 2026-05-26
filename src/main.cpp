@@ -26,6 +26,8 @@ class FooScrobblerMacComponent : public initquit
   public:
     void on_init() override
     {
+        lastfmSyncLogLevelFromPrefs();
+
         console::formatter f;
         f << FOOSCROBBLER_NAME << " " << FOOSCROBBLER_VERSION;
     }

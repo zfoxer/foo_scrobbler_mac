@@ -7,7 +7,8 @@
 
 #include "lastfm_scrobbler.h"
 #include "lastfm_client.h"
-#include "lastfm_ui.h"
+#include "lastfm_settings.h"
+#include "lastfm_state.h"
 #include "debug.h"
 
 #include <foobar2000/SDK/main_thread_callback.h>
@@ -50,7 +51,7 @@ void LastfmScrobbler::sendNowPlayingOnly(const LastfmTrackInfo& track)
     if (!client.isAuthenticated() || client.isSuspended())
         return;
 
-    if (lastfmDisableNowplaying())
+    if (lastfm::settings::disableNowPlaying())
         return;
 
     worker.postNowPlaying(track);
@@ -81,7 +82,7 @@ void LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
         return;
 
     // Hard opt-out: NP disabled by prefs
-    if (lastfmDisableNowplaying())
+    if (lastfm::settings::disableNowPlaying())
     {
         LFM_DEBUG("NowPlaying disabled by prefs.");
         return;
@@ -138,7 +139,7 @@ void LastfmScrobbler::handleInvalidSessionOnce()
         {
             if (shuttingDown.load())
                 return;
-            clearAuthentication();
+            lastfmClearAuthentication();
             popup_message::g_show("Your Last.fm session is no longer valid.\n"
                                   "Please authenticate again from the Last.fm menu.",
                                   "Last.fm Scrobbler");

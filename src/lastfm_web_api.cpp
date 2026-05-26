@@ -7,7 +7,7 @@
 
 #include "lastfm_web_api.h"
 #include "lastfm_no.h"
-#include "lastfm_ui.h"
+#include "lastfm_state.h"
 #include "lastfm_util.h"
 #include "debug.h"
 
@@ -219,7 +219,7 @@ static bool buildNowPlayingParams(std::map<std::string, std::string>& params, st
                                   const std::string& artist, const std::string& title, const std::string& album,
                                   const std::string& albumArtist, const std::string& mbid, double durationSeconds)
 {
-    LastfmAuthState state = getAuthState();
+    LastfmAuthState state = lastfmGetAuthState();
     if (!state.isAuthenticated || state.sessionKey.empty())
     {
         LFM_INFO("NowPlaying: not authenticated, skipping.");
@@ -312,7 +312,7 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
     (void)tested;
 #endif
 
-    LastfmAuthState authState = getAuthState();
+    LastfmAuthState authState = lastfmGetAuthState();
     if (!authState.isAuthenticated || authState.sessionKey.empty())
     {
         LFM_INFO("LastfmWebApi::scrobble(): no valid auth state.");
@@ -389,7 +389,7 @@ LastfmScrobbleResult LastfmWebApi::scrobbleBatch(const std::vector<LastfmScrobbl
         return LastfmScrobbleResult::OTHER_ERROR;
     }
 
-    LastfmAuthState authState = getAuthState();
+    LastfmAuthState authState = lastfmGetAuthState();
     if (!authState.isAuthenticated || authState.sessionKey.empty())
     {
         LFM_INFO("LastfmWebApi::scrobbleBatch(): no valid auth state.");

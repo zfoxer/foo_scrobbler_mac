@@ -6,7 +6,6 @@
 //
 
 #include "lastfm_menu.h"
-#include "lastfm_ui.h"
 #include "lastfm_core.h"
 #include "lastfm_track_info.h"
 #include "lastfm_state.h"
@@ -116,7 +115,7 @@ void LastfmMenu::get_name(t_uint32 index, pfc::string_base& out)
         out = "Clear authentication";
         break;
     case CMD_SUSPEND:
-        out = isSuspended() ? "Resume scrobbling" : "Pause scrobbling";
+        out = lastfmIsSuspended() ? "Resume scrobbling" : "Pause scrobbling";
         break;
     default:
         uBugCheck();
@@ -154,7 +153,7 @@ t_uint32 LastfmMenu::get_sort_priority()
 bool LastfmMenu::get_display(t_uint32 index, pfc::string_base& text, uint32_t& flags)
 {
     flags = 0;
-    const bool authed = isAuthenticated();
+    const bool authed = lastfmIsAuthenticated();
 
     switch (index)
     {
@@ -182,7 +181,7 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
     {
     case CMD_AUTHENTICATE:
     {
-        if (isAuthenticated())
+        if (lastfmIsAuthenticated())
             return;
 
         std::string url;
@@ -276,9 +275,9 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
     {
         auto& core = LastfmCore::instance();
 
-        if (isSuspended())
+        if (lastfmIsSuspended())
         {
-            clearSuspension();
+            lastfmClearSuspension();
 
             // Send Now Playing immediately for the currently playing track.
             // Use sendNowPlayingOnly() so we do NOT flush the retry queue on resume.
@@ -291,7 +290,7 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
         }
         else
         {
-            suspendCurrentUser();
+            lastfmSuspendCurrentUser();
         }
         break;
     }

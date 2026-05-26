@@ -10,7 +10,6 @@
 #include <string>
 
 #include "lastfm_auth_api.h"
-#include "lastfm_auth_state.h"
 
 class Authenticator
 {

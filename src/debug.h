@@ -20,13 +20,13 @@ enum class LfmLogLevel : int
 
 extern std::atomic<int> lfmLogLevel;
 
+void lastfmSetLogLevelFromConsoleChoice(int choice);
 void lastfmSyncLogLevelFromPrefs();
 
 #define LFM_INFO(expr)                                                                                                 \
     do                                                                                                                 \
     {                                                                                                                  \
-        lastfmSyncLogLevelFromPrefs();                                                                                 \
-        if (lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::INFO))                                                 \
+        if (lfmLogLevel.load(std::memory_order_relaxed) >= static_cast<int>(LfmLogLevel::INFO))                        \
         {                                                                                                              \
             console::formatter lfm_f;                                                                                  \
             lfm_f << "foo_scrobbler_mac: " << expr;                                                                    \
@@ -36,8 +36,7 @@ void lastfmSyncLogLevelFromPrefs();
 #define LFM_DEBUG(expr)                                                                                                \
     do                                                                                                                 \
     {                                                                                                                  \
-        lastfmSyncLogLevelFromPrefs();                                                                                 \
-        if (lfmLogLevel.load() >= static_cast<int>(LfmLogLevel::DEBUG_LOG))                                            \
+        if (lfmLogLevel.load(std::memory_order_relaxed) >= static_cast<int>(LfmLogLevel::DEBUG_LOG))                   \
         {                                                                                                              \
             console::formatter f;                                                                                      \
             f << "foo_scrobbler_mac: " << expr;                                                                        \
