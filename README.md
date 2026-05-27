@@ -7,7 +7,7 @@
 </p>
 
 ### Foo Scrobbler for Mac
-#### Version: 1.1.2 — foo_scrobbler_mac — Released under MIT License
+#### Version: 1.5.0 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
@@ -63,7 +63,7 @@ For the Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/fo
 
 Install **foo_scrobbler_mac.fb2k-component** from within foobar2000 by pointing to it (that is, add via '+') from the components section.  
 
-Authentication requires only an active Last.fm account. Users grant access once through the Last.fm website with their account, after which Foo Scrobbler runs quietly in the background and submits track information automatically. If authentication is cleared from the menu, the same user —or a different one— must grant access again through browser redirection to the Last.fm website. Foo Scrobbler adds a simple, convenient and non-intrusive last entry under Playback in the menu bar.  More options are located in Preferences → Advanced → Tools → Foo Scrobbler.
+Authentication requires only an active Last.fm account. Users grant access once through the Last.fm website with their account, after which Foo Scrobbler runs quietly in the background and submits track information automatically. If authentication is cleared from the menu, the same user —or a different one— must grant access again through browser redirection to the Last.fm website. Foo Scrobbler adds a simple, convenient and non-intrusive last entry under Playback in the menu bar. More options are located in Preferences → Tools → Foo Scrobbler.
 
 
 ### Changelog
@@ -72,79 +72,105 @@ Authentication requires only an active Last.fm account. Users grant access once 
 <summary><strong>Expand</strong></summary>
 
 <pre>
-1.1.2    2026-05-21    Refresh edited playback metadata through the same filters before NP or queue updates for consistency.
-                       Fix Last.fm error 9 re-auth console spam.
+1.5.0    2026-05-28  
+Replace the Advanced settings area with a Cocoa tabbed pane under Preferences → Tools → Foo Scrobbler.  
+Add four Title Formatting exclusion filter templates.  
+Clean up small repeated snippets of code related to retry behavior and scrobbling.  
+Hold filtered tracks until they become eligible instead of dropping them immediately.  
+Improve track metadata handling for local files and dynamic streams.  
+
+1.1.2    2026-05-21    
+Refresh edited playback metadata through the same filters before NP or queue updates for consistency.  
+Fix Last.fm error 9 re-auth console spam.  
                        
-1.1.1    2026-05-11    Preserve order of TF input and TF exclusion filters.
-                       Improve batch scrobbling error logs.
-                       Use not-due scrobbles to fill batches for small queues.
+1.1.1    2026-05-11    
+Preserve order of TF input and TF exclusion filters.  
+Improve batch scrobbling error logs.  
+Use not-due scrobbles to fill batches for small queues.  
 
-1.1.0    2026-05-08    Update queue draining with Last.fm API 2.0 batch scrobbling support.
-                       Fix rare worker races that could cause busy spins and stale queue retries.
-                       Add exclusion filtering using foobar2000 Title Formatting.
-                       Add regex filtering support for albums.
-                       Drop support for the legacy v1.0.1 short-lived queue format.
-                       Ignore scrobbling and Now Playing according to the FOO_SCROBBLER tag flag.
-                       Replace Apple MD5 hashing with the SDK-native implementation.
-                       Update the universal build to use Apple Clang 21.
+1.1.0    2026-05-08    
+Update queue draining with Last.fm API 2.0 batch scrobbling support.  
+Fix rare worker races that could cause busy spins and stale queue retries.  
+Add exclusion filtering using foobar2000 Title Formatting.  
+Add regex filtering support for albums.  
+Drop support for the legacy v1.0.1 short-lived queue format.  
+Ignore scrobbling and Now Playing according to the FOO_SCROBBLER tag flag.  
+Replace Apple MD5 hashing with the SDK-native implementation.  
+Update the universal build to use Apple Clang 21.  
 
-1.0.9    2026-03-26    Avoid reparsing the persisted scrobble queue on every access.
-                       Cache compiled Title Format scripts instead of rebuilding them during playback.
-                       Replace unsafe static locals in stream dedup with per-instance tracker state.
-                       Treat Last.fm back-end error 8 as temp, not having limited retries before discarding.
+1.0.9    2026-03-26    
+Avoid reparsing the persisted scrobble queue on every access.  
+Cache compiled Title Format scripts instead of rebuilding them during playback.  
+Replace unsafe static locals in stream dedup with per-instance tracker state.  
+Treat Last.fm back-end error 8 as temp, not having limited retries before discarding.  
 
-1.0.7    2026-03-20    Handle Last.fm rate-limit error 29 with queue cooldown.
-                       Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.
-                       Merged NP code into WebAPI.
+1.0.7    2026-03-20    
+Handle Last.fm rate-limit error 29 with queue cooldown.  
+Added MUSICBRAINZ_TRACKID in scrobbling and NP dispatch data.  
+Merged NP code into WebAPI.  
 
-1.0.6    2026-03-12    Added support for foobar Title Formatting for input tags. Removed previous tag mapping.
+1.0.6    2026-03-12    
+Added support for foobar Title Formatting for input tags. Removed previous tag mapping.  
 
-1.0.5    2026-03-07    Added support for regular expressions (regex) to filter out submissions (Advanced prefs).
-                       Fixed: Unicode track titles, are now handled correctly for Now Playing and scrobbling.
-                       Language support increased from C++17 → 20.
-                       Switched to MIT License.
+1.0.5    2026-03-07    
+Added support for regular expressions (regex) to filter out submissions (Advanced prefs).  
+Fixed: Unicode track titles, are now handled correctly for Now Playing and scrobbling.  
+Language support increased from C++17 → 20.  
+Switched to MIT License.  
 
-1.0.2    2026-02-25    Added tag mapping support (Advanced preferences).
-                       Discard queued scrobbles after 5 consecutive unclassified responses from Last.fm.
-                       Fixed: Minor bypass of daily queue drain limit.
-                       Changed: Small-queue cooldown ignore threshold reduced to 50 (from 100).
-                       Removed old queue-format compatibility (pre-AlbumArtist field).
+1.0.2    2026-02-25    
+Added tag mapping support (Advanced preferences).  
+Discard queued scrobbles after 5 consecutive unclassified responses from Last.fm.   
+Fixed: Minor bypass of daily queue drain limit.  
+Changed: Small-queue cooldown ignore threshold reduced to 50 (from 100).  
+Removed old queue-format compatibility (pre-AlbumArtist field).  
 
-1.0.1    2026-02-08    Fix: Include Album Artist in Now Playing and scrobble submissions (compilations support).
+1.0.1    2026-02-08    
+Fix: Include Album Artist in Now Playing and scrobble submissions (compilations support).  
 
-1.0.0    2026-02-08    Minor modifications to logging.
+1.0.0    2026-02-08    
+Minor modifications to logging.  
 
-0.9.9    2026-01-25    Supporting dynamic sources like radio streams, etc.
+0.9.9    2026-01-25    
+Supporting dynamic sources like radio streams, etc.  
 
-0.9.7    2026-01-08    Improved Last.fm web client error handling.
+0.9.7    2026-01-08    
+Improved Last.fm web client error handling.  
 
-0.9.6    2026-01-04    If a different user authenticates, the local scrobble cache is cleared.
-                       Controlling the submission rate of the local scrobble cache to meet Last.fm requirements.
-                       Fixed bug when authentication was not completed the first time and fbar restart was required.
-                       Refactored the internal thread system.
+0.9.6    2026-01-04    
+If a different user authenticates, the local scrobble cache is cleared.  
+Controlling the submission rate of the local scrobble cache to meet Last.fm requirements.  
+Fixed bug when authentication was not completed the first time and fbar restart was required.  
+Refactored the internal thread system.  
 
-0.9.5    2025-12-24    Introduced new configuration fields in Preferences → Advanced → Tools → Foo Scrobbler.
-                       Added option to only scrobble tracks from the media library.
-                       Added option to set the console info level: none, basic or debug.
-                       Added option to disable NowPlaying notifications.
+0.9.5    2025-12-24    
+Introduced new configuration fields in Preferences → Advanced → Tools → Foo Scrobbler.  
+Added option to only scrobble tracks from the media library.  
+Added option to set the console info level: none, basic or debug.  
+Added option to disable NowPlaying notifications.  
                        
-0.7.7    2025-12-15    Fixed bug related to the behaviour while the user gets unauthenticated.
-                       Fixed policy issues related to disabling scrobbling.
+0.7.7    2025-12-15    
+Fixed bug related to the behaviour while the user gets unauthenticated.  
+Fixed policy issues related to disabling scrobbling.  
 
-0.7.6    2025-12-14    Removed rule about the seekbar moves at first half of track which were cancelling the scrobble.
-                       Fixed linear queue policy.
+0.7.6    2025-12-14    
+Removed rule about the seekbar moves at first half of track which were cancelling the scrobble.  
+Fixed linear queue policy.  
 
-0.7.5    2025-12-13    Not considering candidate scrobbles with garbage tag entries.
-                       Added linear back-off retry strategy per scrobble for the queue.
-                       Improved internal design.
+0.7.5    2025-12-13    
+Not considering candidate scrobbles with garbage tag entries.   
+Added linear back-off retry strategy per scrobble for the queue.  
+Improved internal design.
 
-0.7.3    2025-12-07    Improved management of the communication to Last.fm.
-                       Improved internal timing system according to specifications.
-                       When track tags change during playback, scrobbling will detect them and use the updated info.
-                       Seeking across the submission mark with the slider (e.g., 50%) doesn’t cheat the scrobble.
-                       Added option to enable/disable scrobbling while the user remains authenticated.
+0.7.3    2025-12-07    
+Improved management of the communication to Last.fm.  
+Improved internal timing system according to specifications.  
+When track tags change during playback, scrobbling will detect them and use the updated info.  
+Seeking across the submission mark with the slider (e.g., 50%) doesn’t cheat the scrobble.  
+Added option to enable/disable scrobbling while the user remains authenticated.  
 
-0.7.0    2025-12-01    Initial release.
+0.7.0    2025-12-01    
+Initial release.  
 </pre>
 
 </details>

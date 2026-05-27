@@ -224,6 +224,8 @@ class TitleFormattingFilter
         info.meta_set("TITLE", evaluated.title.c_str());
         info.meta_set("ALBUM", evaluated.album.c_str());
         info.meta_set("ALBUM ARTIST", evaluated.albumArtist.c_str());
+        if (const char* path = track->get_path())
+            info.meta_set("FOO_SCROBBLER_PATH", path);
 
         pfc::string8 out;
         track->format_title_from_external_info(info, nullptr, out, script, nullptr);

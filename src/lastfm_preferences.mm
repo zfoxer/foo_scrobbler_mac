@@ -146,7 +146,7 @@ static const ExclusionTemplate kTemplates[] = {
      lastfm::settings::setExcludedGenreTemplateValueList},
     {ExclusionTemplateMediaKind, @"Media kind is:", "%Media Kind%", false,
      lastfm::settings::excludedMediaKindTemplateValueList, lastfm::settings::setExcludedMediaKindTemplateValueList},
-    {ExclusionTemplatePath, @"Path contains:", "%Path%", true, lastfm::settings::excludedPathTemplateValueList,
+    {ExclusionTemplatePath, @"Path contains:", "$if2(%Path%,) $if2(%FOO_SCROBBLER_PATH%,)", true, lastfm::settings::excludedPathTemplateValueList,
      lastfm::settings::setExcludedPathTemplateValueList},
     {ExclusionTemplateComment, @"Comment contains:", "%Comment%", true,
      lastfm::settings::excludedCommentTemplateValueList, lastfm::settings::setExcludedCommentTemplateValueList},
