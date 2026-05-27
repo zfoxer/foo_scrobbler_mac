@@ -39,6 +39,8 @@ class LastfmTracker : public play_callback_static
     void handleDynamicStreamUpdate(const file_info& info);
     void refreshCurrentFileMetadata(bool allowDispatch);
     bool refreshFooScrobblerTagAllows();
+    void maybeCacheDynamicScrobble(bool allowFilterRecovery);
+    bool trackIsExcluded(const LastfmTrackInfo& track, const file_info* externalInfo = nullptr);
     bool currentTrackIsExcluded(const file_info* externalInfo = nullptr);
 
     std::time_t startWallclock = 0;
@@ -62,6 +64,9 @@ class LastfmTracker : public play_callback_static
     // Track is playing but currently blocked by user exclusion filters.
     bool pendingDueToExclusionFilters = false;
 
+    // Track reached the scrobble point while excluded; keep it skipped even if filters change mid-track.
+    bool scrobbleBlockedByExclusionFilters = false;
+
     // Track became eligible while suspended/tag-disabled; defer submission until stop/new-track boundary.
     bool thresholdReachedButDeferred = false;
 
@@ -83,6 +88,7 @@ class LastfmTracker : public play_callback_static
     bool dynamicActive = false;
     bool dynamicPending = false; // cached after >= 30s effective listening
     bool dynamicSubmitted = false;
+    bool dynamicBlockedByExclusionFilters = false;
     LastfmTrackInfo dynamicPendingTrack{};
     double dynamicPendingPlaybackTime = 0.0;
     std::time_t dynamicPendingStartWallclock = 0;
@@ -94,6 +100,5 @@ class LastfmTracker : public play_callback_static
     // Helpers (network-only)
     void startDynamicSegment();
     void resetDynamicSegmentState();
-    void maybeCacheDynamicScrobble();
     void submitDynamicPendingIfAny();
 };

@@ -301,6 +301,7 @@ void LastfmTracker::resetState()
 
     pendingDueToMissingMetadata = false;
     pendingDueToExclusionFilters = false;
+    scrobbleBlockedByExclusionFilters = false;
     thresholdReachedButDeferred = false;
 
     rules.reset(0.0);
@@ -330,10 +331,15 @@ bool LastfmTracker::refreshFooScrobblerTagAllows()
     return currentFooScrobblerTagAllows;
 }
 
+bool LastfmTracker::trackIsExcluded(const LastfmTrackInfo& track, const file_info* externalInfo)
+{
+    return lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(track.artist, track.title, track.album) ||
+           lastfm::exclusion_filters::isExcludedByTitleFormattingFilter(currentHandle, track, externalInfo);
+}
+
 bool LastfmTracker::currentTrackIsExcluded(const file_info* externalInfo)
 {
-    return lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
-           lastfm::exclusion_filters::isExcludedByTitleFormattingFilter(currentHandle, current, externalInfo);
+    return trackIsExcluded(current, externalInfo);
 }
 
 void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
@@ -526,7 +532,7 @@ void LastfmTracker::on_playback_time(double time)
     refreshCurrentFileMetadata(!blocked);
 
     // Stream-only: cache a dynamic scrobble payload once we have >=30s effective listening.
-    maybeCacheDynamicScrobble();
+    maybeCacheDynamicScrobble(true);
 
     // If we deferred an eligible scrobble while blocked, do not fire mid-track after unblock.
     // It will be handled on stop / new-track boundaries.
@@ -567,6 +573,9 @@ void LastfmTracker::on_playback_stop(play_control::t_stop_reason)
 void LastfmTracker::submitScrobbleIfNeeded(bool allowFilterRecovery)
 {
     if (!isPlaying || scrobbleSent || current.durationSeconds <= 0.0)
+        return;
+
+    if (scrobbleBlockedByExclusionFilters)
         return;
 
     if (!rules.shouldScrobble())
@@ -611,9 +620,10 @@ void LastfmTracker::submitScrobbleIfNeeded(bool allowFilterRecovery)
 
     if (currentTrackIsExcluded())
     {
-        if (!pendingDueToExclusionFilters)
-            LFM_DEBUG("Scrobble blocked: excluded by filters. Will retry while track keeps playing.");
+        if (!scrobbleBlockedByExclusionFilters)
+            LFM_DEBUG("Scrobble skipped: excluded by filters.");
         pendingDueToExclusionFilters = true;
+        scrobbleBlockedByExclusionFilters = true;
         return;
     }
 
@@ -683,26 +693,14 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     if (newArtist == current.artist && newTitle == current.title && newAlbum == current.album)
         return;
 
-    LastfmTrackInfo evaluated;
-    evaluated.artist = newArtist;
-    evaluated.title = newTitle;
-    evaluated.album = newAlbum;
-
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(newArtist, newTitle, newAlbum) ||
-        lastfm::exclusion_filters::isExcludedByTitleFormattingFilter(currentHandle, evaluated, &info))
-    {
-        LFM_DEBUG("Stream dynamic ignored: excluded by filters.");
-        return;
-    }
-
     // Only do scrobble-related work in mode 2.
     if (mode == 2)
     {
         // We are about to switch to a new stream "track" (dynamic metadata change).
         // If the previous segment has already reached >=30s, it should be cached.
-        maybeCacheDynamicScrobble();
-        // Submit the previous segment (if cached) BEFORE sending NP for the new one.
-        submitDynamicPendingIfAny(); // this should queue + retryAsync() internally
+        maybeCacheDynamicScrobble(false);
+        // Submit the previous segment (if cached) BEFORE switching to the new one.
+        submitDynamicPendingIfAny();
     }
 
     current.artist = newArtist;
@@ -711,6 +709,13 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
 
     // Start a new dynamic segment from this point.
     startDynamicSegment();
+
+    if (currentTrackIsExcluded(&info))
+    {
+        LFM_DEBUG("Stream dynamic deferred: excluded by filters.");
+        pendingDueToExclusionFilters = true;
+        return;
+    }
 
     if (lastfmIsSuspended())
         return;
@@ -753,6 +758,8 @@ void LastfmTracker::startDynamicSegment()
     dynamicActive = true;
     dynamicPending = false;
     dynamicSubmitted = false;
+    dynamicBlockedByExclusionFilters = false;
+    pendingDueToExclusionFilters = false;
     dynamicSegmentStartWallclock = std::time(nullptr);
 
     effectiveListenedSeconds = 0.0;
@@ -764,6 +771,7 @@ void LastfmTracker::resetDynamicSegmentState()
     dynamicActive = false;
     dynamicPending = false;
     dynamicSubmitted = false;
+    dynamicBlockedByExclusionFilters = false;
 
     dynamicPendingTrack = LastfmTrackInfo{};
     dynamicPendingPlaybackTime = 0.0;
@@ -775,7 +783,7 @@ void LastfmTracker::resetDynamicSegmentState()
     dedupLastTitle_.clear();
 }
 
-void LastfmTracker::maybeCacheDynamicScrobble()
+void LastfmTracker::maybeCacheDynamicScrobble(bool allowFilterRecovery)
 {
     // Only cache when dynamic scrobbling is enabled (mode 2).
     if (dynamicSourcesMode() != lastfm::settings::DynamicSourcesNowPlayingAndScrobbling)
@@ -787,6 +795,9 @@ void LastfmTracker::maybeCacheDynamicScrobble()
     if (!dynamicActive || dynamicPending || dynamicSubmitted)
         return;
 
+    if (dynamicBlockedByExclusionFilters)
+        return;
+
     if (current.artist.empty() || current.title.empty())
         return;
 
@@ -794,8 +805,19 @@ void LastfmTracker::maybeCacheDynamicScrobble()
     if (effectiveListenedSeconds < 30.0)
         return;
 
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album))
+    if (currentTrackIsExcluded())
+    {
+        if (!dynamicBlockedByExclusionFilters)
+            LFM_DEBUG("Stream scrobble skipped: excluded by filters.");
+        pendingDueToExclusionFilters = true;
+        dynamicBlockedByExclusionFilters = true;
         return;
+    }
+
+    if (pendingDueToExclusionFilters && !allowFilterRecovery)
+        return;
+
+    pendingDueToExclusionFilters = false;
 
     dynamicPending = true;
     dynamicPendingTrack = current;
@@ -827,8 +849,7 @@ void LastfmTracker::submitDynamicPendingIfAny()
     if (!lastfmIsAuthenticated())
         return;
 
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(dynamicPendingTrack.artist, dynamicPendingTrack.title,
-                                                                  dynamicPendingTrack.album))
+    if (trackIsExcluded(dynamicPendingTrack))
     {
         dynamicSubmitted = true;
         dynamicPending = false;
