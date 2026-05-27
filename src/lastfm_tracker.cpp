@@ -300,6 +300,7 @@ void LastfmTracker::resetState()
     fooScrobblerTagBlockLogged = false;
 
     pendingDueToMissingMetadata = false;
+    pendingDueToExclusionFilters = false;
     thresholdReachedButDeferred = false;
 
     rules.reset(0.0);
@@ -327,6 +328,12 @@ bool LastfmTracker::refreshFooScrobblerTagAllows()
 
     currentFooScrobblerTagAllows = lastfm::util::fooScrobblerTagAllowsSubmission(info);
     return currentFooScrobblerTagAllows;
+}
+
+bool LastfmTracker::currentTrackIsExcluded(const file_info* externalInfo)
+{
+    return lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
+           lastfm::exclusion_filters::isExcludedByTitleFormattingFilter(currentHandle, current, externalInfo);
 }
 
 void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
@@ -421,7 +428,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
 
     // Natural boundary: submit previous track (if eligible) before switching state.
     submitDynamicPendingIfAny();
-    submitScrobbleIfNeeded();
+    submitScrobbleIfNeeded(false);
     LastfmCore::instance().scrobbler().retryAsync();
 
     resetState();
@@ -451,11 +458,10 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
         return;
     }
 
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
-        lastfm::exclusion_filters::isExcludedByTitleFormattingFilter(track, current))
+    if (currentTrackIsExcluded())
     {
-        LFM_DEBUG("Track skipped: excluded by filters.");
-        resetState();
+        LFM_DEBUG("Track deferred: excluded by filters.");
+        pendingDueToExclusionFilters = true;
         return;
     }
 
@@ -527,7 +533,7 @@ void LastfmTracker::on_playback_time(double time)
     if (thresholdReachedButDeferred)
         return;
 
-    submitScrobbleIfNeeded();
+    submitScrobbleIfNeeded(true);
 }
 
 void LastfmTracker::on_playback_seek(double time)
@@ -552,13 +558,13 @@ void LastfmTracker::on_playback_pause(bool paused)
 void LastfmTracker::on_playback_stop(play_control::t_stop_reason)
 {
     submitDynamicPendingIfAny();
-    submitScrobbleIfNeeded();
+    submitScrobbleIfNeeded(false);
     auto& scrobbler = LastfmCore::instance().scrobbler();
     scrobbler.retryAsync();
     resetState();
 }
 
-void LastfmTracker::submitScrobbleIfNeeded()
+void LastfmTracker::submitScrobbleIfNeeded(bool allowFilterRecovery)
 {
     if (!isPlaying || scrobbleSent || current.durationSeconds <= 0.0)
         return;
@@ -603,9 +609,18 @@ void LastfmTracker::submitScrobbleIfNeeded()
 
     pendingDueToMissingMetadata = false;
 
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
-        lastfm::exclusion_filters::isExcludedByTitleFormattingFilter(currentHandle, current))
+    if (currentTrackIsExcluded())
+    {
+        if (!pendingDueToExclusionFilters)
+            LFM_DEBUG("Scrobble blocked: excluded by filters. Will retry while track keeps playing.");
+        pendingDueToExclusionFilters = true;
         return;
+    }
+
+    if (pendingDueToExclusionFilters && !allowFilterRecovery)
+        return;
+
+    pendingDueToExclusionFilters = false;
 
     // Eligible, but suspended/tag-disabled -> remember and defer.
     if (lastfmIsSuspended() || !currentFooScrobblerTagAllows)

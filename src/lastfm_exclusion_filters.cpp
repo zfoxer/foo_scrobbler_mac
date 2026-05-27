@@ -231,7 +231,6 @@ class TitleFormattingFilter
         if (!hasNonWhitespaceOutput(out.c_str()))
             return false;
 
-        logMatchLimited(out.c_str());
         return true;
     }
 

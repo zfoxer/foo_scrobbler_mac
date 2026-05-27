@@ -34,11 +34,12 @@ class LastfmTracker : public play_callback_static
     void fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTrackInfo& out);
     void recompileTfIfNeeded();
     void resetState();
-    void submitScrobbleIfNeeded();
+    void submitScrobbleIfNeeded(bool allowFilterRecovery);
     void updateFromTrack(const metadb_handle_ptr& track);
     void handleDynamicStreamUpdate(const file_info& info);
     void refreshCurrentFileMetadata(bool allowDispatch);
     bool refreshFooScrobblerTagAllows();
+    bool currentTrackIsExcluded(const file_info* externalInfo = nullptr);
 
     std::time_t startWallclock = 0;
     bool isPlaying = false;
@@ -57,6 +58,9 @@ class LastfmTracker : public play_callback_static
     // Reached scrobble threshold, but artist/title were missing at the moment.
     // We keep tracking tag changes and will submit once metadata becomes valid.
     bool pendingDueToMissingMetadata = false;
+
+    // Track is playing but currently blocked by user exclusion filters.
+    bool pendingDueToExclusionFilters = false;
 
     // Track became eligible while suspended/tag-disabled; defer submission until stop/new-track boundary.
     bool thresholdReachedButDeferred = false;
