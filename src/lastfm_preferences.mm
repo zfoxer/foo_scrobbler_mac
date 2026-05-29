@@ -47,14 +47,19 @@ static NSTextField* makeHeader(NSString* text)
     return label;
 }
 
-static NSStackView* makeRow(NSString* labelText, NSView* control)
+static NSStackView* makeRowWithLabel(NSTextField* label, NSView* control)
 {
-    NSStackView* row = [NSStackView stackViewWithViews:@[ makeLabel(labelText), control ]];
+    NSStackView* row = [NSStackView stackViewWithViews:@[ label, control ]];
     row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     row.alignment = NSLayoutAttributeCenterY;
     row.spacing = 10.0;
     row.translatesAutoresizingMaskIntoConstraints = NO;
     return row;
+}
+
+static NSStackView* makeRow(NSString* labelText, NSView* control)
+{
+    return makeRowWithLabel(makeLabel(labelText), control);
 }
 
 static NSStackView* makeControlRow(NSView* control)
@@ -267,6 +272,7 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
 @property(nonatomic, strong) NSButton* disableNowPlayingCheckbox;
 @property(nonatomic, strong) NSButton* onlyLibraryCheckbox;
 @property(nonatomic, strong) NSPopUpButton* dynamicPopup;
+@property(nonatomic, strong) NSTextField* dynamicSourcesLabel;
 @property(nonatomic, strong) NSButton* treatVariousArtistsCheckbox;
 @property(nonatomic, strong) NSMutableDictionary<NSNumber*, NSTextField*>* textFields;
 @property(nonatomic, strong) NSMutableDictionary<NSNumber*, NSButton*>* templateCheckboxes;
@@ -406,7 +412,8 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
 
     self.dynamicPopup = [self newPopupWithItems:@[ @"No dynamic sources", @"Only Now Playing", @"Now Playing and scrobbling" ]
                                          action:@selector(onDynamicPopup:)];
-    [stack addArrangedSubview:makeRow(@"Dynamic sources:", self.dynamicPopup)];
+    self.dynamicSourcesLabel = makeLabel(@"Use:");
+    [stack addArrangedSubview:makeRowWithLabel(self.dynamicSourcesLabel, self.dynamicPopup)];
 
     return makeWrappedStack(stack);
 }
@@ -492,6 +499,14 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     [self refreshTemplateCheckboxStates];
 }
 
+- (void)refreshDynamicSourcesEnabledState
+{
+    const BOOL enabled = self.onlyLibraryCheckbox.state != NSControlStateValueOn;
+
+    self.dynamicPopup.enabled = enabled;
+    self.dynamicSourcesLabel.enabled = enabled;
+}
+
 - (void)loadSettings
 {
     [self.consolePopup selectItemAtIndex:lastfm::settings::consoleLevel()];
@@ -500,6 +515,7 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     self.onlyLibraryCheckbox.state =
         lastfm::settings::onlyScrobbleFromMediaLibrary() ? NSControlStateValueOn : NSControlStateValueOff;
     [self.dynamicPopup selectItemAtIndex:lastfm::settings::configuredDynamicSourcesMode()];
+    [self refreshDynamicSourcesEnabledState];
     self.treatVariousArtistsCheckbox.state =
         lastfm::settings::treatVariousArtistsAsEmpty() ? NSControlStateValueOn : NSControlStateValueOff;
 
@@ -523,6 +539,7 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
 - (IBAction)onOnlyLibrary:(id)sender
 {
     lastfm::settings::setOnlyScrobbleFromMediaLibrary(self.onlyLibraryCheckbox.state == NSControlStateValueOn);
+    [self refreshDynamicSourcesEnabledState];
 }
 
 - (IBAction)onDynamicPopup:(id)sender
