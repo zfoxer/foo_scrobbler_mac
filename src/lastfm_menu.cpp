@@ -57,6 +57,9 @@ static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
 {
     out = LastfmTrackInfo{};
 
+    if (!playback_control::get()->is_playing() || playback_control::get()->is_paused())
+        return false;
+
     metadb_handle_ptr handle;
     if (!playback_control::get()->get_now_playing(handle) || !handle.is_valid())
         return false;
