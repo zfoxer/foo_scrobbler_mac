@@ -89,6 +89,7 @@ secrets.*
 # *.fb2k-component
 
 sdk/**/.DS_Store
+sdk/**/build/
 sdk/**/build_universal/
 
-generated/
+src/generated/

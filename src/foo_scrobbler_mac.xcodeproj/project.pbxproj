@@ -1,0 +1,548 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 70;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0A01602D2EEC3ACE00368C27 /* lastfm_client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A01602C2EEC3ACA00368C27 /* lastfm_client.cpp */; };
+		0A0160312EEC40BF00368C27 /* lastfm_authenticator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A0160302EEC40BE00368C27 /* lastfm_authenticator.cpp */; };
+		0A0160342EEC43F100368C27 /* lastfm_scrobbler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A0160332EEC43EF00368C27 /* lastfm_scrobbler.cpp */; };
+		0A0160372EEC45A000368C27 /* lastfm_queue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A0160362EEC459F00368C27 /* lastfm_queue.cpp */; };
+		0A0160392EEC4B2100368C27 /* lastfm_web_api.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A0160382EEC4B1000368C27 /* lastfm_web_api.cpp */; };
+		0A1725B32FBC75CE0019CCF3 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDC92AA0B1FE00DE8967 /* Cocoa.framework */; };
+		0A20D90C2ED9780C003EDE04 /* lastfm_menu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A20D90B2ED97805003EDE04 /* lastfm_menu.cpp */; };
+		0A20D9132ED99630003EDE04 /* lastfm_no.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A20D9122ED9962D003EDE04 /* lastfm_no.cpp */; };
+		0A25B5CE2ED9EDE2000144A2 /* lastfm_auth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A25B5CD2ED9EDDB000144A2 /* lastfm_auth.cpp */; };
+		0A25B5D02ED9FEBE000144A2 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A25B5CF2ED9FEB9000144A2 /* main.cpp */; };
+		0A3330352EEF7BBA00DD5496 /* lastfm_core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A3330342EEF7BB900DD5496 /* lastfm_core.cpp */; };
+		0A3330382EEF881000DD5496 /* lastfm_state.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A3330372EEF880F00DD5496 /* lastfm_state.cpp */; };
+		0A56BB642EEE5B260030E535 /* lastfm_util.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A56BB632EEE5B240030E535 /* lastfm_util.cpp */; };
+		0A59AAD02EEA2310000F0EFE /* debug.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A59AACF2EEA2309000F0EFE /* debug.cpp */; };
+		0A633B162ED744D3001B8318 /* lastfm_tracker.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A633B152ED744C0001B8318 /* lastfm_tracker.cpp */; };
+		0A6FF6C52F06AE8700403C82 /* lastfm_worker.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A6FF6C42F06AE8500403C82 /* lastfm_worker.cpp */; };
+		0A8C0F032F4B3D7E00A1B2C3 /* lastfm_exclusion_filters.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0A8C0F022F4B3D7E00A1B2C3 /* lastfm_exclusion_filters.cpp */; };
+		0B5110042FC49E3A00A10001 /* lastfm_settings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B5110022FC49E3A00A10001 /* lastfm_settings.cpp */; };
+		0B5110052FC49E3A00A10001 /* lastfm_preferences.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0B5110032FC49E3A00A10001 /* lastfm_preferences.mm */; };
+		0F1FDDC02AA0AE1E00DE8967 /* libfoobar2000_SDK.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDBD2AA0AE1E00DE8967 /* libfoobar2000_SDK.a */; };
+		0F1FDDC12AA0AE1E00DE8967 /* libfoobar2000_SDK_helpers.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDBE2AA0AE1E00DE8967 /* libfoobar2000_SDK_helpers.a */; };
+		0F1FDDC22AA0AE1E00DE8967 /* libpfc-Mac.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDBF2AA0AE1E00DE8967 /* libpfc-Mac.a */; };
+		0F1FDDC82AA0B1F800DE8967 /* libshared.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDC72AA0B1F800DE8967 /* libshared.a */; };
+		0F1FDDDE2AA0B34200DE8967 /* libfoobar2000_component_client.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDDD2AA0B34200DE8967 /* libfoobar2000_component_client.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0A0160282EEC39FE00368C27 /* lastfm_auth_api.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_auth_api.h; sourceTree = "<group>"; };
+		0A0160292EEC3A2400368C27 /* lastfm_web_api.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_web_api.h; sourceTree = "<group>"; };
+		0A01602A2EEC3A8300368C27 /* lastfm_client.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_client.h; sourceTree = "<group>"; };
+		0A01602C2EEC3ACA00368C27 /* lastfm_client.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_client.cpp; sourceTree = "<group>"; };
+		0A01602E2EEC3C2100368C27 /* lastfm_track_info.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_track_info.h; sourceTree = "<group>"; };
+		0A01602F2EEC409400368C27 /* lastfm_authenticator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_authenticator.h; sourceTree = "<group>"; };
+		0A0160302EEC40BE00368C27 /* lastfm_authenticator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_authenticator.cpp; sourceTree = "<group>"; };
+		0A0160322EEC43E200368C27 /* lastfm_scrobbler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_scrobbler.h; sourceTree = "<group>"; };
+		0A0160332EEC43EF00368C27 /* lastfm_scrobbler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_scrobbler.cpp; sourceTree = "<group>"; };
+		0A0160352EEC458E00368C27 /* lastfm_queue.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_queue.h; sourceTree = "<group>"; };
+		0A0160362EEC459F00368C27 /* lastfm_queue.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_queue.cpp; sourceTree = "<group>"; };
+		0A0160382EEC4B1000368C27 /* lastfm_web_api.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_web_api.cpp; sourceTree = "<group>"; };
+		0A01603A2EEC617E00368C27 /* lastfm_scrobble_result.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_scrobble_result.h; sourceTree = "<group>"; };
+		0A20D90B2ED97805003EDE04 /* lastfm_menu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_menu.cpp; sourceTree = "<group>"; };
+		0A20D9112ED9960F003EDE04 /* lastfm_no.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_no.h; sourceTree = "<group>"; };
+		0A20D9122ED9962D003EDE04 /* lastfm_no.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_no.cpp; sourceTree = "<group>"; };
+		0A25B5CD2ED9EDDB000144A2 /* lastfm_auth.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_auth.cpp; sourceTree = "<group>"; };
+		0A25B5CF2ED9FEB9000144A2 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		0A25B5D12ED9FECA000144A2 /* version.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
+		0A25B5D22EDA08CA000144A2 /* lastfm_menu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_menu.h; sourceTree = "<group>"; };
+		0A25B5D32EDA08E7000144A2 /* lastfm_tracker.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_tracker.h; sourceTree = "<group>"; };
+		0A25B5D42EDA0A60000144A2 /* stdafx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = stdafx.h; sourceTree = "<group>"; };
+		0A3330332EEF7BA100DD5496 /* lastfm_core.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_core.h; sourceTree = "<group>"; };
+		0A3330342EEF7BB900DD5496 /* lastfm_core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_core.cpp; sourceTree = "<group>"; };
+		0A3330362EEF87C800DD5496 /* lastfm_state.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_state.h; sourceTree = "<group>"; };
+		0A3330372EEF880F00DD5496 /* lastfm_state.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_state.cpp; sourceTree = "<group>"; };
+		0A56BB622EEE5A390030E535 /* lastfm_util.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_util.h; sourceTree = "<group>"; };
+		0A56BB632EEE5B240030E535 /* lastfm_util.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_util.cpp; sourceTree = "<group>"; };
+		0A587E5A2ED9532800BE2675 /* lastfm_auth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_auth.h; sourceTree = "<group>"; };
+		0A59AACF2EEA2309000F0EFE /* debug.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = debug.cpp; sourceTree = "<group>"; };
+		0A633B152ED744C0001B8318 /* lastfm_tracker.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_tracker.cpp; sourceTree = "<group>"; };
+		0A6FF6C32F06AE7500403C82 /* lastfm_worker.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_worker.h; sourceTree = "<group>"; };
+		0A6FF6C42F06AE8500403C82 /* lastfm_worker.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_worker.cpp; sourceTree = "<group>"; };
+		0A7EDCCA2EDBC46700CAC611 /* debug.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = debug.h; sourceTree = "<group>"; };
+		0A8C0F012F4B3D7E00A1B2C3 /* lastfm_exclusion_filters.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_exclusion_filters.h; sourceTree = "<group>"; };
+		0A8C0F022F4B3D7E00A1B2C3 /* lastfm_exclusion_filters.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_exclusion_filters.cpp; sourceTree = "<group>"; };
+		0A9DDFA02ED860EE003BC040 /* lastfm_rules.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_rules.h; sourceTree = "<group>"; };
+		0B5110012FC49E3A00A10001 /* lastfm_settings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lastfm_settings.h; sourceTree = "<group>"; };
+		0B5110022FC49E3A00A10001 /* lastfm_settings.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = lastfm_settings.cpp; sourceTree = "<group>"; };
+		0B5110032FC49E3A00A10001 /* lastfm_preferences.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = lastfm_preferences.mm; sourceTree = "<group>"; };
+		0F1FDDAD2AA0AD9B00DE8967 /* foo_scrobbler_mac.component */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = foo_scrobbler_mac.component; sourceTree = BUILT_PRODUCTS_DIR; };
+		0F1FDDBD2AA0AE1E00DE8967 /* libfoobar2000_SDK.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libfoobar2000_SDK.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		0F1FDDBE2AA0AE1E00DE8967 /* libfoobar2000_SDK_helpers.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libfoobar2000_SDK_helpers.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		0F1FDDBF2AA0AE1E00DE8967 /* libpfc-Mac.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = "libpfc-Mac.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		0F1FDDC72AA0B1F800DE8967 /* libshared.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libshared.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		0F1FDDC92AA0B1FE00DE8967 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		0F1FDDDD2AA0B34200DE8967 /* libfoobar2000_component_client.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libfoobar2000_component_client.a; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		0A2CDC3F2EDAADAC00CA43DF /* generated */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = generated; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0F1FDDAA2AA0AD9B00DE8967 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0A1725B32FBC75CE0019CCF3 /* Cocoa.framework in Frameworks */,
+				0F1FDDDE2AA0B34200DE8967 /* libfoobar2000_component_client.a in Frameworks */,
+				0F1FDDC82AA0B1F800DE8967 /* libshared.a in Frameworks */,
+				0F1FDDC02AA0AE1E00DE8967 /* libfoobar2000_SDK.a in Frameworks */,
+				0F1FDDC12AA0AE1E00DE8967 /* libfoobar2000_SDK_helpers.a in Frameworks */,
+				0F1FDDC22AA0AE1E00DE8967 /* libpfc-Mac.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0F1FDDA42AA0AD9B00DE8967 = {
+			isa = PBXGroup;
+			children = (
+				0A7EDCCA2EDBC46700CAC611 /* debug.h */,
+				0A59AACF2EEA2309000F0EFE /* debug.cpp */,
+				0F1FDDBC2AA0AE1E00DE8967 /* Frameworks */,
+				0A2CDC3F2EDAADAC00CA43DF /* generated */,
+				0A587E5A2ED9532800BE2675 /* lastfm_auth.h */,
+				0A25B5CD2ED9EDDB000144A2 /* lastfm_auth.cpp */,
+				0A0160282EEC39FE00368C27 /* lastfm_auth_api.h */,
+				0A01602F2EEC409400368C27 /* lastfm_authenticator.h */,
+				0A0160302EEC40BE00368C27 /* lastfm_authenticator.cpp */,
+				0A01602A2EEC3A8300368C27 /* lastfm_client.h */,
+				0A01602C2EEC3ACA00368C27 /* lastfm_client.cpp */,
+				0A3330332EEF7BA100DD5496 /* lastfm_core.h */,
+				0A3330342EEF7BB900DD5496 /* lastfm_core.cpp */,
+				0A8C0F012F4B3D7E00A1B2C3 /* lastfm_exclusion_filters.h */,
+				0A8C0F022F4B3D7E00A1B2C3 /* lastfm_exclusion_filters.cpp */,
+				0A25B5D22EDA08CA000144A2 /* lastfm_menu.h */,
+				0A20D90B2ED97805003EDE04 /* lastfm_menu.cpp */,
+				0A20D9112ED9960F003EDE04 /* lastfm_no.h */,
+				0A20D9122ED9962D003EDE04 /* lastfm_no.cpp */,
+				0B5110032FC49E3A00A10001 /* lastfm_preferences.mm */,
+				0A0160352EEC458E00368C27 /* lastfm_queue.h */,
+				0A0160362EEC459F00368C27 /* lastfm_queue.cpp */,
+				0A01603A2EEC617E00368C27 /* lastfm_scrobble_result.h */,
+				0A9DDFA02ED860EE003BC040 /* lastfm_rules.h */,
+				0A0160322EEC43E200368C27 /* lastfm_scrobbler.h */,
+				0A0160332EEC43EF00368C27 /* lastfm_scrobbler.cpp */,
+				0B5110012FC49E3A00A10001 /* lastfm_settings.h */,
+				0B5110022FC49E3A00A10001 /* lastfm_settings.cpp */,
+				0A3330362EEF87C800DD5496 /* lastfm_state.h */,
+				0A3330372EEF880F00DD5496 /* lastfm_state.cpp */,
+				0A01602E2EEC3C2100368C27 /* lastfm_track_info.h */,
+				0A25B5D32EDA08E7000144A2 /* lastfm_tracker.h */,
+				0A633B152ED744C0001B8318 /* lastfm_tracker.cpp */,
+				0A56BB622EEE5A390030E535 /* lastfm_util.h */,
+				0A56BB632EEE5B240030E535 /* lastfm_util.cpp */,
+				0A0160292EEC3A2400368C27 /* lastfm_web_api.h */,
+				0A0160382EEC4B1000368C27 /* lastfm_web_api.cpp */,
+				0A6FF6C32F06AE7500403C82 /* lastfm_worker.h */,
+				0A6FF6C42F06AE8500403C82 /* lastfm_worker.cpp */,
+				0A25B5CF2ED9FEB9000144A2 /* main.cpp */,
+				0F1FDDAE2AA0AD9B00DE8967 /* Products */,
+				0A25B5D42EDA0A60000144A2 /* stdafx.h */,
+				0A25B5D12ED9FECA000144A2 /* version.h */,
+			);
+			sourceTree = "<group>";
+		};
+		0F1FDDAE2AA0AD9B00DE8967 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0F1FDDAD2AA0AD9B00DE8967 /* foo_scrobbler_mac.component */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		0F1FDDBC2AA0AE1E00DE8967 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				0F1FDDDD2AA0B34200DE8967 /* libfoobar2000_component_client.a */,
+				0F1FDDC92AA0B1FE00DE8967 /* Cocoa.framework */,
+				0F1FDDC72AA0B1F800DE8967 /* libshared.a */,
+				0F1FDDBD2AA0AE1E00DE8967 /* libfoobar2000_SDK.a */,
+				0F1FDDBE2AA0AE1E00DE8967 /* libfoobar2000_SDK_helpers.a */,
+				0F1FDDBF2AA0AE1E00DE8967 /* libpfc-Mac.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0F1FDDAC2AA0AD9B00DE8967 /* foo_scrobbler_mac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0F1FDDB12AA0AD9B00DE8967 /* Build configuration list for PBXNativeTarget "foo_scrobbler_mac" */;
+			buildPhases = (
+				0ACABFC32ED95A8C009CF6EF /* Run Script */,
+				0F1FDDA92AA0AD9B00DE8967 /* Sources */,
+				0F1FDDAA2AA0AD9B00DE8967 /* Frameworks */,
+				0F1FDDAB2AA0AD9B00DE8967 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0A2CDC3F2EDAADAC00CA43DF /* generated */,
+			);
+			name = foo_scrobbler_mac;
+			productName = foo_sample;
+			productReference = 0F1FDDAD2AA0AD9B00DE8967 /* foo_scrobbler_mac.component */;
+			productType = "com.apple.product-type.bundle";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0F1FDDA52AA0AD9B00DE8967 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 2610;
+				TargetAttributes = {
+					0F1FDDAC2AA0AD9B00DE8967 = {
+						CreatedOnToolsVersion = 14.3.1;
+					};
+				};
+			};
+			buildConfigurationList = 0F1FDDA82AA0AD9B00DE8967 /* Build configuration list for PBXProject "foo_scrobbler_mac" */;
+			compatibilityVersion = "Xcode 12.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 0F1FDDA42AA0AD9B00DE8967;
+			productRefGroup = 0F1FDDAE2AA0AD9B00DE8967 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0F1FDDAC2AA0AD9B00DE8967 /* foo_scrobbler_mac */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0F1FDDAB2AA0AD9B00DE8967 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		0ACABFC32ED95A8C009CF6EF /* Run Script */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"",
+			);
+			inputPaths = (
+				"$(HOME)/.zprofile",
+				"$(HOME)/.zshrc",
+				"$(SRCROOT)/tools/gen_header.py",
+			);
+			name = "Run Script";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/generated/no.generated.h",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/zsh;
+			shellScript = "#!/bin/zsh\nset -euo pipefail\n\nif [[ -f \"${HOME}/.zprofile\" ]]; then\n  source \"${HOME}/.zprofile\"\nfi\n\nif [[ -f \"${HOME}/.zshrc\" ]]; then\n  source \"${HOME}/.zshrc\"\nfi\n\n/usr/bin/python3 \"${SRCROOT}/tools/gen_header.py\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0F1FDDA92AA0AD9B00DE8967 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0A0160392EEC4B2100368C27 /* lastfm_web_api.cpp in Sources */,
+				0A6FF6C52F06AE8700403C82 /* lastfm_worker.cpp in Sources */,
+				0A25B5CE2ED9EDE2000144A2 /* lastfm_auth.cpp in Sources */,
+				0A8C0F032F4B3D7E00A1B2C3 /* lastfm_exclusion_filters.cpp in Sources */,
+				0A633B162ED744D3001B8318 /* lastfm_tracker.cpp in Sources */,
+				0A25B5D02ED9FEBE000144A2 /* main.cpp in Sources */,
+				0A20D90C2ED9780C003EDE04 /* lastfm_menu.cpp in Sources */,
+				0A20D9132ED99630003EDE04 /* lastfm_no.cpp in Sources */,
+				0A0160342EEC43F100368C27 /* lastfm_scrobbler.cpp in Sources */,
+				0A59AAD02EEA2310000F0EFE /* debug.cpp in Sources */,
+				0A0160312EEC40BF00368C27 /* lastfm_authenticator.cpp in Sources */,
+				0A56BB642EEE5B260030E535 /* lastfm_util.cpp in Sources */,
+				0A0160372EEC45A000368C27 /* lastfm_queue.cpp in Sources */,
+				0B5110042FC49E3A00A10001 /* lastfm_settings.cpp in Sources */,
+				0B5110052FC49E3A00A10001 /* lastfm_preferences.mm in Sources */,
+				0A3330382EEF881000DD5496 /* lastfm_state.cpp in Sources */,
+				0A01602D2EEC3ACE00368C27 /* lastfm_client.cpp in Sources */,
+				0A3330352EEF7BBA00DD5496 /* lastfm_core.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0F1FDDAF2AA0AD9B00DE8967 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = (
+					arm64,
+					x86_64,
+				);
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_ENABLE_MODULES = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = c11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = stdafx.h;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"NDEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"../**",
+					"../../**",
+					"$(PROJECT_DIR)/../sdk/foobar2000/**",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = NO;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SYSTEM_HEADER_SEARCH_PATHS = "";
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Debug;
+		};
+		0F1FDDB02AA0AD9B00DE8967 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = (
+					arm64,
+					x86_64,
+				);
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_ENABLE_MODULES = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = c11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = stdafx.h;
+				GCC_PREPROCESSOR_DEFINITIONS = "NDEBUG=1";
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"../**",
+					"../../**",
+					"$(PROJECT_DIR)/../sdk/foobar2000/**",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				ONLY_ACTIVE_ARCH = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SYSTEM_HEADER_SEARCH_PATHS = "";
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Release;
+		};
+		0F1FDDB22AA0AD9B00DE8967 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = (
+					arm64,
+					x86_64,
+				);
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				GCC_C_LANGUAGE_STANDARD = c17;
+				GCC_PREFIX_HEADER = stdafx.h;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					..,
+					../..,
+					"$(PROJECT_DIR)/../sdk/**",
+					"$(PROJECT_DIR)/../sdk/foobar2000/**",
+					"$(SRCROOT)/generated",
+				);
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../lib";
+				"LIBRARY_SEARCH_PATHS[arch=*]" = "$(PROJECT_DIR)/../lib";
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				MARKETING_VERSION = 1.5.1;
+				ONLY_ACTIVE_ARCH = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.foobar2000.foo-scrobbler-mac";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				WRAPPER_EXTENSION = component;
+			};
+			name = Debug;
+		};
+		0F1FDDB32AA0AD9B00DE8967 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = (
+					arm64,
+					x86_64,
+				);
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				GCC_C_LANGUAGE_STANDARD = c17;
+				GCC_PREFIX_HEADER = stdafx.h;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					..,
+					../..,
+					"$(PROJECT_DIR)/../sdk/**",
+					"$(PROJECT_DIR)/../sdk/foobar2000/**",
+					"$(SRCROOT)/generated",
+				);
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../lib";
+				"LIBRARY_SEARCH_PATHS[arch=*]" = "$(PROJECT_DIR)/../lib";
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				MARKETING_VERSION = 1.5.1;
+				ONLY_ACTIVE_ARCH = NO;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.foobar2000.foo-scrobbler-mac";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				WRAPPER_EXTENSION = component;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0F1FDDA82AA0AD9B00DE8967 /* Build configuration list for PBXProject "foo_scrobbler_mac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0F1FDDAF2AA0AD9B00DE8967 /* Debug */,
+				0F1FDDB02AA0AD9B00DE8967 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0F1FDDB12AA0AD9B00DE8967 /* Build configuration list for PBXNativeTarget "foo_scrobbler_mac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0F1FDDB22AA0AD9B00DE8967 /* Debug */,
+				0F1FDDB32AA0AD9B00DE8967 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 0F1FDDA52AA0AD9B00DE8967 /* Project object */;
+}

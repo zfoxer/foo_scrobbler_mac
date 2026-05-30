@@ -65,6 +65,8 @@ Install **foo_scrobbler_mac.fb2k-component** from within foobar2000 by pointing 
 
 Authentication requires only an active Last.fm account. Users grant access once through the Last.fm website with their account, after which Foo Scrobbler runs quietly in the background and submits track information automatically. If authentication is cleared from the menu, the same user —or a different one— must grant access again through browser redirection to the Last.fm website. Foo Scrobbler adds a simple, convenient and non-intrusive last entry under Playback in the menu bar. More options are located in Preferences → Tools → Foo Scrobbler.
 
+If you prefer to compile the plugin yourself, see the [Compilation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Compilation).
+
 
 ### Changelog
 
