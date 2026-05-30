@@ -9,6 +9,7 @@
 
 #include "debug.h"
 #include "lastfm_settings.h"
+#include "lastfm_state.h"
 
 #include <cctype>
 #include <string>
@@ -269,6 +270,8 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
 
 @interface LastfmPreferencesController : NSViewController <NSTextFieldDelegate>
 @property(nonatomic, strong) NSPopUpButton* consolePopup;
+@property(nonatomic, strong) NSTextField* authStatusLabel;
+@property(nonatomic, strong) NSTimer* authStatusTimer;
 @property(nonatomic, strong) NSButton* disableNowPlayingCheckbox;
 @property(nonatomic, strong) NSButton* onlyLibraryCheckbox;
 @property(nonatomic, strong) NSPopUpButton* dynamicPopup;
@@ -296,6 +299,18 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     [tabs addTabViewItem:[self tabWithIdentifier:@"exclusions" label:@"Exclusions" view:[self makeExclusionsView]]];
 
     [self loadSettings];
+
+    __weak LastfmPreferencesController* weakSelf = self;
+    self.authStatusTimer = [NSTimer timerWithTimeInterval:1.0
+                                                  repeats:YES
+                                                    block:^(NSTimer*)
+                                                    { [weakSelf refreshAuthStatus]; }];
+    [[NSRunLoop mainRunLoop] addTimer:self.authStatusTimer forMode:NSRunLoopCommonModes];
+}
+
+- (void)dealloc
+{
+    [self.authStatusTimer invalidate];
 }
 
 - (NSTabViewItem*)tabWithIdentifier:(NSString*)identifier label:(NSString*)label view:(NSView*)view
@@ -391,6 +406,14 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
 
     self.consolePopup = [self newPopupWithItems:@[ @"None", @"Basic", @"Debug" ] action:@selector(onConsolePopup:)];
     [stack addArrangedSubview:makeRow(@"Console info:", self.consolePopup)];
+
+    [stack addArrangedSubview:makeHeader(@"Authentication")];
+
+    self.authStatusLabel = [NSTextField labelWithString:@""];
+    self.authStatusLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    self.authStatusLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    [self.authStatusLabel.widthAnchor constraintGreaterThanOrEqualToConstant:360.0].active = YES;
+    [stack addArrangedSubview:makeRow(@"Status:", self.authStatusLabel)];
 
     return makeWrappedStack(stack);
 }
@@ -507,9 +530,20 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     self.dynamicSourcesLabel.enabled = enabled;
 }
 
+- (void)refreshAuthStatus
+{
+    const LastfmAuthState state = lastfmGetAuthState();
+    self.authStatusLabel.stringValue =
+        state.isAuthenticated
+            ? [NSString stringWithFormat:@"Authenticated as %@.", nsString(state.username)]
+            : @"User not authenticated, please authenticate from the Playback menu.";
+}
+
 - (void)loadSettings
 {
     [self.consolePopup selectItemAtIndex:lastfm::settings::consoleLevel()];
+    [self refreshAuthStatus];
+
     self.disableNowPlayingCheckbox.state =
         lastfm::settings::disableNowPlaying() ? NSControlStateValueOn : NSControlStateValueOff;
     self.onlyLibraryCheckbox.state =
