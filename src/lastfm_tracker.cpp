@@ -13,7 +13,6 @@
 #include "lastfm_util.h"
 #include "debug.h"
 
-#include <algorithm>
 #include <atomic>
 #include <cctype>
 #include <ctime>
@@ -24,9 +23,51 @@ namespace
 {
 static bool isVariousArtistsValue(const std::string& value)
 {
-    std::string s = value;
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return (char)std::tolower(c); });
-    return s == "various artists";
+    std::string s;
+    bool lastWasSpace = false;
+
+    const char* p = value.c_str();
+    std::size_t remaining = value.size();
+
+    while (remaining > 0)
+    {
+        unsigned c = 0;
+        const std::size_t used = pfc::utf8_decode_char(p, c, remaining);
+        if (used == 0)
+            return false;
+
+        if (c >= 'A' && c <= 'Z')
+            c = c - 'A' + 'a';
+
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
+        {
+            s.push_back((char)c);
+            lastWasSpace = false;
+        }
+        else if (c == '.' || c == '/')
+        {
+        }
+        else if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0x00A0 || c == 0x3000 ||
+                 (c >= 0x2000 && c <= 0x200A))
+        {
+            if (!s.empty() && !lastWasSpace)
+            {
+                s.push_back(' ');
+                lastWasSpace = true;
+            }
+        }
+        else
+            return false;
+
+        p += used;
+        remaining -= used;
+    }
+
+    if (!s.empty() && s.back() == ' ')
+        s.pop_back();
+
+    return s == "various artists" || s == "various artist" || s == "variousartists" || s == "various" || s == "va" ||
+           s == "v a";
 }
 
 static std::string evalTitleFormat(const metadb_handle_ptr& track, const service_ptr_t<titleformat_object>& script)
@@ -47,10 +88,7 @@ static void applyVariousArtistsRule(std::string& albumArtist)
     if (albumArtist.empty())
         return;
 
-    std::string s = albumArtist;
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return (char)std::tolower(c); });
-
-    if (s == "various artists")
+    if (isVariousArtistsValue(albumArtist))
         albumArtist.clear();
 }
 
@@ -459,8 +497,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
 
     if (lastfm::settings::onlyScrobbleFromMediaLibrary() && !isTrackInMediaLibrary(track))
     {
-        LFM_DEBUG("Track skipped: not in Media Library.");
-        resetState();
+        LFM_DEBUG("Track deferred: not in Media Library.");
         return;
     }
 

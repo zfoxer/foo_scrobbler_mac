@@ -405,7 +405,7 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     [stack addArrangedSubview:makeHeader(@"Console")];
 
     self.consolePopup = [self newPopupWithItems:@[ @"None", @"Basic", @"Debug" ] action:@selector(onConsolePopup:)];
-    [stack addArrangedSubview:makeRow(@"Console info:", self.consolePopup)];
+    [stack addArrangedSubview:makeRow(@"Log level:", self.consolePopup)];
 
     [stack addArrangedSubview:makeHeader(@"Authentication")];
 
@@ -674,10 +674,6 @@ class lastfm_preferences_page : public preferences_page_v2
         return preferences_page::guid_tools;
     }
 
-    double get_sort_priority() override
-    {
-        return -50.0;
-    }
 };
 
 FB2K_SERVICE_FACTORY(lastfm_preferences_page);
