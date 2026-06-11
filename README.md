@@ -7,7 +7,7 @@
 </p>
 
 ### Foo Scrobbler for Mac
-#### Version: 1.5.1 — foo_scrobbler_mac — Released under MIT License
+#### Version: 1.5.2 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
@@ -74,10 +74,16 @@ If you prefer to compile the plugin yourself, see the [Compilation Guide](https:
 <summary><strong>Expand</strong></summary>
 
 <pre>
+1.5.2    2026-06-11
+Extend validation for VA field values.
+Defer tracks not in the library instead of rejecting them immediately.
+Fix UTF-8 handling in station title heuristic.
+Make exclusion substring matching Unicode-aware.
+
 1.5.1    2026-06-01
-Added an authentication status indicator to the Console tab in Preferences.
-Disabled the Dynamic sources combo box when “Scrobble only from media library” is enabled.
-Fixed Now Playing notifications being sent when scrobbling was resumed while playback was paused.
+Add an authentication status indicator to the Console tab in Preferences.
+Disable the Dynamic sources combo box when “Scrobble only from media library” is enabled.
+Fix Now Playing notifications being sent when scrobbling was resumed while playback was paused.
 
 1.5.0    2026-05-28  
 Replace the Advanced settings area with a Cocoa tabbed pane under Preferences → Tools → Foo Scrobbler.  

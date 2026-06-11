@@ -349,7 +349,7 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     field.usesSingleLineMode = YES;
     field.lineBreakMode = NSLineBreakByTruncatingTail;
     field.translatesAutoresizingMaskIntoConstraints = NO;
-    [field.widthAnchor constraintGreaterThanOrEqualToConstant:360.0].active = YES;
+    [field.widthAnchor constraintGreaterThanOrEqualToConstant:400.0].active = YES;
     return field;
 }
 
@@ -383,7 +383,7 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     field.usesSingleLineMode = YES;
     field.lineBreakMode = NSLineBreakByTruncatingTail;
     field.translatesAutoresizingMaskIntoConstraints = NO;
-    [field.widthAnchor constraintGreaterThanOrEqualToConstant:260.0].active = YES;
+    [field.widthAnchor constraintGreaterThanOrEqualToConstant:247.0].active = YES;
     return field;
 }
 
