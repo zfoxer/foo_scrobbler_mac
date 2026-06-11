@@ -14,7 +14,6 @@
 #include "debug.h"
 
 #include <atomic>
-#include <cctype>
 #include <ctime>
 #include <string>
 #include <cstring>
@@ -141,7 +140,7 @@ static bool looksLikeStationTitle(const std::string& title)
     if (title.size() > 80)
         return true;
 
-    int alpha = 0;
+    int content = 0;
     int spaces = 0;
 
     bool hasBracket = false;
@@ -150,24 +149,39 @@ static bool looksLikeStationTitle(const std::string& title)
     std::string norm;
     norm.reserve(title.size());
 
-    for (unsigned char c : title)
+    const char* p = title.c_str();
+    std::size_t remaining = title.size();
+    while (remaining > 0)
     {
-        const char lc = (char)std::tolower(c);
-        norm.push_back(lc);
+        unsigned c = 0;
+        const std::size_t used = pfc::utf8_decode_char(p, c, remaining);
+        if (used == 0)
+            return true;
 
-        if (std::isalpha(c))
-            ++alpha;
-        else if (std::isspace(c))
+        if (c >= 'A' && c <= 'Z')
+            norm.push_back((char)(c - 'A' + 'a'));
+        else if (c < 0x80)
+            norm.push_back((char)c);
+        else
+            norm.push_back(' ');
+
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0x00A0 || c == 0x3000 ||
+            (c >= 0x2000 && c <= 0x200A))
             ++spaces;
+        else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c > 0x7F)
+            ++content;
 
         if (c == '[' || c == ']')
             hasBracket = true;
+
+        p += used;
+        remaining -= used;
     }
 
     if (norm.find("http") != std::string::npos || norm.find("www.") != std::string::npos)
         hasUrl = true;
 
-    if (alpha < 3)
+    if (content < 3)
         return true;
 
     if (hasBracket)
