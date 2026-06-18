@@ -16,59 +16,9 @@
 #include <atomic>
 #include <ctime>
 #include <string>
-#include <cstring>
 
 namespace
 {
-static bool isVariousArtistsValue(const std::string& value)
-{
-    std::string s;
-    bool lastWasSpace = false;
-
-    const char* p = value.c_str();
-    std::size_t remaining = value.size();
-
-    while (remaining > 0)
-    {
-        unsigned c = 0;
-        const std::size_t used = pfc::utf8_decode_char(p, c, remaining);
-        if (used == 0)
-            return false;
-
-        if (c >= 'A' && c <= 'Z')
-            c = c - 'A' + 'a';
-
-        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
-        {
-            s.push_back((char)c);
-            lastWasSpace = false;
-        }
-        else if (c == '.' || c == '/')
-        {
-        }
-        else if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0x00A0 || c == 0x3000 ||
-                 (c >= 0x2000 && c <= 0x200A))
-        {
-            if (!s.empty() && !lastWasSpace)
-            {
-                s.push_back(' ');
-                lastWasSpace = true;
-            }
-        }
-        else
-            return false;
-
-        p += used;
-        remaining -= used;
-    }
-
-    if (!s.empty() && s.back() == ' ')
-        s.pop_back();
-
-    return s == "various artists" || s == "various artist" || s == "variousartists" || s == "various" || s == "va" ||
-           s == "v a";
-}
-
 static std::string evalTitleFormat(const metadb_handle_ptr& track, const service_ptr_t<titleformat_object>& script)
 {
     if (!track.is_valid() || !script.is_valid())
@@ -79,6 +29,14 @@ static std::string evalTitleFormat(const metadb_handle_ptr& track, const service
     return lastfm::util::cleanTagValue(out.c_str());
 }
 
+static bool trackIsNetworkStream(const metadb_handle_ptr& track)
+{
+    if (!track.is_valid())
+        return false;
+
+    return lastfm::util::isNetworkStreamPath(track->get_path());
+}
+
 static void applyVariousArtistsRule(std::string& albumArtist)
 {
     if (!lastfm::settings::treatVariousArtistsAsEmpty())
@@ -87,7 +45,7 @@ static void applyVariousArtistsRule(std::string& albumArtist)
     if (albumArtist.empty())
         return;
 
-    if (isVariousArtistsValue(albumArtist))
+    if (lastfm::util::isVariousArtistsValue(albumArtist))
         albumArtist.clear();
 }
 
@@ -98,22 +56,6 @@ static bool isTrackInMediaLibrary(const metadb_handle_ptr& track)
 
     static_api_ptr_t<library_manager> lm;
     return lm->is_item_in_library(track);
-}
-
-static bool isNetworkStreamPath(const metadb_handle_ptr& track)
-{
-    if (!track.is_valid())
-        return false;
-
-    const char* p = track->get_path();
-    if (!p)
-        return false;
-
-    // Be strict: foobar can use pseudo-schemes like foo:// for local container tracks (ISO, etc).
-    // We only treat real network stream schemes as "stream".
-    return (std::strncmp(p, "http://", 7) == 0) || (std::strncmp(p, "https://", 8) == 0) ||
-           (std::strncmp(p, "mms://", 6) == 0) || (std::strncmp(p, "rtsp://", 7) == 0) ||
-           (std::strncmp(p, "icy://", 6) == 0);
 }
 
 static int dynamicSourcesMode()
@@ -129,160 +71,6 @@ static int dynamicSourcesMode()
     }
 
     return libraryOnly ? lastfm::settings::DynamicSourcesNone : configuredMode;
-}
-
-static bool looksLikeStationTitle(const std::string& title)
-{
-    if (title.empty())
-        return true;
-
-    // long sentences / slogans / blurbs / bs
-    if (title.size() > 80)
-        return true;
-
-    int content = 0;
-    int spaces = 0;
-
-    bool hasBracket = false;
-    bool hasUrl = false;
-
-    std::string norm;
-    norm.reserve(title.size());
-
-    const char* p = title.c_str();
-    std::size_t remaining = title.size();
-    while (remaining > 0)
-    {
-        unsigned c = 0;
-        const std::size_t used = pfc::utf8_decode_char(p, c, remaining);
-        if (used == 0)
-            return true;
-
-        if (c >= 'A' && c <= 'Z')
-            norm.push_back((char)(c - 'A' + 'a'));
-        else if (c < 0x80)
-            norm.push_back((char)c);
-        else
-            norm.push_back(' ');
-
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0x00A0 || c == 0x3000 ||
-            (c >= 0x2000 && c <= 0x200A))
-            ++spaces;
-        else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c > 0x7F)
-            ++content;
-
-        if (c == '[' || c == ']')
-            hasBracket = true;
-
-        p += used;
-        remaining -= used;
-    }
-
-    if (norm.find("http") != std::string::npos || norm.find("www.") != std::string::npos)
-        hasUrl = true;
-
-    if (content < 3)
-        return true;
-
-    if (hasBracket)
-        return true;
-
-    if (spaces > (int)title.size() / 3)
-        return true;
-
-    if (hasUrl)
-        return true;
-
-    return false;
-}
-
-static bool parseArtistTitleFromCombined(const std::string& combined, std::string& artist, std::string& title)
-{
-    const char* seps[] = {" - ", " – ", " — ", ": "};
-    for (const char* sep : seps)
-    {
-        const std::size_t pos = combined.find(sep);
-        if (pos == std::string::npos)
-            continue;
-
-        const std::string left = combined.substr(0, pos);
-        const std::string right = combined.substr(pos + std::strlen(sep));
-
-        artist = lastfm::util::cleanTagValue(left.c_str());
-        title = lastfm::util::cleanTagValue(right.c_str());
-
-        if (artist.empty() || title.empty())
-            continue;
-
-        if (looksLikeStationTitle(title))
-            continue;
-
-        return true;
-    }
-    return false;
-}
-
-static bool extractStreamArtistTitle(const file_info& info, std::string& outArtist, std::string& outTitle,
-                                     std::string& outAlbum)
-{
-    outArtist.clear();
-    outTitle.clear();
-    outAlbum.clear();
-
-    auto get1 = [&](const char* key) -> std::string { return lastfm::util::cleanTagValue(info.meta_get(key, 0)); };
-
-    auto firstOf = [&](const char* const* keys, std::size_t n) -> std::string
-    {
-        for (std::size_t i = 0; i < n; ++i)
-        {
-            std::string v = get1(keys[i]);
-            if (!v.empty())
-                return v;
-        }
-        return {};
-    };
-
-    // Try the common “combined” stream title fields first (usually "Artist - Title")
-    // These names vary across decoders, so we probe a small generic set.
-    static const char* kCombined[] = {
-        "streamtitle", "StreamTitle", "STREAMTITLE", "icy-title",
-        "Icy-Title",   "ICY-TITLE",   "title",       "TITLE" // last resort, but still parsed as combined if possible
-    };
-
-    std::string combined = firstOf(kCombined, sizeof(kCombined) / sizeof(kCombined[0]));
-    if (!combined.empty())
-    {
-        std::string a, t;
-        if (parseArtistTitleFromCombined(combined, a, t))
-        {
-            outArtist = a;
-            outTitle = t;
-            return true;
-        }
-    }
-
-    // If no combined parse, try explicit artist/title tags
-    static const char* kArtist[] = {"artist", "ARTIST"};
-    static const char* kTitle[] = {"title", "TITLE"};
-    static const char* kAlbum[] = {"album", "ALBUM"};
-
-    std::string a = firstOf(kArtist, sizeof(kArtist) / sizeof(kArtist[0]));
-    std::string t = firstOf(kTitle, sizeof(kTitle) / sizeof(kTitle[0]));
-    std::string al = firstOf(kAlbum, sizeof(kAlbum) / sizeof(kAlbum[0]));
-
-    // If title looks like station branding/slogan, reject it.
-    if (!t.empty() && looksLikeStationTitle(t))
-        t.clear();
-
-    if (!a.empty() && !t.empty())
-    {
-        outArtist = a;
-        outTitle = t;
-        outAlbum = al;
-        return true;
-    }
-
-    return false;
 }
 
 } // namespace
@@ -323,7 +111,8 @@ void LastfmTracker::fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTr
 
     applyVariousArtistsRule(out.albumArtist);
 
-    if (lastfm::settings::treatVariousArtistsAsEmpty() && isVariousArtistsValue(out.artist) && out.albumArtist.empty())
+    if (lastfm::settings::treatVariousArtistsAsEmpty() && lastfm::util::isVariousArtistsValue(out.artist) &&
+        out.albumArtist.empty())
     {
         std::string fallbackArtist = evalTitleFormat(track, fallbackArtistTf_);
         if (!fallbackArtist.empty())
@@ -341,32 +130,56 @@ unsigned LastfmTracker::get_flags()
 void LastfmTracker::resetState()
 {
     isPlaying = false;
-    scrobbleSent = false;
     playbackTime = 0.0;
-    isCurrentStream = false;
-
-    effectiveListenedSeconds = 0.0;
-    lastReportedTime = 0.0;
-    haveLastReportedTime = false;
+    channel = PlaybackChannel::None;
     currentFooScrobblerTagAllows = true;
     fooScrobblerTagBlockLogged = false;
 
-    pendingDueToMissingMetadata = false;
-    pendingDueToExclusionFilters = false;
-    scrobbleBlockedByExclusionFilters = false;
-    thresholdReachedButDeferred = false;
-
+    resetLocalChannelState();
     rules.reset(0.0);
     current = LastfmTrackInfo{};
     currentHandle.release();
     startWallclock = 0;
 
-    resetDynamicSegmentState();
+    resetDynamicChannelState();
+}
+
+void LastfmTracker::resetLocalChannelState()
+{
+    local = LocalChannelState{};
+}
+
+void LastfmTracker::resetDynamicChannelState()
+{
+    dynamic = DynamicChannelState{};
+}
+
+void LastfmTracker::updateListeningClock(ListenClock& clock, double time, bool blocked)
+{
+    if (blocked)
+    {
+        // Avoid a big delta jump when resuming.
+        clock.haveLastReportedTime = false;
+        return;
+    }
+
+    if (!clock.haveLastReportedTime)
+    {
+        clock.lastReportedTime = time;
+        clock.haveLastReportedTime = true;
+        return;
+    }
+
+    const double delta = time - clock.lastReportedTime;
+    if (delta > 0.0 && delta <= LastfmScrobbleConfig::DELTA)
+        clock.effectiveSeconds += delta;
+
+    clock.lastReportedTime = time;
 }
 
 bool LastfmTracker::refreshFooScrobblerTagAllows()
 {
-    if (isCurrentStream || !currentHandle.is_valid())
+    if (channel == PlaybackChannel::DynamicStream || !currentHandle.is_valid())
     {
         currentFooScrobblerTagAllows = true;
         return true;
@@ -396,10 +209,10 @@ bool LastfmTracker::currentTrackIsExcluded(const file_info* externalInfo)
 
 void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
 {
-    if (!isPlaying || isCurrentStream || !currentHandle.is_valid())
+    if (!isPlaying || channel != PlaybackChannel::LocalFile || !currentHandle.is_valid())
         return;
 
-    if (!scrobbleSent && !pendingDueToMissingMetadata)
+    if (local.state != LocalScrobbleState::Submitted && local.state != LocalScrobbleState::WaitingForMetadata)
         return;
 
     file_info_impl info;
@@ -422,8 +235,8 @@ void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
     current.albumArtist = refreshed.albumArtist;
 
     const bool hasRequiredMetadata = !current.artist.empty() && !current.title.empty();
-    if (pendingDueToMissingMetadata && hasRequiredMetadata)
-        pendingDueToMissingMetadata = false;
+    if (local.state == LocalScrobbleState::WaitingForMetadata && hasRequiredMetadata)
+        local.state = LocalScrobbleState::Tracking;
 
     if (!hasRequiredMetadata)
         return;
@@ -436,7 +249,7 @@ void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
         return;
 
     auto& scrobbler = LastfmCore::instance().scrobbler();
-    if (scrobbleSent)
+    if (local.state == LocalScrobbleState::Submitted)
         scrobbler.refreshPendingMetadata(current);
 
     scrobbler.sendNowPlayingOnly(current);
@@ -453,16 +266,17 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
         return;
     }
 
-    currentFooScrobblerTagAllows = isCurrentStream || lastfm::util::fooScrobblerTagAllowsSubmission(info);
+    currentFooScrobblerTagAllows =
+        channel == PlaybackChannel::DynamicStream || lastfm::util::fooScrobblerTagAllowsSubmission(info);
 
     fillTrackInfoFromTf(track, current);
 
     // Do NOT split TITLE for network streams at track-start.
     // Many streams put station info in TITLE like "Station - something" and we'd spam NP.
-    if (!isCurrentStream && current.artist.empty() && !current.title.empty())
+    if (channel != PlaybackChannel::DynamicStream && current.artist.empty() && !current.title.empty())
     {
         std::string a, t;
-        if (parseArtistTitleFromCombined(current.title, a, t))
+        if (lastfm::util::parseArtistTitleFromCombined(current.title, a, t))
         {
             current.artist = a;
             current.title = t;
@@ -480,28 +294,30 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
 
 void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
 {
-    const bool newIsStream = isNetworkStreamPath(track);
+    const bool newIsStream = trackIsNetworkStream(track);
     LFM_DEBUG("Track path: " << (track->get_path() ? track->get_path() : "<null>")
                              << " stream=" << (newIsStream ? "yes" : "no"));
 
     // Natural boundary: submit previous track (if eligible) before switching state.
     submitDynamicPendingIfAny();
-    submitScrobbleIfNeeded(false);
+    submitLocalScrobbleIfNeeded(false);
     LastfmCore::instance().scrobbler().retryAsync();
 
     resetState();
-    isCurrentStream = newIsStream;
+    channel = newIsStream ? PlaybackChannel::DynamicStream : PlaybackChannel::LocalFile;
     isPlaying = true;
     startWallclock = std::time(nullptr);
 
     updateFromTrack(track);
+    if (channel == PlaybackChannel::LocalFile)
+        local.state = LocalScrobbleState::Tracking;
 
     if (current.artist.empty() || current.title.empty())
     {
-        if (isCurrentStream)
+        if (channel == PlaybackChannel::DynamicStream)
         {
             LFM_DEBUG("Stream: missing artist/title at start, waiting for dynamic metadata.");
-            pendingDueToMissingMetadata = true;
+            dynamic.segmentState = DynamicSegmentState::WaitingForMetadata;
             return;
         }
 
@@ -518,7 +334,10 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
     if (currentTrackIsExcluded())
     {
         LFM_DEBUG("Track deferred: excluded by filters.");
-        pendingDueToExclusionFilters = true;
+        if (channel == PlaybackChannel::DynamicStream)
+            dynamic.segmentState = DynamicSegmentState::WaitingForFilterRecovery;
+        else
+            local.state = LocalScrobbleState::WaitingForFilterRecovery;
         return;
     }
 
@@ -553,44 +372,29 @@ void LastfmTracker::on_playback_time(double time)
     }
 
     // Policy: while suspended or tag-disabled, freeze scrobble progress (do not count time).
+    if (isPlaying && channel == PlaybackChannel::LocalFile && current.durationSeconds > 0.0)
+        updateListeningClock(local.clock, time, blocked);
+    else if (isPlaying && channel == PlaybackChannel::DynamicStream)
+        updateListeningClock(dynamic.clock, time, blocked);
+
     if (!blocked)
-    {
-        if (isPlaying && (current.durationSeconds > 0.0 || isCurrentStream))
-        {
-            if (!haveLastReportedTime)
-            {
-                lastReportedTime = time;
-                haveLastReportedTime = true;
-            }
-            else
-            {
-                const double delta = time - lastReportedTime;
-                if (delta > 0.0 && delta <= LastfmScrobbleConfig::DELTA)
-                    effectiveListenedSeconds += delta;
-
-                lastReportedTime = time;
-            }
-        }
-
         rules.playbackTime = time;
-    }
-    else
-    {
-        // Avoid a big delta jump when resuming.
-        haveLastReportedTime = false;
-    }
 
     refreshCurrentFileMetadata(!blocked);
 
-    // Stream-only: cache a dynamic scrobble payload once we have >=30s effective listening.
-    maybeCacheDynamicScrobble(true);
+    if (channel == PlaybackChannel::DynamicStream)
+    {
+        // Stream-only: cache a dynamic scrobble payload once we have >=30s effective listening.
+        maybeCacheDynamicScrobble(true);
+        return;
+    }
 
     // If we deferred an eligible scrobble while blocked, do not fire mid-track after unblock.
     // It will be handled on stop / new-track boundaries.
-    if (thresholdReachedButDeferred)
+    if (local.state == LocalScrobbleState::DeferredUntilBoundary)
         return;
 
-    submitScrobbleIfNeeded(true);
+    submitLocalScrobbleIfNeeded(true);
 }
 
 void LastfmTracker::on_playback_seek(double time)
@@ -602,8 +406,8 @@ void LastfmTracker::on_playback_seek(double time)
 
     if (time < half)
     {
-        effectiveListenedSeconds = 0.0;
-        haveLastReportedTime = false;
+        local.clock.effectiveSeconds = 0.0;
+        local.clock.haveLastReportedTime = false;
     }
 }
 
@@ -615,18 +419,21 @@ void LastfmTracker::on_playback_pause(bool paused)
 void LastfmTracker::on_playback_stop(play_control::t_stop_reason)
 {
     submitDynamicPendingIfAny();
-    submitScrobbleIfNeeded(false);
+    submitLocalScrobbleIfNeeded(false);
     auto& scrobbler = LastfmCore::instance().scrobbler();
     scrobbler.retryAsync();
     resetState();
 }
 
-void LastfmTracker::submitScrobbleIfNeeded(bool allowFilterRecovery)
+void LastfmTracker::submitLocalScrobbleIfNeeded(bool allowFilterRecovery)
 {
-    if (!isPlaying || scrobbleSent || current.durationSeconds <= 0.0)
+    if (channel != PlaybackChannel::LocalFile)
         return;
 
-    if (scrobbleBlockedByExclusionFilters)
+    if (!isPlaying || local.state == LocalScrobbleState::Submitted || current.durationSeconds <= 0.0)
+        return;
+
+    if (local.state == LocalScrobbleState::BlockedByExclusionFilters)
         return;
 
     if (!rules.shouldScrobble())
@@ -645,7 +452,7 @@ void LastfmTracker::submitScrobbleIfNeeded(bool allowFilterRecovery)
 
     const double threshold = rules.requiredPlaybackSeconds();
 
-    if (effectiveListenedSeconds < threshold)
+    if (local.clock.effectiveSeconds < threshold)
         return;
 
     refreshFooScrobblerTagAllows();
@@ -661,39 +468,40 @@ void LastfmTracker::submitScrobbleIfNeeded(bool allowFilterRecovery)
     // If still missing after refresh, block and wait for tag update.
     if (current.artist.empty() || current.title.empty())
     {
-        if (!pendingDueToMissingMetadata)
+        if (local.state != LocalScrobbleState::WaitingForMetadata)
             LFM_INFO("Scrobble blocked: Missing track info (artist/title). Will retry when tags update.");
-        pendingDueToMissingMetadata = true;
+        local.state = LocalScrobbleState::WaitingForMetadata;
         return;
     }
 
-    pendingDueToMissingMetadata = false;
+    if (local.state == LocalScrobbleState::WaitingForMetadata)
+        local.state = LocalScrobbleState::Tracking;
 
     if (currentTrackIsExcluded())
     {
-        if (!scrobbleBlockedByExclusionFilters)
+        if (local.state != LocalScrobbleState::BlockedByExclusionFilters)
             LFM_DEBUG("Scrobble skipped: excluded by filters.");
-        pendingDueToExclusionFilters = true;
-        scrobbleBlockedByExclusionFilters = true;
+        local.state = LocalScrobbleState::BlockedByExclusionFilters;
         return;
     }
 
-    if (pendingDueToExclusionFilters && !allowFilterRecovery)
+    if (local.state == LocalScrobbleState::WaitingForFilterRecovery && !allowFilterRecovery)
         return;
 
-    pendingDueToExclusionFilters = false;
+    if (local.state == LocalScrobbleState::WaitingForFilterRecovery)
+        local.state = LocalScrobbleState::Tracking;
 
     // Eligible, but suspended/tag-disabled -> remember and defer.
     if (lastfmIsSuspended() || !currentFooScrobblerTagAllows)
     {
-        thresholdReachedButDeferred = true;
+        local.state = LocalScrobbleState::DeferredUntilBoundary;
         return;
     }
 
     if (!lastfmIsAuthenticated())
         return;
 
-    scrobbleSent = true;
+    local.state = LocalScrobbleState::Submitted;
 
     auto& scrobbler = LastfmCore::instance().scrobbler();
     scrobbler.queueScrobble(current, playbackTime, startWallclock, /*refreshOnSubmit=*/true);
@@ -705,7 +513,7 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
         return;
 
     // Stream-only path. Library/local behavior never enters here.
-    if (!isCurrentStream)
+    if (channel != PlaybackChannel::DynamicStream)
         return;
 
     const int mode = dynamicSourcesMode();
@@ -713,11 +521,11 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
         return;
 
     std::string newArtist, newTitle, newAlbum;
-    if (!extractStreamArtistTitle(info, newArtist, newTitle, newAlbum))
+    if (!lastfm::util::extractStreamArtistTitle(info, newArtist, newTitle, newAlbum))
         return;
 
     // Generic filter: station branding etc.
-    if (looksLikeStationTitle(newTitle))
+    if (lastfm::util::looksLikeStationTitle(newTitle))
     {
         LFM_DEBUG("Stream dynamic ignored (looksLikeStationTitle): " << newTitle.c_str());
         return;
@@ -728,18 +536,18 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     const char* p = currentHandle->get_path();
     const std::string path = p ? p : "";
 
-    if (path != dedupLastPath_)
+    if (path != dynamic.dedupLastPath)
     {
-        dedupLastPath_ = path;
-        dedupLastArtist_.clear();
-        dedupLastTitle_.clear();
+        dynamic.dedupLastPath = path;
+        dynamic.dedupLastArtist.clear();
+        dynamic.dedupLastTitle.clear();
     }
 
-    if (newArtist == dedupLastArtist_ && newTitle == dedupLastTitle_)
+    if (newArtist == dynamic.dedupLastArtist && newTitle == dynamic.dedupLastTitle)
         return;
 
-    dedupLastArtist_ = newArtist;
-    dedupLastTitle_ = newTitle;
+    dynamic.dedupLastArtist = newArtist;
+    dynamic.dedupLastTitle = newTitle;
 
     if (newArtist == current.artist && newTitle == current.title && newAlbum == current.album)
         return;
@@ -754,17 +562,21 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
         submitDynamicPendingIfAny();
     }
 
+    const bool wasWaitingForMetadata = dynamic.segmentState == DynamicSegmentState::WaitingForMetadata;
+
     current.artist = newArtist;
     current.title = newTitle;
     current.album = newAlbum;
 
     // Start a new dynamic segment from this point.
     startDynamicSegment();
+    dynamic.currentSegmentInfo.copy(info);
+    dynamic.haveCurrentSegmentInfo = true;
 
     if (currentTrackIsExcluded(&info))
     {
         LFM_DEBUG("Stream dynamic deferred: excluded by filters.");
-        pendingDueToExclusionFilters = true;
+        dynamic.segmentState = DynamicSegmentState::WaitingForFilterRecovery;
         return;
     }
 
@@ -774,10 +586,8 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     auto& scrobbler = LastfmCore::instance().scrobbler();
 
     // If we were waiting for dynamic metadata, this is the "start" of the stream track.
-    if (pendingDueToMissingMetadata)
+    if (wasWaitingForMetadata)
     {
-        pendingDueToMissingMetadata = false;
-
         if (lastfm::settings::disableNowPlaying())
         {
             LFM_DEBUG("Dynamic NP suppressed (stream start): " << current.artist.c_str() << " - "
@@ -806,32 +616,9 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
 
 void LastfmTracker::startDynamicSegment()
 {
-    dynamicActive = true;
-    dynamicPending = false;
-    dynamicSubmitted = false;
-    dynamicBlockedByExclusionFilters = false;
-    pendingDueToExclusionFilters = false;
-    dynamicSegmentStartWallclock = std::time(nullptr);
-
-    effectiveListenedSeconds = 0.0;
-    haveLastReportedTime = false;
-}
-
-void LastfmTracker::resetDynamicSegmentState()
-{
-    dynamicActive = false;
-    dynamicPending = false;
-    dynamicSubmitted = false;
-    dynamicBlockedByExclusionFilters = false;
-
-    dynamicPendingTrack = LastfmTrackInfo{};
-    dynamicPendingPlaybackTime = 0.0;
-    dynamicPendingStartWallclock = 0;
-
-    dynamicSegmentStartWallclock = 0;
-    dedupLastPath_.clear();
-    dedupLastArtist_.clear();
-    dedupLastTitle_.clear();
+    dynamic.segmentState = DynamicSegmentState::Tracking;
+    dynamic.segmentStartWallclock = std::time(nullptr);
+    dynamic.clock = ListenClock{};
 }
 
 void LastfmTracker::maybeCacheDynamicScrobble(bool allowFilterRecovery)
@@ -840,50 +627,51 @@ void LastfmTracker::maybeCacheDynamicScrobble(bool allowFilterRecovery)
     if (dynamicSourcesMode() != lastfm::settings::DynamicSourcesNowPlayingAndScrobbling)
         return;
 
-    if (!currentHandle.is_valid() || !isCurrentStream)
+    if (!currentHandle.is_valid() || channel != PlaybackChannel::DynamicStream)
         return;
 
-    if (!dynamicActive || dynamicPending || dynamicSubmitted)
+    if (dynamic.segmentState != DynamicSegmentState::Tracking &&
+        dynamic.segmentState != DynamicSegmentState::WaitingForFilterRecovery)
         return;
 
-    if (dynamicBlockedByExclusionFilters)
-        return;
-
-    if (current.artist.empty() || current.title.empty())
+    if (dynamic.pendingState == DynamicPendingState::Cached || current.artist.empty() || current.title.empty())
         return;
 
     // Cache exactly once when effective listening reaches 30s.
-    if (effectiveListenedSeconds < 30.0)
+    if (dynamic.clock.effectiveSeconds < 30.0)
         return;
 
-    if (currentTrackIsExcluded())
+    const file_info* currentSegmentInfo = dynamic.haveCurrentSegmentInfo ? &dynamic.currentSegmentInfo : nullptr;
+    if (currentTrackIsExcluded(currentSegmentInfo))
     {
-        if (!dynamicBlockedByExclusionFilters)
+        if (dynamic.segmentState != DynamicSegmentState::WaitingForFilterRecovery)
             LFM_DEBUG("Stream scrobble skipped: excluded by filters.");
-        pendingDueToExclusionFilters = true;
-        dynamicBlockedByExclusionFilters = true;
+        dynamic.segmentState = DynamicSegmentState::WaitingForFilterRecovery;
         return;
     }
 
-    if (pendingDueToExclusionFilters && !allowFilterRecovery)
+    if (dynamic.segmentState == DynamicSegmentState::WaitingForFilterRecovery && !allowFilterRecovery)
         return;
 
-    pendingDueToExclusionFilters = false;
+    dynamic.segmentState = DynamicSegmentState::Tracking;
 
-    dynamicPending = true;
-    dynamicPendingTrack = current;
-    dynamicPendingPlaybackTime = playbackTime;
-    dynamicPendingStartWallclock = dynamicSegmentStartWallclock;
+    dynamic.pendingState = DynamicPendingState::Cached;
+    dynamic.pendingTrack = current;
+    dynamic.havePendingSegmentInfo = dynamic.haveCurrentSegmentInfo;
+    if (dynamic.havePendingSegmentInfo)
+        dynamic.pendingSegmentInfo.copy(dynamic.currentSegmentInfo);
+    dynamic.pendingPlaybackTime = playbackTime;
+    dynamic.pendingStartWallclock = dynamic.segmentStartWallclock;
 
     LFM_DEBUG("Stream scrobble cached: " << current.artist.c_str() << " - " << current.title.c_str());
 }
 
 void LastfmTracker::submitDynamicPendingIfAny()
 {
-    if (!dynamicPending || dynamicSubmitted)
+    if (dynamic.pendingState != DynamicPendingState::Cached)
         return;
 
-    if (!currentHandle.is_valid() || !isCurrentStream)
+    if (!currentHandle.is_valid() || channel != PlaybackChannel::DynamicStream)
         return;
 
     if (dynamicSourcesMode() != lastfm::settings::DynamicSourcesNowPlayingAndScrobbling)
@@ -900,19 +688,22 @@ void LastfmTracker::submitDynamicPendingIfAny()
     if (!lastfmIsAuthenticated())
         return;
 
-    if (trackIsExcluded(dynamicPendingTrack))
+    const file_info* pendingSegmentInfo = dynamic.havePendingSegmentInfo ? &dynamic.pendingSegmentInfo : nullptr;
+    if (trackIsExcluded(dynamic.pendingTrack, pendingSegmentInfo))
     {
-        dynamicSubmitted = true;
-        dynamicPending = false;
+        dynamic.pendingState = DynamicPendingState::Empty;
+        dynamic.pendingTrack = LastfmTrackInfo{};
+        dynamic.havePendingSegmentInfo = false;
         return;
     }
 
-    dynamicSubmitted = true;
-    dynamicPending = false;
+    dynamic.pendingState = DynamicPendingState::Empty;
 
     auto& scrobbler = LastfmCore::instance().scrobbler();
-    scrobbler.queueScrobble(dynamicPendingTrack, dynamicPendingPlaybackTime, dynamicPendingStartWallclock,
+    scrobbler.queueScrobble(dynamic.pendingTrack, dynamic.pendingPlaybackTime, dynamic.pendingStartWallclock,
                             /*refreshOnSubmit=*/true);
+    dynamic.pendingTrack = LastfmTrackInfo{};
+    dynamic.havePendingSegmentInfo = false;
     scrobbler.retryAsync();
 }
 

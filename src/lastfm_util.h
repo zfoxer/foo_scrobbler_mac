@@ -27,6 +27,12 @@ LastfmApiErrorInfo extractLastfmApiError(const char* body);
 std::string cleanTagValue(const char* value);
 std::string md5HexLower(const std::string& data);
 bool fooScrobblerTagAllowsSubmission(const file_info& info);
+bool isVariousArtistsValue(const std::string& value);
+bool isNetworkStreamPath(const char* path);
+bool looksLikeStationTitle(const std::string& title);
+bool parseArtistTitleFromCombined(const std::string& combined, std::string& artist, std::string& title);
+bool extractStreamArtistTitle(const file_info& info, std::string& outArtist, std::string& outTitle,
+                              std::string& outAlbum);
 std::string urlEncode(const std::string& value);
 
 bool httpRequestToString(const char* method, const char* url, pfc::string8& outBody, std::string& outError);

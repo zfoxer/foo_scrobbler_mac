@@ -34,7 +34,9 @@ class LastfmTracker : public play_callback_static
     void fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTrackInfo& out);
     void recompileTfIfNeeded();
     void resetState();
-    void submitScrobbleIfNeeded(bool allowFilterRecovery);
+    void resetLocalChannelState();
+    void resetDynamicChannelState();
+    void submitLocalScrobbleIfNeeded(bool allowFilterRecovery);
     void updateFromTrack(const metadb_handle_ptr& track);
     void handleDynamicStreamUpdate(const file_info& info);
     void refreshCurrentFileMetadata(bool allowDispatch);
@@ -43,32 +45,82 @@ class LastfmTracker : public play_callback_static
     bool trackIsExcluded(const LastfmTrackInfo& track, const file_info* externalInfo = nullptr);
     bool currentTrackIsExcluded(const file_info* externalInfo = nullptr);
 
+    enum class PlaybackChannel
+    {
+        None,
+        LocalFile,
+        DynamicStream
+    };
+
+    enum class LocalScrobbleState
+    {
+        Idle,
+        Tracking,
+        WaitingForMetadata,
+        WaitingForFilterRecovery,
+        BlockedByExclusionFilters,
+        DeferredUntilBoundary,
+        Submitted
+    };
+
+    enum class DynamicSegmentState
+    {
+        Inactive,
+        WaitingForMetadata,
+        Tracking,
+        WaitingForFilterRecovery
+    };
+
+    enum class DynamicPendingState
+    {
+        Empty,
+        Cached
+    };
+
+    struct ListenClock
+    {
+        double effectiveSeconds = 0.0;
+        double lastReportedTime = 0.0;
+        bool haveLastReportedTime = false;
+    };
+
+    struct LocalChannelState
+    {
+        LocalScrobbleState state = LocalScrobbleState::Idle;
+        ListenClock clock;
+    };
+
+    struct DynamicChannelState
+    {
+        DynamicSegmentState segmentState = DynamicSegmentState::Inactive;
+        DynamicPendingState pendingState = DynamicPendingState::Empty;
+        ListenClock clock;
+        // Preserve stream callback metadata so TF exclusion recovery sees the same fields as the original update.
+        bool haveCurrentSegmentInfo = false;
+        file_info_impl currentSegmentInfo;
+        LastfmTrackInfo pendingTrack{};
+        bool havePendingSegmentInfo = false;
+        file_info_impl pendingSegmentInfo;
+        double pendingPlaybackTime = 0.0;
+        std::time_t pendingStartWallclock = 0;
+        std::time_t segmentStartWallclock = 0;
+        std::string dedupLastPath;
+        std::string dedupLastArtist;
+        std::string dedupLastTitle;
+    };
+
+    void updateListeningClock(ListenClock& clock, double time, bool blocked);
+
     std::time_t startWallclock = 0;
     bool isPlaying = false;
-    bool scrobbleSent = false;
     double playbackTime = 0.0;
-    bool isCurrentStream = false;
+    PlaybackChannel channel = PlaybackChannel::None;
     bool currentFooScrobblerTagAllows = true;
     bool fooScrobblerTagBlockLogged = false;
 
     LastfmTrackInfo current;
 
-    double effectiveListenedSeconds = 0.0;
-    double lastReportedTime = 0.0;
-    bool haveLastReportedTime = false;
-
-    // Reached scrobble threshold, but artist/title were missing at the moment.
-    // We keep tracking tag changes and will submit once metadata becomes valid.
-    bool pendingDueToMissingMetadata = false;
-
-    // Track is playing but currently blocked by user exclusion filters.
-    bool pendingDueToExclusionFilters = false;
-
-    // Track reached the scrobble point while excluded; keep it skipped even if filters change mid-track.
-    bool scrobbleBlockedByExclusionFilters = false;
-
-    // Track became eligible while suspended/tag-disabled; defer submission until stop/new-track boundary.
-    bool thresholdReachedButDeferred = false;
+    LocalChannelState local;
 
     metadb_handle_ptr currentHandle;
     LastfmRules rules;
@@ -85,20 +137,9 @@ class LastfmTracker : public play_callback_static
     std::string cachedAlbumTfExpr_;
 
     // Dynamic stream scrobble (network sources only)
-    bool dynamicActive = false;
-    bool dynamicPending = false; // cached after >= 30s effective listening
-    bool dynamicSubmitted = false;
-    bool dynamicBlockedByExclusionFilters = false;
-    LastfmTrackInfo dynamicPendingTrack{};
-    double dynamicPendingPlaybackTime = 0.0;
-    std::time_t dynamicPendingStartWallclock = 0;
-    std::time_t dynamicSegmentStartWallclock = 0;
-    std::string dedupLastPath_;
-    std::string dedupLastArtist_;
-    std::string dedupLastTitle_;
+    DynamicChannelState dynamic;
 
     // Helpers (network-only)
     void startDynamicSegment();
-    void resetDynamicSegmentState();
     void submitDynamicPendingIfAny();
 };

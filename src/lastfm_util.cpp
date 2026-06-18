@@ -121,6 +121,221 @@ bool fooScrobblerTagAllowsSubmission(const file_info& info)
     return true;
 }
 
+bool isVariousArtistsValue(const std::string& value)
+{
+    std::string s;
+    bool lastWasSpace = false;
+
+    const char* p = value.c_str();
+    std::size_t remaining = value.size();
+
+    while (remaining > 0)
+    {
+        unsigned c = 0;
+        const std::size_t used = pfc::utf8_decode_char(p, c, remaining);
+        if (used == 0)
+            return false;
+
+        if (c >= 'A' && c <= 'Z')
+            c = c - 'A' + 'a';
+
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
+        {
+            s.push_back((char)c);
+            lastWasSpace = false;
+        }
+        else if (c == '.' || c == '/')
+        {
+        }
+        else if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0x00A0 || c == 0x3000 ||
+                 (c >= 0x2000 && c <= 0x200A))
+        {
+            if (!s.empty() && !lastWasSpace)
+            {
+                s.push_back(' ');
+                lastWasSpace = true;
+            }
+        }
+        else
+            return false;
+
+        p += used;
+        remaining -= used;
+    }
+
+    if (!s.empty() && s.back() == ' ')
+        s.pop_back();
+
+    return s == "various artists" || s == "various artist" || s == "variousartists" || s == "various" || s == "va" ||
+           s == "v a";
+}
+
+bool isNetworkStreamPath(const char* path)
+{
+    if (!path)
+        return false;
+
+    // Be strict: foobar can use pseudo-schemes like foo:// for local container tracks (ISO, etc).
+    // We only treat real network stream schemes as "stream".
+    return (std::strncmp(path, "http://", 7) == 0) || (std::strncmp(path, "https://", 8) == 0) ||
+           (std::strncmp(path, "mms://", 6) == 0) || (std::strncmp(path, "rtsp://", 7) == 0) ||
+           (std::strncmp(path, "icy://", 6) == 0);
+}
+
+bool looksLikeStationTitle(const std::string& title)
+{
+    if (title.empty())
+        return true;
+
+    // Long sentences, slogans, blurbs, or station branding are not track titles.
+    if (title.size() > 80)
+        return true;
+
+    int content = 0;
+    int spaces = 0;
+
+    bool hasBracket = false;
+    bool hasUrl = false;
+
+    std::string norm;
+    norm.reserve(title.size());
+
+    const char* p = title.c_str();
+    std::size_t remaining = title.size();
+    while (remaining > 0)
+    {
+        unsigned c = 0;
+        const std::size_t used = pfc::utf8_decode_char(p, c, remaining);
+        if (used == 0)
+            return true;
+
+        if (c >= 'A' && c <= 'Z')
+            norm.push_back((char)(c - 'A' + 'a'));
+        else if (c < 0x80)
+            norm.push_back((char)c);
+        else
+            norm.push_back(' ');
+
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0x00A0 || c == 0x3000 ||
+            (c >= 0x2000 && c <= 0x200A))
+            ++spaces;
+        else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c > 0x7F)
+            ++content;
+
+        if (c == '[' || c == ']')
+            hasBracket = true;
+
+        p += used;
+        remaining -= used;
+    }
+
+    if (norm.find("http") != std::string::npos || norm.find("www.") != std::string::npos)
+        hasUrl = true;
+
+    if (content < 3)
+        return true;
+
+    if (hasBracket)
+        return true;
+
+    if (spaces > (int)title.size() / 3)
+        return true;
+
+    if (hasUrl)
+        return true;
+
+    return false;
+}
+
+bool parseArtistTitleFromCombined(const std::string& combined, std::string& artist, std::string& title)
+{
+    const char* seps[] = {" - ", " \xE2\x80\x93 ", " \xE2\x80\x94 ", ": "};
+    for (const char* sep : seps)
+    {
+        const std::size_t pos = combined.find(sep);
+        if (pos == std::string::npos)
+            continue;
+
+        const std::string left = combined.substr(0, pos);
+        const std::string right = combined.substr(pos + std::strlen(sep));
+
+        artist = cleanTagValue(left.c_str());
+        title = cleanTagValue(right.c_str());
+
+        if (artist.empty() || title.empty())
+            continue;
+
+        if (looksLikeStationTitle(title))
+            continue;
+
+        return true;
+    }
+    return false;
+}
+
+bool extractStreamArtistTitle(const file_info& info, std::string& outArtist, std::string& outTitle,
+                              std::string& outAlbum)
+{
+    outArtist.clear();
+    outTitle.clear();
+    outAlbum.clear();
+
+    auto get1 = [&](const char* key) -> std::string { return cleanTagValue(info.meta_get(key, 0)); };
+
+    auto firstOf = [&](const char* const* keys, std::size_t n) -> std::string
+    {
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            std::string v = get1(keys[i]);
+            if (!v.empty())
+                return v;
+        }
+        return {};
+    };
+
+    // Try the common combined stream title fields first, usually "Artist - Title".
+    // These names vary across decoders, so we probe a small generic set.
+    static const char* kCombined[] = {
+        "streamtitle", "StreamTitle", "STREAMTITLE", "icy-title",
+        "Icy-Title",   "ICY-TITLE",   "title",       "TITLE" // last resort, but still parsed as combined if possible
+    };
+
+    std::string combined = firstOf(kCombined, sizeof(kCombined) / sizeof(kCombined[0]));
+    if (!combined.empty())
+    {
+        std::string a, t;
+        if (parseArtistTitleFromCombined(combined, a, t))
+        {
+            outArtist = a;
+            outTitle = t;
+            return true;
+        }
+    }
+
+    // If no combined parse, try explicit artist/title tags.
+    static const char* kArtist[] = {"artist", "ARTIST"};
+    static const char* kTitle[] = {"title", "TITLE"};
+    static const char* kAlbum[] = {"album", "ALBUM"};
+
+    std::string a = firstOf(kArtist, sizeof(kArtist) / sizeof(kArtist[0]));
+    std::string t = firstOf(kTitle, sizeof(kTitle) / sizeof(kTitle[0]));
+    std::string al = firstOf(kAlbum, sizeof(kAlbum) / sizeof(kAlbum[0]));
+
+    // If title looks like station branding/slogan, reject it.
+    if (!t.empty() && looksLikeStationTitle(t))
+        t.clear();
+
+    if (!a.empty() && !t.empty())
+    {
+        outArtist = a;
+        outTitle = t;
+        outAlbum = al;
+        return true;
+    }
+
+    return false;
+}
+
 std::string md5HexLower(const std::string& data)
 {
     const auto digest = hasher_md5::get()->process_single(data.data(), data.size());
