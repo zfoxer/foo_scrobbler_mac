@@ -7,10 +7,10 @@
 </p>
 
 ### Foo Scrobbler for Mac
-#### Version: 1.5.3 — foo_scrobbler_mac — Released under MIT License
+#### Version: 1.5.4 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
-#### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/LFM_Auth).
+#### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Authentication).
 
 Foo Scrobbler (foo_scrobbler_mac) is a native Last.fm scrobbling plugin for foobar2000 on macOS. Submits tracks based on precise playback rules, caches scrobbles when offline, and operates silently after one-time authentication. Built using the official foobar plugin API, it focuses on reliability, low overhead, and correct metadata handling. Fully open-source under MIT Licence.
 
@@ -74,6 +74,10 @@ If you prefer to compile the plugin yourself, see the [Compilation Guide](https:
 <summary><strong>Expand</strong></summary>
 
 <pre>
+1.5.4    2026-06-28
+Apply Title Formatting scripts to streams like local files.
+Keep short CJK stream titles from being filtered as station noise.
+
 1.5.3    2026-06-21
 Defer filtered dynamic tracks like local files.
 Further separate dynamic and local tracker paths.  
