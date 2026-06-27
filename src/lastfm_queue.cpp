@@ -67,7 +67,7 @@ static cfg_int cfgLastfmDrainEnabled(GUID_CFG_LASTFM_DRAIN_ENABLED,
 );
 
 static cfg_int cfgLastfmDailyBudget(GUID_CFG_LASTFM_DAILY_BUDGET,
-                                    650 // conservative default
+                                    2600 // default to revise if needed
 );
 
 static cfg_int cfgLastfmScrobblesToday(GUID_CFG_LASTFM_SCROBBLES_TODAY, 0);

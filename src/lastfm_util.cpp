@@ -182,6 +182,18 @@ bool isNetworkStreamPath(const char* path)
            (std::strncmp(path, "icy://", 6) == 0);
 }
 
+// A single CJK ideograph / kana / hangul syllable is information-dense and is a
+// legitimate (often whole) track title, unlike a lone Latin letter or a symbol.
+static bool isCjkLetter(unsigned c)
+{
+    return (c >= 0x3040 && c <= 0x30FF) || // Hiragana + Katakana
+           (c >= 0x3400 && c <= 0x9FFF) || // CJK Ext-A + Unified Ideographs
+           (c >= 0xF900 && c <= 0xFAFF) || // CJK Compatibility Ideographs
+           (c >= 0xAC00 && c <= 0xD7A3) || // Hangul syllables
+           (c >= 0xFF66 && c <= 0xFF9D) || // Halfwidth Katakana
+           (c >= 0x20000 && c <= 0x2FA1F); // CJK Ext-B+ (supplementary plane)
+}
+
 bool looksLikeStationTitle(const std::string& title)
 {
     if (title.empty())
@@ -193,6 +205,7 @@ bool looksLikeStationTitle(const std::string& title)
 
     int content = 0;
     int spaces = 0;
+    int cjkLetters = 0;
 
     bool hasBracket = false;
     bool hasUrl = false;
@@ -222,6 +235,9 @@ bool looksLikeStationTitle(const std::string& title)
         else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c > 0x7F)
             ++content;
 
+        if (isCjkLetter(c))
+            ++cjkLetters;
+
         if (c == '[' || c == ']')
             hasBracket = true;
 
@@ -232,7 +248,7 @@ bool looksLikeStationTitle(const std::string& title)
     if (norm.find("http") != std::string::npos || norm.find("www.") != std::string::npos)
         hasUrl = true;
 
-    if (content < 3)
+    if (content < 3 && cjkLetters == 0)
         return true;
 
     if (hasBracket)
