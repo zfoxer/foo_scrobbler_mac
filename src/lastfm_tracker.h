@@ -39,6 +39,8 @@ class LastfmTracker : public play_callback_static
     void submitLocalScrobbleIfNeeded(bool allowFilterRecovery);
     void updateFromTrack(const metadb_handle_ptr& track);
     void handleDynamicStreamUpdate(const file_info& info);
+    void applyTitleFormatToStreamMetadata(const file_info& info, std::string& artist, std::string& title,
+                                          std::string& album);
     void refreshCurrentFileMetadata(bool allowDispatch);
     bool refreshFooScrobblerTagAllows();
     void maybeCacheDynamicScrobble(bool allowFilterRecovery);

@@ -549,6 +549,10 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     dynamic.dedupLastArtist = newArtist;
     dynamic.dedupLastTitle = newTitle;
 
+    // Apply the user's title-format scripts to stream metadata so streams honor the same formatting
+    // (e.g. trimming "(...)" / "[...]") as local files. extractStreamArtistTitle() only reads raw tags.
+    applyTitleFormatToStreamMetadata(info, newArtist, newTitle, newAlbum);
+
     if (newArtist == current.artist && newTitle == current.title && newAlbum == current.album)
         return;
 
@@ -612,6 +616,45 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
         LFM_DEBUG("Submitting NP (dynamic): " << current.artist.c_str() << " - " << current.title.c_str());
         scrobbler.sendNowPlayingOnly(current);
     }
+}
+
+void LastfmTracker::applyTitleFormatToStreamMetadata(const file_info& info, std::string& artist, std::string& title,
+                                                     std::string& album)
+{
+    if (!currentHandle.is_valid())
+        return;
+
+    recompileTfIfNeeded();
+
+    // Write the parsed values into a temporary info so scripts referencing %artist%/%title%/%album%
+    // see what we actually scrobble, not the raw combined stream tag (e.g. "Artist - Title").
+    file_info_impl tfInfo;
+    tfInfo.copy(info);
+    tfInfo.meta_set("ARTIST", artist.c_str());
+    tfInfo.meta_set("TITLE", title.c_str());
+    tfInfo.meta_set("ALBUM", album.c_str());
+
+    auto evalExternal = [&](const service_ptr_t<titleformat_object>& script) -> std::string
+    {
+        if (!script.is_valid())
+            return {};
+
+        pfc::string8 out;
+        currentHandle->format_title_from_external_info(tfInfo, nullptr, out, script, nullptr);
+        return lastfm::util::cleanTagValue(out.c_str());
+    };
+
+    const std::string formattedArtist = evalExternal(artistTf_);
+    if (!formattedArtist.empty())
+        artist = formattedArtist;
+
+    const std::string formattedTitle = evalExternal(titleTf_);
+    if (!formattedTitle.empty())
+        title = formattedTitle;
+
+    const std::string formattedAlbum = evalExternal(albumTf_);
+    if (!formattedAlbum.empty())
+        album = formattedAlbum;
 }
 
 void LastfmTracker::startDynamicSegment()
