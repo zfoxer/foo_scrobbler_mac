@@ -309,22 +309,24 @@ bool extractStreamArtistTitle(const file_info& info, std::string& outArtist, std
         return {};
     };
 
-    // Try the common combined stream title fields first, usually "Artist - Title".
-    // These names vary across decoders, so we probe a small generic set.
-    static const char* kCombined[] = {
-        "streamtitle", "StreamTitle", "STREAMTITLE", "icy-title",
-        "Icy-Title",   "ICY-TITLE",   "title",       "TITLE" // last resort, but still parsed as combined if possible
-    };
+    // fbar pre-splits stream metadata into separate artist/title tags; trust it rather than re-splitting the title.
+    const bool haveExplicitArtist = !get1("artist").empty() || !get1("ARTIST").empty();
 
-    std::string combined = firstOf(kCombined, sizeof(kCombined) / sizeof(kCombined[0]));
-    if (!combined.empty())
+    static const char* kCombined[] = {"streamtitle", "StreamTitle", "STREAMTITLE", "icy-title",
+                                      "Icy-Title",   "ICY-TITLE",   "title",       "TITLE"};
+
+    if (!haveExplicitArtist)
     {
-        std::string a, t;
-        if (parseArtistTitleFromCombined(combined, a, t))
+        std::string combined = firstOf(kCombined, sizeof(kCombined) / sizeof(kCombined[0]));
+        if (!combined.empty())
         {
-            outArtist = a;
-            outTitle = t;
-            return true;
+            std::string a, t;
+            if (parseArtistTitleFromCombined(combined, a, t))
+            {
+                outArtist = a;
+                outTitle = t;
+                return true;
+            }
         }
     }
 

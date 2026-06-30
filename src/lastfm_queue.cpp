@@ -681,7 +681,7 @@ void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double pla
     cache_.push_back(q);
     saveCacheLocked();
 
-    LFM_DEBUG("Queue: queued scrobble, pending=" << (unsigned)cache_.size());
+    LFM_DEBUG("Queue: stored scrobble, pending=" << (unsigned)cache_.size());
 }
 
 void LastfmQueue::enterRateLimitCooldownLocked(std::time_t now, std::time_t cooldownSeconds)
