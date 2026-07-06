@@ -355,8 +355,8 @@ void LastfmTracker::on_playback_time(double time)
 {
     playbackTime = time;
 
+    // currentFooScrobblerTagAllows is kept fresh at track start, on tag edits and right before submission.
     const bool suspended = lastfmIsSuspended();
-    refreshFooScrobblerTagAllows();
     const bool blocked = suspended || !currentFooScrobblerTagAllows;
 
     if (!suspended && !currentFooScrobblerTagAllows)
@@ -380,8 +380,6 @@ void LastfmTracker::on_playback_time(double time)
 
     if (!blocked)
         rules.playbackTime = time;
-
-    refreshCurrentFileMetadata(!blocked);
 
     if (channel == PlaybackChannel::DynamicStream)
     {
@@ -769,6 +767,7 @@ void LastfmTracker::on_playback_starting(play_control::t_track_command, bool)
 }
 void LastfmTracker::on_playback_edited(metadb_handle_ptr)
 {
+    refreshFooScrobblerTagAllows();
     refreshCurrentFileMetadata(true);
 }
 void LastfmTracker::on_volume_change(float)
