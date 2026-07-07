@@ -9,6 +9,7 @@
 #include "lastfm_core.h"
 #include "lastfm_track_info.h"
 #include "lastfm_state.h"
+#include "lastfm_settings.h"
 #include "lastfm_util.h"
 #include "debug.h"
 
@@ -35,11 +36,40 @@ static const GUID GUID_LASTFM_MENU_GROUP = {
 
 static const GUID GUID_LASTFM_SUSPEND = {0x3b5aca2b, 0x731e, 0x4ac4, {0xa3, 0xc5, 0x59, 0x4f, 0xcd, 0x27, 0xea, 0x49}};
 
-static mainmenu_group_popup_factory lastfmMenuGroupFactory(GUID_LASTFM_MENU_GROUP, mainmenu_groups::playback,
-                                                           mainmenu_commands::sort_priority_dontcare, "Last.fm");
-
 namespace
 {
+
+static bool playbackMenuVisible()
+{
+    return lastfm::settings::showPlaybackMenu() || !lastfmIsAuthenticated();
+}
+
+class LastfmMenuGroup : public mainmenu_group_popup_v2
+{
+  public:
+    GUID get_guid() override
+    {
+        return GUID_LASTFM_MENU_GROUP;
+    }
+    GUID get_parent() override
+    {
+        return mainmenu_groups::playback;
+    }
+    t_uint32 get_sort_priority() override
+    {
+        return mainmenu_commands::sort_priority_dontcare;
+    }
+    void get_display_string(pfc::string_base& out) override
+    {
+        out = "Last.fm";
+    }
+    bool popup_condition() override
+    {
+        return playbackMenuVisible();
+    }
+};
+
+FB2K_SERVICE_FACTORY(LastfmMenuGroup);
 
 static void openBrowserUrl(const std::string& url)
 {
@@ -234,6 +264,9 @@ t_uint32 LastfmMenu::get_sort_priority()
 bool LastfmMenu::get_display(t_uint32 index, pfc::string_base& text, uint32_t& flags)
 {
     flags = 0;
+    if (!playbackMenuVisible())
+        return false;
+
     const bool authed = lastfmIsAuthenticated();
 
     switch (index)

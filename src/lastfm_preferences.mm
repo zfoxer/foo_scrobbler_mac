@@ -272,6 +272,7 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
 @property(nonatomic, strong) NSPopUpButton* consolePopup;
 @property(nonatomic, strong) NSTextField* authStatusLabel;
 @property(nonatomic, strong) NSTimer* authStatusTimer;
+@property(nonatomic, strong) NSButton* showPlaybackMenuCheckbox;
 @property(nonatomic, strong) NSButton* disableNowPlayingCheckbox;
 @property(nonatomic, strong) NSButton* onlyLibraryCheckbox;
 @property(nonatomic, strong) NSPopUpButton* dynamicPopup;
@@ -293,7 +294,7 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     tabs.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     [self.view addSubview:tabs];
 
-    [tabs addTabViewItem:[self tabWithIdentifier:@"console" label:@"Console" view:[self makeConsoleView]]];
+    [tabs addTabViewItem:[self tabWithIdentifier:@"general" label:@"General" view:[self makeGeneralView]]];
     [tabs addTabViewItem:[self tabWithIdentifier:@"scrobbling" label:@"Scrobbling" view:[self makeScrobblingView]]];
     [tabs addTabViewItem:[self tabWithIdentifier:@"tags" label:@"Tags" view:[self makeTagsView]]];
     [tabs addTabViewItem:[self tabWithIdentifier:@"exclusions" label:@"Exclusions" view:[self makeExclusionsView]]];
@@ -399,7 +400,7 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     return makeControlRow(controls);
 }
 
-- (NSView*)makeConsoleView
+- (NSView*)makeGeneralView
 {
     NSStackView* stack = makeStack();
     [stack addArrangedSubview:makeHeader(@"Console")];
@@ -407,13 +408,22 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     self.consolePopup = [self newPopupWithItems:@[ @"None", @"Basic", @"Debug" ] action:@selector(onConsolePopup:)];
     [stack addArrangedSubview:makeRow(@"Log level:", self.consolePopup)];
 
+    [stack addArrangedSubview:makeHeader(@"Playback Menu")];
+
+    self.showPlaybackMenuCheckbox =
+        [self newCheckboxWithTitle:@"Show Last.fm in the Playback menu" action:@selector(onShowPlaybackMenu:)];
+    [stack addArrangedSubview:makeControlRow(self.showPlaybackMenuCheckbox)];
+
     [stack addArrangedSubview:makeHeader(@"Authentication")];
 
     self.authStatusLabel = [NSTextField labelWithString:@""];
     self.authStatusLabel.translatesAutoresizingMaskIntoConstraints = NO;
     self.authStatusLabel.lineBreakMode = NSLineBreakByTruncatingTail;
     [self.authStatusLabel.widthAnchor constraintGreaterThanOrEqualToConstant:360.0].active = YES;
-    [stack addArrangedSubview:makeRow(@"Status:", self.authStatusLabel)];
+
+    NSTextField* statusTitle = [NSTextField labelWithString:@"Status:"];
+    statusTitle.translatesAutoresizingMaskIntoConstraints = NO;
+    [stack addArrangedSubview:makeControlRow(makeRowWithLabel(statusTitle, self.authStatusLabel))];
 
     return makeWrappedStack(stack);
 }
@@ -537,6 +547,10 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
         state.isAuthenticated
             ? [NSString stringWithFormat:@"Authenticated as %@.", nsString(state.username)]
             : @"User not authenticated, please authenticate from the Playback menu.";
+
+    const bool showMenu = lastfm::settings::showPlaybackMenu() || !state.isAuthenticated;
+    self.showPlaybackMenuCheckbox.enabled = state.isAuthenticated;
+    self.showPlaybackMenuCheckbox.state = showMenu ? NSControlStateValueOn : NSControlStateValueOff;
 }
 
 - (void)loadSettings
@@ -563,6 +577,11 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     const int choice = static_cast<int>(self.consolePopup.indexOfSelectedItem);
     lastfm::settings::setConsoleLevel(choice);
     lastfmSetLogLevelFromConsoleChoice(choice);
+}
+
+- (IBAction)onShowPlaybackMenu:(id)sender
+{
+    lastfm::settings::setShowPlaybackMenu(self.showPlaybackMenuCheckbox.state == NSControlStateValueOn);
 }
 
 - (IBAction)onDisableNowPlaying:(id)sender

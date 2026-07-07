@@ -7,7 +7,7 @@
 </p>
 
 ### Foo Scrobbler for Mac
-#### Version: 1.5.4 — foo_scrobbler_mac — Released under MIT License
+#### Version: 1.5.5 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Authentication).
@@ -74,6 +74,13 @@ If you prefer to compile the plugin yourself, see the [Compilation Guide](https:
 <summary><strong>Expand</strong></summary>
 
 <pre>
+1.5.5    2026-07-07
+Fix order of station title content parsing.  
+Fix pause state from vetoing an eligible scrobble at track boundaries.  
+Refresh FOO_SCROBBLER tag state on edits instead of polling every tick.  
+Add option to hide the Playback Last.fm menu.  
+Run Last.fm authentication off the main thread.  
+
 1.5.4    2026-06-28
 Apply Title Formatting scripts to streams like local files.
 Keep short CJK stream titles from being filtered as station noise.

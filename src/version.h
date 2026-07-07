@@ -7,5 +7,5 @@
 
 #pragma once
 
-#define FOOSCROBBLER_VERSION "1.5.4"
+#define FOOSCROBBLER_VERSION "1.5.5"
 #define FOOSCROBBLER_NAME "Foo Scrobbler"

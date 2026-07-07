@@ -19,6 +19,8 @@ constexpr const char* kConsoleNone = "foo_scrobbler.console.no";
 constexpr const char* kConsoleBasic = "foo_scrobbler.console.basic";
 constexpr const char* kConsoleDebug = "foo_scrobbler.console.debug";
 
+constexpr const char* kShowPlaybackMenu = "foo_scrobbler.menu.show_playback_menu";
+
 constexpr const char* kDisableNowPlaying = "foo_scrobbler.scrobbling.disable_nowplaying";
 constexpr const char* kOnlyFromLibrary = "foo_scrobbler.scrobbling.only_from_library";
 
@@ -137,6 +139,16 @@ int consoleLevel()
 void setConsoleLevel(int value)
 {
     setBooleanRadioChoice(kConsoleOptions, std::size(kConsoleOptions), value);
+}
+
+bool showPlaybackMenu()
+{
+    return getBool(kShowPlaybackMenu, true);
+}
+
+void setShowPlaybackMenu(bool enabled)
+{
+    setBool(kShowPlaybackMenu, enabled);
 }
 
 bool disableNowPlaying()

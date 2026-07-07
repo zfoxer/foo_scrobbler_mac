@@ -29,6 +29,9 @@ enum DynamicSourcesMode
 int consoleLevel();
 void setConsoleLevel(int value);
 
+bool showPlaybackMenu();
+void setShowPlaybackMenu(bool enabled);
+
 bool disableNowPlaying();
 void setDisableNowPlaying(bool enabled);
 
