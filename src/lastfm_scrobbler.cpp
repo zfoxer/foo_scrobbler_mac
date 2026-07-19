@@ -105,9 +105,6 @@ void LastfmScrobbler::refreshPendingMetadata(const LastfmTrackInfo& track)
 void LastfmScrobbler::queueScrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startWallclock,
                                     bool refreshOnSubmit)
 {
-    if (core_api::is_shutting_down() || shuttingDown.load(std::memory_order_acquire))
-        return;
-
     if (!client.isAuthenticated() || client.isSuspended())
         return;
 

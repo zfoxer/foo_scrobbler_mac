@@ -30,6 +30,8 @@ class LastfmTracker : public play_callback_static
     void on_playback_time(double time) override;
     void on_volume_change(float volume) override;
 
+    void queuePendingAtShutdown();
+
   private:
     void fillTrackInfoFromTf(const metadb_handle_ptr& track, LastfmTrackInfo& out);
     void recompileTfIfNeeded();

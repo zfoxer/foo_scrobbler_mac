@@ -774,4 +774,23 @@ void LastfmTracker::on_volume_change(float)
 {
 }
 
+void LastfmTracker::queuePendingAtShutdown()
+{
+    rules.paused = false;
+    maybeCacheDynamicScrobble(false);
+    submitDynamicPendingIfAny();
+    submitLocalScrobbleIfNeeded(false);
+}
+
 static play_callback_static_factory_t<LastfmTracker> lastfmTrackerFactory;
+
+class LastfmTrackerShutdownHook : public initquit
+{
+  public:
+    void on_quit() override
+    {
+        lastfmTrackerFactory.get_static_instance().queuePendingAtShutdown();
+    }
+};
+
+static initquit_factory_t<LastfmTrackerShutdownHook> lastfmTrackerShutdownHookFactory;

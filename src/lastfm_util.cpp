@@ -199,7 +199,7 @@ bool looksLikeStationTitle(const std::string& title)
     if (title.empty())
         return true;
 
-    // Long sentences, slogans, blurbs, or station branding are not track titles.
+    // Long sentences, slogans, blurbs, station branding, bs.
     if (title.size() > 80)
         return true;
 
@@ -339,7 +339,7 @@ bool extractStreamArtistTitle(const file_info& info, std::string& outArtist, std
     std::string t = firstOf(kTitle, sizeof(kTitle) / sizeof(kTitle[0]));
     std::string al = firstOf(kAlbum, sizeof(kAlbum) / sizeof(kAlbum[0]));
 
-    // If title looks like station branding/slogan, reject it.
+    // If title looks like station branding/slogan/bs, reject it.
     if (!t.empty() && looksLikeStationTitle(t))
         t.clear();
 
