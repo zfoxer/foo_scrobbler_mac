@@ -18,9 +18,7 @@ static constexpr double DELTA = 20.0;
 struct LastfmRules
 {
     double trackDuration = 0.0;
-    double playbackTime = 0.0;
     bool paused = false;
-    bool skippedEarly = false;
 
     double requiredPlaybackSeconds() const
     {
@@ -30,33 +28,16 @@ struct LastfmRules
                    : LastfmScrobbleConfig::MAX_THRESHOLD_SECONDS;
     }
 
-    bool isEligibleToScrobble() const
-    {
-        using namespace LastfmScrobbleConfig;
-
-        if (trackDuration < MIN_TRACK_DURATION_SECONDS)
-            return false;
-
-        return playbackTime >= requiredPlaybackSeconds();
-    }
-
+    // Eligibility is accumulated-listening-time only (the tracker's ListenClock);
+    // playhead position is deliberately not part of the rule.
     bool shouldScrobble() const
     {
-        if (paused || skippedEarly)
-            return false;
-        return isEligibleToScrobble();
+        return !paused;
     }
 
     void reset(double newDuration)
     {
         trackDuration = newDuration;
-        playbackTime = 0.0;
         paused = false;
-        skippedEarly = false;
-    }
-
-    void markSkipped()
-    {
-        skippedEarly = true;
     }
 };

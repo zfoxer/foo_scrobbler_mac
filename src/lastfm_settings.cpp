@@ -34,6 +34,7 @@ constexpr const char* kArtistTf = "foo_scrobbler.tf.artist";
 constexpr const char* kAlbumArtistTf = "foo_scrobbler.tf.album_artist";
 constexpr const char* kTitleTf = "foo_scrobbler.tf.title";
 constexpr const char* kAlbumTf = "foo_scrobbler.tf.album";
+constexpr const char* kMbidTf = "foo_scrobbler.tf.mbid";
 
 constexpr const char* kExcludeArtists = "foo_scrobbler.scrobbling.exclude_artists";
 constexpr const char* kExcludeTitles = "foo_scrobbler.scrobbling.exclude_titles";
@@ -193,6 +194,7 @@ void setDynamicSourcesMode(int value)
     X(albumArtistTitleFormat, setAlbumArtistTitleFormat, kAlbumArtistTf, "[%Album Artist%]")                           \
     X(titleTitleFormat, setTitleTitleFormat, kTitleTf, "[%Title%]")                                                    \
     X(albumTitleFormat, setAlbumTitleFormat, kAlbumTf, "[%Album%]")                                                    \
+    X(mbidTitleFormat, setMbidTitleFormat, kMbidTf, "[%Musicbrainz_Trackid%]")                                         \
     X(excludedArtistsPatternList, setExcludedArtistsPatternList, kExcludeArtists, "")                                  \
     X(excludedTitlesPatternList, setExcludedTitlesPatternList, kExcludeTitles, "")                                     \
     X(excludedAlbumsPatternList, setExcludedAlbumsPatternList, kExcludeAlbums, "")                                     \

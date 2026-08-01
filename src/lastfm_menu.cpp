@@ -7,7 +7,6 @@
 
 #include "lastfm_menu.h"
 #include "lastfm_core.h"
-#include "lastfm_track_info.h"
 #include "lastfm_state.h"
 #include "lastfm_settings.h"
 #include "lastfm_util.h"
@@ -160,39 +159,6 @@ static void runAuthenticateFlow()
         }
     }
 }
-
-static bool getNowPlayingTrackInfo(LastfmTrackInfo& out)
-{
-    out = LastfmTrackInfo{};
-
-    if (!playback_control::get()->is_playing() || playback_control::get()->is_paused())
-        return false;
-
-    metadb_handle_ptr handle;
-    if (!playback_control::get()->get_now_playing(handle) || !handle.is_valid())
-        return false;
-
-    file_info_impl info;
-    if (!handle->get_info(info))
-        return false;
-
-    if (!lastfm::util::fooScrobblerTagAllowsSubmission(info))
-        return false;
-
-    out.artist = lastfm::util::cleanTagValue(info.meta_get("artist", 0));
-    out.title = lastfm::util::cleanTagValue(info.meta_get("title", 0));
-    out.album = lastfm::util::cleanTagValue(info.meta_get("album", 0));
-
-    const char* mbid = info.meta_get("musicbrainz_trackid", 0);
-    if (!mbid)
-        mbid = info.meta_get("MUSICBRAINZ_TRACKID", 0);
-    out.mbid = mbid ? mbid : "";
-
-    out.durationSeconds = info.get_length();
-
-    // For Now Playing, if artist/title are missing, just skip sending.
-    return !out.artist.empty() && !out.title.empty();
-}
 } // namespace
 
 t_uint32 LastfmMenu::get_command_count()
@@ -329,17 +295,12 @@ void LastfmMenu::execute(t_uint32 index, ctx_t)
 
     case CMD_SUSPEND:
     {
-        auto& core = LastfmCore::instance();
-
         if (lastfmIsSuspended())
         {
             lastfmClearSuspension();
 
-            // Send Now Playing immediately for the currently playing track.
-            // Use sendNowPlayingOnly() so we do NOT flush the retry queue on resume.
-            LastfmTrackInfo now;
-            if (getNowPlayingTrackInfo(now))
-                core.scrobbler().sendNowPlayingOnly(now);
+            // The tracker notices the resume on its next playback tick and re-sends
+            // Now Playing for the current track (NP-only path).
 
             // Do NOT retryAsync() here.
             // Queue will be retried on natural boundaries (next track -> onNowPlaying, stop -> retryAsync, etc).

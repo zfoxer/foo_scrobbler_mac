@@ -104,6 +104,7 @@ enum TextFieldTag
     TextFieldAlbumArtistTf,
     TextFieldTitleTf,
     TextFieldAlbumTf,
+    TextFieldMbidTf,
     TextFieldExcludeArtists,
     TextFieldExcludeTitles,
     TextFieldExcludeAlbums,
@@ -131,6 +132,7 @@ static const TextFieldSetting kTextFields[] = {
     {TextFieldAlbumArtistTf, @"Album artist:", lastfm::settings::albumArtistTitleFormat, lastfm::settings::setAlbumArtistTitleFormat},
     {TextFieldTitleTf, @"Title:", lastfm::settings::titleTitleFormat, lastfm::settings::setTitleTitleFormat},
     {TextFieldAlbumTf, @"Album:", lastfm::settings::albumTitleFormat, lastfm::settings::setAlbumTitleFormat},
+    {TextFieldMbidTf, @"MusicBrainz track ID:", lastfm::settings::mbidTitleFormat, lastfm::settings::setMbidTitleFormat},
     {TextFieldExcludeArtists, @"Artists:", lastfm::settings::excludedArtistsPatternList, lastfm::settings::setExcludedArtistsPatternList},
     {TextFieldExcludeTitles, @"Titles:", lastfm::settings::excludedTitlesPatternList, lastfm::settings::setExcludedTitlesPatternList},
     {TextFieldExcludeAlbums, @"Albums:", lastfm::settings::excludedAlbumsPatternList, lastfm::settings::setExcludedAlbumsPatternList},
@@ -456,7 +458,7 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     NSStackView* stack = makeStack();
     [stack addArrangedSubview:makeHeader(@"Tag Formatting")];
 
-    [self addTextFieldsFrom:TextFieldArtistTf through:TextFieldAlbumTf toStack:stack];
+    [self addTextFieldsFrom:TextFieldArtistTf through:TextFieldMbidTf toStack:stack];
 
     self.treatVariousArtistsCheckbox =
         [self newCheckboxWithTitle:@"Treat \"Various Artists\" as empty for album artist"

@@ -50,6 +50,7 @@ LASTFM_DECLARE_STRING_SETTING(artistTitleFormat, setArtistTitleFormat)
 LASTFM_DECLARE_STRING_SETTING(albumArtistTitleFormat, setAlbumArtistTitleFormat)
 LASTFM_DECLARE_STRING_SETTING(titleTitleFormat, setTitleTitleFormat)
 LASTFM_DECLARE_STRING_SETTING(albumTitleFormat, setAlbumTitleFormat)
+LASTFM_DECLARE_STRING_SETTING(mbidTitleFormat, setMbidTitleFormat)
 
 bool treatVariousArtistsAsEmpty();
 void setTreatVariousArtistsAsEmpty(bool enabled);
