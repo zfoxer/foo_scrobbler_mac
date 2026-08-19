@@ -68,7 +68,7 @@ bool beginAuth(std::string& outAuthUrl)
     }
 
     std::string token;
-    if (!lastfm::util::jsonFindStringValue(body.c_str(), "token", token) || token.empty())
+    if (!lastfm::util::json::findString(body.c_str(), "token", token) || token.empty())
     {
         LFM_INFO("auth.getToken: token not found. (response omitted, size=" << body.get_length() << ")");
         return false;
@@ -134,12 +134,13 @@ bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState
     std::string name;
     std::string key;
 
-    if (!lastfm::util::jsonFindStringValue(body.c_str(), "name", name) || name.empty())
+    // Documented shape: {"session":{"name":...,"key":...,"subscriber":0}}
+    if (!lastfm::util::json::findString(body.c_str(), "session.name", name) || name.empty())
     {
         LFM_INFO("auth.getSession: username not found. (response omitted, size=" << body.get_length() << ")");
         return false;
     }
-    if (!lastfm::util::jsonFindStringValue(body.c_str(), "key", key) || key.empty())
+    if (!lastfm::util::json::findString(body.c_str(), "session.key", key) || key.empty())
     {
         LFM_INFO("auth.getSession: session key not found. (response omitted, size=" << body.get_length() << ")");
         return false;

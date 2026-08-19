@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include <foobar2000/SDK/foobar2000.h>
 
@@ -40,10 +41,47 @@ bool httpGetToString(const char* url, pfc::string8& outBody, std::string& outErr
 bool httpPostToString(const char* url, pfc::string8& outBody, std::string& outError);
 bool httpPostFormToString(const char* url, const std::string& formBody, pfc::string8& outBody, std::string& outError);
 
-// Minimal JSON helpers (not a full parser)
-bool jsonFindStringValue(const char* json, const char* key, std::string& out);
-bool jsonFindIntValue(const char* json, const char* key, int& out);
-bool jsonHasKey(const char* json, const char* key);
+// Small strict JSON parser for Last.fm responses: full grammar, no array indexing.
+namespace json
+{
+struct Value
+{
+    enum class Type
+    {
+        Null,
+        Bool,
+        Number,
+        String,
+        Array,
+        Object
+    };
+
+    Type type = Type::Null;
+    bool boolean = false;
+    double number = 0.0;
+    std::string text;              // String payload
+    std::vector<std::string> keys; // Object member names, parallel to items
+    std::vector<Value> items;      // Array elements, or object member values
+
+    bool isObject() const
+    {
+        return type == Type::Object;
+    }
+
+    // Dotted-path lookup from this node, e.g. at("session.key").
+    const Value* at(const char* path) const;
+
+    // Typed reads.
+    bool asInt(int& out) const;
+    bool asString(std::string& out) const;
+};
+
+// Parses one whole document. Trailing garbage is rejected.
+bool parse(const char* text, Value& out);
+
+// Pparse and read the string at a dotted path in one call.
+bool findString(const char* text, const char* path, std::string& out);
+} // namespace json
 
 } // namespace util
 } // namespace lastfm

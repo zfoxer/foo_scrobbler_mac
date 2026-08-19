@@ -145,6 +145,37 @@ static void selfTest_extractLastfmApiError()
         assert(info.errorCode == 9);
         assert(!info.message.empty());
     }
+
+    {
+        // A nested "error" is not a top-level API error.
+        auto info = lastfm::util::extractLastfmApiError(
+            "{\"scrobbles\":{\"scrobble\":{\"ignoredMessage\":{\"code\":\"1\"},\"error\":7}}}");
+        assert(info.hasJson);
+        assert(!info.hasError);
+    }
+
+    {
+        // JSON glued to something else is not JSON, and neither is a truncated body.
+        assert(!lastfm::util::extractLastfmApiError("{\"error\":9} <html>oops</html>").hasJson);
+        assert(!lastfm::util::extractLastfmApiError("{\"error\":9").hasJson);
+    }
+
+    {
+        // \uXXXX is decoded to UTF-8, surrogate pairs included.
+        auto info = lastfm::util::extractLastfmApiError("{\"error\":6,\"message\":\"Bj\\u00f6rk \\ud83c\\udfb5\"}");
+        assert(info.message == "Bj\xc3\xb6rk \xf0\x9f\x8e\xb5");
+
+        // An unpaired surrogate must leave valid UTF-8: these strings reach NSString.
+        auto lone = lastfm::util::extractLastfmApiError("{\"error\":6,\"message\":\"\\ud83cX\"}");
+        assert(lone.message == "\xef\xbf\xbdX");
+    }
+
+    {
+        std::string value;
+        const char* session = "{\"session\":{\"name\":\"user\",\"key\":\"sk\"}}";
+        assert(lastfm::util::json::findString(session, "session.key", value) && value == "sk");
+        assert(!lastfm::util::json::findString(session, "key", value));
+    }
 }
 
 #endif

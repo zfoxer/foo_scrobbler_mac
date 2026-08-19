@@ -10,6 +10,7 @@
 
 #include <string>
 #include <cctype>
+#include <cstdlib>
 #include <cstring>
 #include <optional>
 
@@ -176,7 +177,6 @@ bool isNetworkStreamPath(const char* path)
         return false;
 
     // Be strict: foobar can use pseudo-schemes like foo:// for local container tracks (ISO, etc).
-    // We only treat real network stream schemes as "stream".
     return (std::strncmp(path, "http://", 7) == 0) || (std::strncmp(path, "https://", 8) == 0) ||
            (std::strncmp(path, "mms://", 6) == 0) || (std::strncmp(path, "rtsp://", 7) == 0) ||
            (std::strncmp(path, "icy://", 6) == 0);
@@ -309,7 +309,7 @@ bool extractStreamArtistTitle(const file_info& info, std::string& outArtist, std
         return {};
     };
 
-    // fbar pre-splits stream metadata into separate artist/title tags; trust it rather than re-splitting the title.
+    // fbar pre-splits stream metadata into separate artist/title tags; trust it.
     const bool haveExplicitArtist = !get1("artist").empty() || !get1("ARTIST").empty();
 
     static const char* kCombined[] = {"streamtitle", "StreamTitle", "STREAMTITLE", "icy-title",
@@ -330,7 +330,7 @@ bool extractStreamArtistTitle(const file_info& info, std::string& outArtist, std
         }
     }
 
-    // If no combined parse, try explicit artist/title tags.
+    // If no combined parse, try explicit.
     static const char* kArtist[] = {"artist", "ARTIST"};
     static const char* kTitle[] = {"title", "TITLE"};
     static const char* kAlbum[] = {"album", "ALBUM"};
@@ -470,263 +470,361 @@ bool httpPostFormToString(const char* url, const std::string& formBody, pfc::str
     }
 }
 
-// JSON helpers
-
-static const char* skipWs(const char* p)
+namespace json
 {
-    while (p && *p && std::isspace((unsigned char)*p))
+namespace
+{
+constexpr int kMaxDepth = 32;
+
+void skipWs(const char*& p)
+{
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
         ++p;
-    return p;
 }
 
-static bool readJsonString(const char*& p, std::string& out)
+void appendUtf8(std::string& out, unsigned cp)
 {
-    out.clear();
-    p = skipWs(p);
-    if (!p || *p != '"')
-        return false;
-
-    ++p; // opening quote
-
-    while (*p)
+    if (cp < 0x80)
+        out.push_back((char)cp);
+    else if (cp < 0x800)
     {
-        char c = *p++;
-        if (c == '"')
-            return true;
-
-        if (c == '\\')
-        {
-            char esc = *p++;
-            if (!esc)
-                return false;
-
-            switch (esc)
-            {
-            case '"':
-                out.push_back('"');
-                break;
-            case '\\':
-                out.push_back('\\');
-                break;
-            case '/':
-                out.push_back('/');
-                break;
-            case 'b':
-                out.push_back('\b');
-                break;
-            case 'f':
-                out.push_back('\f');
-                break;
-            case 'n':
-                out.push_back('\n');
-                break;
-            case 'r':
-                out.push_back('\r');
-                break;
-            case 't':
-                out.push_back('\t');
-                break;
-            case 'u':
-                // Minimal: preserve \uXXXX sequence without decoding.
-                out.append("\\u");
-                for (int i = 0; i < 4 && *p; ++i)
-                    out.push_back(*p++);
-                break;
-            default:
-                out.push_back(esc);
-                break;
-            }
-        }
-        else
-        {
-            out.push_back(c);
-        }
+        out.push_back((char)(0xC0 | (cp >> 6)));
+        out.push_back((char)(0x80 | (cp & 0x3F)));
     }
-
-    return false;
+    else if (cp < 0x10000)
+    {
+        out.push_back((char)(0xE0 | (cp >> 12)));
+        out.push_back((char)(0x80 | ((cp >> 6) & 0x3F)));
+        out.push_back((char)(0x80 | (cp & 0x3F)));
+    }
+    else
+    {
+        out.push_back((char)(0xF0 | (cp >> 18)));
+        out.push_back((char)(0x80 | ((cp >> 12) & 0x3F)));
+        out.push_back((char)(0x80 | ((cp >> 6) & 0x3F)));
+        out.push_back((char)(0x80 | (cp & 0x3F)));
+    }
 }
 
-static bool readJsonInt(const char*& p, int& out)
+bool readHex4(const char*& p, unsigned& out)
 {
-    p = skipWs(p);
-    if (!p || !*p)
-        return false;
-
-    bool neg = false;
-    if (*p == '-')
+    out = 0;
+    for (int i = 0; i < 4; ++i, ++p)
     {
-        neg = true;
-        ++p;
+        const unsigned char c = (unsigned char)*p;
+        if (!std::isxdigit(c))
+            return false;
+
+        out = (out << 4) | (unsigned)(std::isdigit(c) ? c - '0' : (std::tolower(c) - 'a' + 10));
     }
 
-    if (!std::isdigit((unsigned char)*p))
-        return false;
-
-    long long v = 0;
-    while (std::isdigit((unsigned char)*p))
-    {
-        v = v * 10 + (*p - '0');
-        ++p;
-        if (v > 2147483647LL)
-            break;
-    }
-
-    out = (int)(neg ? -v : v);
     return true;
 }
 
-bool jsonFindStringValue(const char* json, const char* key, std::string& out)
+bool parseString(const char*& p, std::string& out)
 {
     out.clear();
-    if (!json || !*json || !key || !*key)
+    if (*p != '"')
         return false;
 
-    const char* p = json;
-    std::string k;
-
-    while (*p)
+    ++p;
+    while ((unsigned char)*p >= 0x20) // Stops on control chars and on the terminating NUL
     {
-        p = skipWs(p);
-        if (!*p)
-            break;
+        const char c = *p++;
+        if (c == '"')
+            return true;
 
-        if (*p != '"')
+        if (c != '\\')
+        {
+            out.push_back(c);
+            continue;
+        }
+
+        if ((unsigned char)*p < 0x20)
+            return false;
+
+        const char esc = *p++;
+        switch (esc)
+        {
+        case '"':
+        case '\\':
+        case '/':
+            out.push_back(esc);
+            break;
+        case 'b':
+            out.push_back('\b');
+            break;
+        case 'f':
+            out.push_back('\f');
+            break;
+        case 'n':
+            out.push_back('\n');
+            break;
+        case 'r':
+            out.push_back('\r');
+            break;
+        case 't':
+            out.push_back('\t');
+            break;
+        case 'u':
+        {
+            unsigned cp = 0;
+            if (!readHex4(p, cp))
+                return false;
+
+            if (cp >= 0xD800 && cp <= 0xDBFF && p[0] == '\\' && p[1] == 'u') // Surrogate pair
+            {
+                const char* save = p;
+                unsigned low = 0;
+                p += 2;
+                if (readHex4(p, low) && low >= 0xDC00 && low <= 0xDFFF)
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
+                else
+                    p = save;
+            }
+
+            if (cp >= 0xD800 && cp <= 0xDFFF) // Unpaired surrogate: keep the output valid UTF-8
+                cp = 0xFFFD;
+
+            appendUtf8(out, cp);
+            break;
+        }
+        default:
+            return false;
+        }
+    }
+
+    return false;
+}
+
+bool parseNumber(const char*& p, double& out)
+{
+    const char* start = p;
+    auto digits = [&p]
+    {
+        const char* from = p;
+        while (std::isdigit((unsigned char)*p))
+            ++p;
+
+        return p != from;
+    };
+
+    if (*p == '-')
+        ++p;
+    if (!digits())
+        return false;
+
+    if (*p == '.')
+    {
+        ++p;
+        if (!digits())
+            return false;
+    }
+
+    if (*p == 'e' || *p == 'E')
+    {
+        ++p;
+        if (*p == '+' || *p == '-')
+            ++p;
+        if (!digits())
+            return false;
+    }
+
+    out = std::strtod(std::string(start, p).c_str(), nullptr);
+    return true;
+}
+
+bool matchLiteral(const char*& p, const char* literal)
+{
+    const std::size_t n = std::strlen(literal);
+    if (std::strncmp(p, literal, n) != 0)
+        return false;
+
+    p += n;
+    return true;
+}
+
+bool parseValue(const char*& p, Value& out, int depth)
+{
+    if (depth > kMaxDepth)
+        return false;
+
+    skipWs(p);
+    switch (*p)
+    {
+    case '"':
+        out.type = Value::Type::String;
+        return parseString(p, out.text);
+
+    case 't':
+        out.type = Value::Type::Bool;
+        out.boolean = true;
+        return matchLiteral(p, "true");
+
+    case 'f':
+        out.type = Value::Type::Bool;
+        return matchLiteral(p, "false");
+
+    case 'n':
+        return matchLiteral(p, "null");
+
+    case '{':
+    case '[':
+    {
+        const bool object = (*p == '{');
+        const char close = object ? '}' : ']';
+        out.type = object ? Value::Type::Object : Value::Type::Array;
+
+        ++p;
+        skipWs(p);
+        if (*p == close)
         {
             ++p;
-            continue;
-        }
-
-        const char* before = p;
-        if (!readJsonString(p, k))
-        {
-            p = before + 1;
-            continue;
-        }
-
-        const char* afterKey = skipWs(p);
-        if (!afterKey || *afterKey != ':')
-            continue;
-
-        p = afterKey + 1;
-
-        if (k != key)
-            continue;
-
-        std::string v;
-        const char* valuePos = p;
-        if (readJsonString(valuePos, v))
-        {
-            out = std::move(v);
             return true;
         }
 
-        return false; // key matched, value not a string
-    }
-
-    return false;
-}
-
-bool jsonFindIntValue(const char* json, const char* key, int& out)
-{
-    out = 0;
-    if (!json || !*json || !key || !*key)
-        return false;
-
-    const char* p = json;
-    std::string k;
-
-    while (*p)
-    {
-        p = skipWs(p);
-        if (!*p)
-            break;
-
-        if (*p != '"')
+        for (;;)
         {
+            if (object)
+            {
+                std::string key;
+                skipWs(p);
+                if (!parseString(p, key))
+                    return false;
+
+                skipWs(p);
+                if (*p != ':')
+                    return false;
+
+                ++p;
+                out.keys.push_back(std::move(key));
+            }
+
+            out.items.emplace_back();
+            if (!parseValue(p, out.items.back(), depth + 1))
+                return false;
+
+            skipWs(p);
+            if (*p == ',')
+            {
+                ++p;
+                continue;
+            }
+
+            if (*p != close)
+                return false;
+
             ++p;
-            continue;
-        }
-
-        const char* before = p;
-        if (!readJsonString(p, k))
-        {
-            p = before + 1;
-            continue;
-        }
-
-        const char* afterKey = skipWs(p);
-        if (!afterKey || *afterKey != ':')
-            continue;
-
-        p = afterKey + 1;
-
-        if (k != key)
-            continue;
-
-        const char* valuePos = p;
-        int v = 0;
-        if (readJsonInt(valuePos, v))
-        {
-            out = v;
             return true;
         }
-
-        return false; // key matched, value not an int
     }
 
-    return false;
+    default:
+        out.type = Value::Type::Number;
+        return parseNumber(p, out.number);
+    }
+}
+} // namespace
+
+const Value* Value::at(const char* path) const
+{
+    const Value* node = this;
+    while (path && *path)
+    {
+        if (!node->isObject())
+            return nullptr;
+
+        const char* dot = std::strchr(path, '.');
+        const std::size_t n = dot ? (std::size_t)(dot - path) : std::strlen(path);
+        const Value* next = nullptr;
+
+        for (std::size_t i = 0; i < node->keys.size() && i < node->items.size(); ++i)
+        {
+            if (node->keys[i].compare(0, std::string::npos, path, n) == 0)
+            {
+                next = &node->items[i];
+                break;
+            }
+        }
+
+        if (!next)
+            return nullptr;
+
+        node = next;
+        path += dot ? n + 1 : n;
+    }
+
+    return node;
 }
 
-bool jsonHasKey(const char* json, const char* key)
+bool Value::asInt(int& out) const
 {
-    if (!json || !key || !*key)
+    double v = number;
+
+    if (type == Type::String)
+    {
+        // Last.fm gives some integers as strings.
+        const char* p = text.c_str();
+        if (!parseNumber(p, v) || *p != '\0')
+            return false;
+    }
+    else if (type != Type::Number)
         return false;
 
-    std::string s;
-    if (jsonFindStringValue(json, key, s))
-        return true;
+    if (v < -2147483648.0 || v > 2147483647.0)
+        return false;
 
-    int i = 0;
-    if (jsonFindIntValue(json, key, i))
-        return true;
-
-    // Fallback for bool/null/object/array: find "key" followed by :
-    const std::string needle = std::string("\"") + key + "\"";
-    const char* p = std::strstr(json, needle.c_str());
-    while (p)
-    {
-        const char* after = skipWs(p + needle.size());
-        if (after && *after == ':')
-            return true;
-
-        p = std::strstr(p + 1, needle.c_str());
-    }
-
-    return false;
+    out = (int)v;
+    return true;
 }
+
+bool Value::asString(std::string& out) const
+{
+    if (type != Type::String)
+        return false;
+
+    out = text;
+    return true;
+}
+
+bool parse(const char* text, Value& out)
+{
+    out = Value();
+    if (!text)
+        return false;
+
+    const char* p = text;
+    if (!parseValue(p, out, 0))
+        return false;
+
+    skipWs(p);
+    return *p == '\0';
+}
+
+bool findString(const char* text, const char* path, std::string& out)
+{
+    Value root;
+    const Value* node = parse(text, root) ? root.at(path) : nullptr;
+    return node && node->asString(out);
+}
+} // namespace json
 
 LastfmApiErrorInfo extractLastfmApiError(const char* body)
 {
     LastfmApiErrorInfo info;
 
-    if (!body)
-        return info;
-
-    const char* p = body;
-    while (*p && std::isspace((unsigned char)*p))
-        ++p;
-
-    if (*p != '{' || std::strchr(p, '}') == nullptr)
+    json::Value root;
+    if (!json::parse(body, root) || !root.isObject())
         return info;
 
     info.hasJson = true;
 
-    int errCode = 0;
-    if (jsonFindIntValue(body, "error", errCode))
+    const json::Value* error = root.at("error");
+    if (error && error->asInt(info.errorCode))
     {
         info.hasError = true;
-        info.errorCode = errCode;
-        jsonFindStringValue(body, "message", info.message);
+        if (const json::Value* message = root.at("message"))
+            message->asString(info.message);
     }
 
     return info;
