@@ -36,10 +36,14 @@ bool extractStreamArtistTitle(const file_info& info, std::string& outArtist, std
                               std::string& outAlbum);
 std::string urlEncode(const std::string& value);
 
-bool httpRequestToString(const char* method, const char* url, pfc::string8& outBody, std::string& outError);
-bool httpGetToString(const char* url, pfc::string8& outBody, std::string& outError);
-bool httpPostToString(const char* url, pfc::string8& outBody, std::string& outError);
-bool httpPostFormToString(const char* url, const std::string& formBody, pfc::string8& outBody, std::string& outError);
+bool httpRequestToString(const char* method, const char* url, pfc::string8& outBody, std::string& outError,
+                         abort_callback& abort = fb2k::noAbort);
+bool httpGetToString(const char* url, pfc::string8& outBody, std::string& outError,
+                     abort_callback& abort = fb2k::noAbort);
+bool httpPostToString(const char* url, pfc::string8& outBody, std::string& outError,
+                      abort_callback& abort = fb2k::noAbort);
+bool httpPostFormToString(const char* url, const std::string& formBody, pfc::string8& outBody, std::string& outError,
+                          abort_callback& abort = fb2k::noAbort);
 
 // Small strict JSON parser for Last.fm responses: full grammar, no array indexing.
 namespace json
@@ -68,7 +72,7 @@ struct Value
         return type == Type::Object;
     }
 
-    // Dotted-path lookup from this node, e.g. at("session.key").
+    // Dotted-path lookup from this node, e.g., at("session.key").
     const Value* at(const char* path) const;
 
     // Typed reads.
@@ -79,7 +83,7 @@ struct Value
 // Parses one whole document. Trailing garbage is rejected.
 bool parse(const char* text, Value& out);
 
-// Pparse and read the string at a dotted path in one call.
+// Parse and read the string at a dotted path in one call.
 bool findString(const char* text, const char* path, std::string& out);
 } // namespace json
 

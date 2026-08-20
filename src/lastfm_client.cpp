@@ -19,20 +19,21 @@ bool LastfmClient::isAuthenticated() const
     return lastfmIsAuthenticated();
 }
 
-LastfmScrobbleResult LastfmClient::updateNowPlaying(const LastfmTrackInfo& track)
+LastfmScrobbleResult LastfmClient::updateNowPlaying(const LastfmTrackInfo& track, abort_callback& abort)
 {
-    return api.updateNowPlaying(track);
+    return api.updateNowPlaying(track, abort);
 }
 
 LastfmScrobbleResult LastfmClient::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
-                                            std::time_t startTimestamp)
+                                            std::time_t startTimestamp, abort_callback& abort)
 {
-    return api.scrobble(track, playbackSeconds, startTimestamp);
+    return api.scrobble(track, playbackSeconds, startTimestamp, abort);
 }
 
-LastfmScrobbleResult LastfmClient::scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests)
+LastfmScrobbleResult LastfmClient::scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests,
+                                                 abort_callback& abort)
 {
-    return api.scrobbleBatch(requests);
+    return api.scrobbleBatch(requests, abort);
 }
 
 bool LastfmClient::startAuth(std::string& outUrl)

@@ -23,7 +23,8 @@ struct LastfmScrobbleRequest
 class LastfmWebApi
 {
   public:
-    LastfmScrobbleResult updateNowPlaying(const LastfmTrackInfo& track);
-    LastfmScrobbleResult scrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startTimestamp);
-    LastfmScrobbleResult scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests);
+    LastfmScrobbleResult updateNowPlaying(const LastfmTrackInfo& track, abort_callback& abort);
+    LastfmScrobbleResult scrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startTimestamp,
+                                  abort_callback& abort);
+    LastfmScrobbleResult scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests, abort_callback& abort);
 };

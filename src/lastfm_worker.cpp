@@ -39,6 +39,9 @@ void LastfmWorker::stop()
     // Make shutdown visible ASAP (before any further wake/commands)
     shuttingDown_.store(true, std::memory_order_release);
 
+    // Release the worker if it is parked inside an HTTP call
+    httpAbort_.set();
+
     bool wasRunning = running_.exchange(false);
     if (!wasRunning)
         return;
@@ -272,7 +275,7 @@ void LastfmWorker::handleNowPlayingIfReady()
     if (t->artist.empty() || t->title.empty())
         return;
 
-    const LastfmScrobbleResult result = client_.updateNowPlaying(*t);
+    const LastfmScrobbleResult result = client_.updateNowPlaying(*t, httpAbort_);
     if (result == LastfmScrobbleResult::INVALID_SESSION && onInvalidSession_)
         onInvalidSession_();
 }
@@ -323,7 +326,7 @@ void LastfmWorker::handleDrain()
         if (shuttingDown_.load(std::memory_order_acquire) || stopRequested_.load(std::memory_order_acquire))
             break;
 
-        queue_.retryQueuedScrobbles();
+        queue_.retryQueuedScrobbles(httpAbort_);
 
         if (shuttingDown_.load(std::memory_order_acquire) || stopRequested_.load(std::memory_order_acquire))
             break;

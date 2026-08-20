@@ -383,10 +383,9 @@ LastfmQueue::RetryUpdate LastfmQueue::makeFailureRetryUpdate(const QueuedScrobbl
     return u;
 }
 
-LastfmQueue::DispatchOutcome
-LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
-                                                 const std::function<bool()>& isShuttingDown, LastfmClient& client,
-                                                 const std::function<void()>& onInvalidSession, int64_t dailyBudget)
+LastfmQueue::DispatchOutcome LastfmQueue::dispatchSinglesAndBuildRetryUpdates(
+    const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt, const std::function<bool()>& isShuttingDown,
+    LastfmClient& client, const std::function<void()>& onInvalidSession, int64_t dailyBudget, abort_callback& abort)
 {
     const std::time_t nowCheck = std::time(nullptr);
 
@@ -423,7 +422,7 @@ LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobbl
         t.mbid = q.mbid;
         t.durationSeconds = q.durationSeconds;
 
-        auto res = client.scrobble(t, q.playbackSeconds, q.startTimestamp);
+        auto res = client.scrobble(t, q.playbackSeconds, q.startTimestamp, abort);
 
         RetryUpdate u;
         u.id = q.id;
@@ -469,10 +468,9 @@ LastfmQueue::dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobbl
     return out;
 }
 
-LastfmQueue::DispatchOutcome
-LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
-                                          const std::function<bool()>& isShuttingDown, LastfmClient& client,
-                                          const std::function<void()>& onInvalidSession, int64_t dailyBudget)
+LastfmQueue::DispatchOutcome LastfmQueue::dispatchAndBuildRetryUpdates(
+    const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt, const std::function<bool()>& isShuttingDown,
+    LastfmClient& client, const std::function<void()>& onInvalidSession, int64_t dailyBudget, abort_callback& abort)
 {
     const std::time_t nowCheck = std::time(nullptr);
     std::vector<const QueuedScrobble*> batch;
@@ -546,7 +544,7 @@ LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& sna
         requests.push_back(std::move(request));
     }
 
-    const LastfmScrobbleResult batchResult = client.scrobbleBatch(requests);
+    const LastfmScrobbleResult batchResult = client.scrobbleBatch(requests, abort);
 
     if (batchResult == LastfmScrobbleResult::SUCCESS)
     {
@@ -577,7 +575,7 @@ LastfmQueue::dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& sna
         LFM_INFO(
             "Queue: batch scrobble returned OTHER_ERROR, falling back to singles for count=" << (unsigned)batch.size());
         return dispatchSinglesAndBuildRetryUpdates(snapshot, maxToAttempt, isShuttingDown, client, onInvalidSession,
-                                                   dailyBudget);
+                                                   dailyBudget, abort);
     }
 
     const std::time_t nowSchedule = std::time(nullptr);
@@ -716,7 +714,7 @@ bool LastfmQueue::isRateLimitedLocked(std::time_t now)
     return true;
 }
 
-void LastfmQueue::retryQueuedScrobbles()
+void LastfmQueue::retryQueuedScrobbles(abort_callback& abort)
 {
     if (core_api::is_shutting_down())
         return;
@@ -759,8 +757,8 @@ void LastfmQueue::retryQueuedScrobbles()
     if (snapshot.empty())
         return;
 
-    const auto dispatch =
-        dispatchAndBuildRetryUpdates(snapshot, maxToAttempt, isShuttingDown, client, onInvalidSession, dailyBudget);
+    const auto dispatch = dispatchAndBuildRetryUpdates(snapshot, maxToAttempt, isShuttingDown, client, onInvalidSession,
+                                                       dailyBudget, abort);
 
     if (isShuttingDown())
         return;

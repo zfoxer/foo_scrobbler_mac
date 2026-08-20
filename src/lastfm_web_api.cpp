@@ -320,13 +320,13 @@ static LastfmScrobbleResult loadScrobbleAuth(ScrobbleAuth& out, const char* logP
     return LastfmScrobbleResult::SUCCESS;
 }
 
-static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBody)
+static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBody, abort_callback& abort)
 {
     pfc::string8 body;
     std::string httpError;
 
     const bool httpOk =
-        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", formBody, body, httpError);
+        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", formBody, body, httpError, abort);
 
     if (httpOk)
         LFM_DEBUG("NowPlaying response received. (size=" << body.get_length() << ")");
@@ -343,7 +343,7 @@ static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBod
 }
 } // namespace
 
-LastfmScrobbleResult LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track)
+LastfmScrobbleResult LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track, abort_callback& abort)
 {
     std::map<std::string, std::string> params;
     std::string apiSecret;
@@ -354,11 +354,11 @@ LastfmScrobbleResult LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track
     }
 
     const std::string formBody = buildSignedFormBody(params, apiSecret);
-    return postNowPlayingAndClassify(formBody);
+    return postNowPlayingAndClassify(formBody, abort);
 }
 
 LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
-                                            std::time_t startTimestamp)
+                                            std::time_t startTimestamp, abort_callback& abort)
 {
 #ifdef LFM_DEBUG
     static bool tested = (selfTest_extractLastfmApiError(), true);
@@ -396,7 +396,7 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
 
     const std::string formBody = buildSignedFormBody(params, auth.apiSecret);
     const bool httpOk =
-        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", formBody, body, httpError);
+        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", formBody, body, httpError, abort);
 
     ApiOutcome outcome = classifyResponse(httpOk, httpError, body);
 
@@ -408,7 +408,8 @@ LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double
     return outcome.result;
 }
 
-LastfmScrobbleResult LastfmWebApi::scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests)
+LastfmScrobbleResult LastfmWebApi::scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests,
+                                                 abort_callback& abort)
 {
 #ifdef LFM_DEBUG
     static bool tested = (selfTest_extractLastfmApiError(), true);
@@ -451,7 +452,7 @@ LastfmScrobbleResult LastfmWebApi::scrobbleBatch(const std::vector<LastfmScrobbl
     std::string httpError;
 
     const bool httpOk =
-        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", bodyText, body, httpError);
+        lastfm::util::httpPostFormToString("https://ws.audioscrobbler.com/2.0/", bodyText, body, httpError, abort);
 
     ApiOutcome outcome = classifyResponse(httpOk, httpError, body);
 

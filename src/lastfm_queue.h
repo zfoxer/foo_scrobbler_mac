@@ -37,13 +37,13 @@ class LastfmQueue
                                std::time_t startTimestamp);
 
     // Retry logic
-    void retryQueuedScrobbles();
+    void retryQueuedScrobbles(abort_callback& abort);
 
     // Introspection
     std::size_t getPendingScrobbleCount() const;
     bool hasDueScrobble(std::time_t now);
 
-    // Clear all pending scrobbles (persistent storage).
+    // Clear all pending scrobbles (persistent storage)
     void clearAll();
 
     static bool drainEnabled();
@@ -91,14 +91,18 @@ class LastfmQueue
     static RetryUpdate makeFailureRetryUpdate(const QueuedScrobble& q, LastfmScrobbleResult result,
                                               std::time_t nowSchedule);
 
-    static DispatchOutcome
-    dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
-                                 const std::function<bool()>& isShuttingDown, LastfmClient& client,
-                                 const std::function<void()>& onInvalidSession, int64_t dailyBudget);
-    static DispatchOutcome
-    dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot, unsigned maxToAttempt,
-                                        const std::function<bool()>& isShuttingDown, LastfmClient& client,
-                                        const std::function<void()>& onInvalidSession, int64_t dailyBudget);
+    static DispatchOutcome dispatchAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot,
+                                                        unsigned maxToAttempt,
+                                                        const std::function<bool()>& isShuttingDown,
+                                                        LastfmClient& client,
+                                                        const std::function<void()>& onInvalidSession,
+                                                        int64_t dailyBudget, abort_callback& abort);
+    static DispatchOutcome dispatchSinglesAndBuildRetryUpdates(const std::vector<QueuedScrobble>& snapshot,
+                                                               unsigned maxToAttempt,
+                                                               const std::function<bool()>& isShuttingDown,
+                                                               LastfmClient& client,
+                                                               const std::function<void()>& onInvalidSession,
+                                                               int64_t dailyBudget, abort_callback& abort);
     static void mergeRetryUpdates(std::vector<QueuedScrobble>& latest, const std::vector<RetryUpdate>& updates);
 
     void enterRateLimitCooldownLocked(std::time_t now, std::time_t cooldownSeconds);

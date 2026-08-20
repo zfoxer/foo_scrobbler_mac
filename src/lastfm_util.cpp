@@ -35,7 +35,8 @@ static std::string redact_url_for_log(const char* url)
     return s;
 }
 
-static bool readHttpStreamToString(file::ptr stream, pfc::string8& outBody, std::string& outError)
+static bool readHttpStreamToString(file::ptr stream, pfc::string8& outBody, std::string& outError,
+                                   abort_callback& abort)
 {
     if (!stream.is_valid())
     {
@@ -44,10 +45,10 @@ static bool readHttpStreamToString(file::ptr stream, pfc::string8& outBody, std:
     }
 
     pfc::string8 line;
-    while (!stream->is_eof(fb2k::noAbort))
+    while (!stream->is_eof(abort))
     {
         line.reset();
-        stream->read_string_raw(line, fb2k::noAbort);
+        stream->read_string_raw(line, abort);
         outBody += line;
     }
 
@@ -182,8 +183,7 @@ bool isNetworkStreamPath(const char* path)
            (std::strncmp(path, "icy://", 6) == 0);
 }
 
-// A single CJK ideograph / kana / hangul syllable is information-dense and is a
-// legitimate (often whole) track title, unlike a lone Latin letter or a symbol.
+// A single CJK ideograph / kana / hangul syllable is information-dense and is a legitimate track title.
 static bool isCjkLetter(unsigned c)
 {
     return (c >= 0x3040 && c <= 0x30FF) || // Hiragana + Katakana
@@ -389,7 +389,8 @@ std::string urlEncode(const std::string& value)
     return out;
 }
 
-bool httpRequestToString(const char* method, const char* url, pfc::string8& outBody, std::string& outError)
+bool httpRequestToString(const char* method, const char* url, pfc::string8& outBody, std::string& outError,
+                         abort_callback& abort)
 {
     outBody.reset();
     outError.clear();
@@ -412,8 +413,8 @@ bool httpRequestToString(const char* method, const char* url, pfc::string8& outB
 
         LFM_DEBUG("HTTP " << method << " " << redact_url_for_log(url).c_str());
 
-        file::ptr stream = req->run_ex(url, fb2k::noAbort);
-        return readHttpStreamToString(stream, outBody, outError);
+        file::ptr stream = req->run_ex(url, abort);
+        return readHttpStreamToString(stream, outBody, outError, abort);
     }
     catch (const std::exception& e)
     {
@@ -423,17 +424,18 @@ bool httpRequestToString(const char* method, const char* url, pfc::string8& outB
     }
 }
 
-bool httpGetToString(const char* url, pfc::string8& outBody, std::string& outError)
+bool httpGetToString(const char* url, pfc::string8& outBody, std::string& outError, abort_callback& abort)
 {
-    return httpRequestToString("GET", url, outBody, outError);
+    return httpRequestToString("GET", url, outBody, outError, abort);
 }
 
-bool httpPostToString(const char* url, pfc::string8& outBody, std::string& outError)
+bool httpPostToString(const char* url, pfc::string8& outBody, std::string& outError, abort_callback& abort)
 {
-    return httpRequestToString("POST", url, outBody, outError);
+    return httpRequestToString("POST", url, outBody, outError, abort);
 }
 
-bool httpPostFormToString(const char* url, const std::string& formBody, pfc::string8& outBody, std::string& outError)
+bool httpPostFormToString(const char* url, const std::string& formBody, pfc::string8& outBody, std::string& outError,
+                          abort_callback& abort)
 {
     outBody.reset();
     outError.clear();
@@ -459,8 +461,8 @@ bool httpPostFormToString(const char* url, const std::string& formBody, pfc::str
         LFM_DEBUG("HTTP POST " << redact_url_for_log(url).c_str() << " bodyBytes=" << formBody.size());
 
         post->set_post_data(formBody.data(), formBody.size(), "application/x-www-form-urlencoded");
-        file::ptr stream = post->run_ex(url, fb2k::noAbort);
-        return readHttpStreamToString(stream, outBody, outError);
+        file::ptr stream = post->run_ex(url, abort);
+        return readHttpStreamToString(stream, outBody, outError, abort);
     }
     catch (const std::exception& e)
     {

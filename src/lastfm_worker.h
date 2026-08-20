@@ -18,6 +18,8 @@
 #include <optional>
 #include <thread>
 
+#include <foobar2000/SDK/foobar2000.h>
+
 #include "lastfm_client.h"
 #include "lastfm_queue.h"
 #include "lastfm_track_info.h"
@@ -115,4 +117,7 @@ class LastfmWorker
     std::thread worker_;
     std::atomic<bool> running_{false};
     std::atomic<bool> stopRequested_{false};
+
+    // Cancels in-flight HTTP I/O on the worker thread
+    abort_callback_impl httpAbort_;
 };
