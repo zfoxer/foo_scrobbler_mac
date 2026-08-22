@@ -8,6 +8,7 @@
 #pragma once
 
 #include <ctime>
+#include <cstdint>
 #include <atomic>
 #include <mutex>
 
@@ -27,10 +28,10 @@ class LastfmScrobbler
     void shutdown();
     void onNowPlaying(const LastfmTrackInfo& track);
     void sendNowPlayingOnly(const LastfmTrackInfo& track);
-    void refreshPendingMetadata(const LastfmTrackInfo& track);
+    void refreshPendingMetadata(std::uint64_t id, const LastfmTrackInfo& track);
 
-    void queueScrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startWallclock,
-                       bool refreshOnSubmit);
+    std::uint64_t queueScrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startWallclock,
+                                bool refreshOnSubmit);
 
     void retryAsync();
     void clearQueue();

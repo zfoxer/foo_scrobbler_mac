@@ -30,11 +30,11 @@ class LastfmQueue
     }
 
     // Called when metadata changes before submit
-    void refreshPendingScrobbleMetadata(const LastfmTrackInfo& track);
+    void refreshPendingScrobbleMetadata(std::uint64_t id, const LastfmTrackInfo& track);
 
     // Queue a scrobble for retry
-    void queueScrobbleForRetry(const LastfmTrackInfo& track, double playbackSeconds, bool refreshOnSubmit,
-                               std::time_t startTimestamp);
+    std::uint64_t queueScrobbleForRetry(const LastfmTrackInfo& track, double playbackSeconds, bool refreshOnSubmit,
+                                        std::time_t startTimestamp);
 
     // Retry logic
     void retryQueuedScrobbles(abort_callback& abort);

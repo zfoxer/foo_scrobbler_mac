@@ -265,7 +265,7 @@ void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
 
     auto& scrobbler = LastfmCore::instance().scrobbler();
     if (local.state == LocalScrobbleState::Submitted)
-        scrobbler.refreshPendingMetadata(current);
+        scrobbler.refreshPendingMetadata(local.queuedId, current);
 
     scrobbler.sendNowPlayingOnly(current);
 }
@@ -511,7 +511,7 @@ void LastfmTracker::submitLocalScrobbleIfNeeded(bool allowFilterRecovery)
     local.state = LocalScrobbleState::Submitted;
 
     auto& scrobbler = LastfmCore::instance().scrobbler();
-    scrobbler.queueScrobble(current, playbackTime, startWallclock, /*refreshOnSubmit=*/true);
+    local.queuedId = scrobbler.queueScrobble(current, playbackTime, startWallclock, /*refreshOnSubmit=*/true);
 }
 
 void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)

@@ -97,18 +97,18 @@ void LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
     worker.postNowPlaying(track);
 }
 
-void LastfmScrobbler::refreshPendingMetadata(const LastfmTrackInfo& track)
+void LastfmScrobbler::refreshPendingMetadata(std::uint64_t id, const LastfmTrackInfo& track)
 {
-    queue.refreshPendingScrobbleMetadata(track);
+    queue.refreshPendingScrobbleMetadata(id, track);
 }
 
-void LastfmScrobbler::queueScrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startWallclock,
-                                    bool refreshOnSubmit)
+std::uint64_t LastfmScrobbler::queueScrobble(const LastfmTrackInfo& track, double playbackSeconds,
+                                             std::time_t startWallclock, bool refreshOnSubmit)
 {
     if (!client.isAuthenticated() || client.isSuspended())
-        return;
+        return 0;
 
-    queue.queueScrobbleForRetry(track, playbackSeconds, refreshOnSubmit, startWallclock);
+    return queue.queueScrobbleForRetry(track, playbackSeconds, refreshOnSubmit, startWallclock);
 }
 
 void LastfmScrobbler::retryAsync()

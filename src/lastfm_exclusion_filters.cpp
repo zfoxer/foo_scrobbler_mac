@@ -45,8 +45,14 @@ class TextOrRegexFilter
 
         for (const auto& rx : regexes_)
         {
-            if (std::regex_search(value, rx.re))
-                return true;
+            try
+            {
+                if (std::regex_search(value, rx.re))
+                    return true;
+            }
+            catch (const std::regex_error&)
+            {
+            }
         }
 
         return false;

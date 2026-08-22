@@ -10,6 +10,7 @@
 #include <foobar2000/SDK/foobar2000.h>
 
 #include <ctime>
+#include <cstdint>
 #include <string>
 
 #include "lastfm_rules.h"
@@ -93,6 +94,7 @@ class LastfmTracker : public play_callback_static
     {
         LocalScrobbleState state = LocalScrobbleState::Idle;
         ListenClock clock;
+        std::uint64_t queuedId = 0;
     };
 
     struct DynamicChannelState

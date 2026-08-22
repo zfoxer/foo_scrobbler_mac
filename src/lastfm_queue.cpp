@@ -675,14 +675,17 @@ LastfmQueue::LastfmQueue(LastfmClient& client, std::function<void()> onInvalidSe
 {
 }
 
-void LastfmQueue::refreshPendingScrobbleMetadata(const LastfmTrackInfo& track)
+void LastfmQueue::refreshPendingScrobbleMetadata(std::uint64_t id, const LastfmTrackInfo& track)
 {
+    if (id == 0)
+        return;
+
     std::lock_guard<std::mutex> lock(mutex);
     ensureCacheLoadedLocked();
 
     for (auto it = cache_.rbegin(); it != cache_.rend(); ++it)
     {
-        if (!it->refreshOnSubmit)
+        if (it->id != id)
             continue;
 
         LFM_DEBUG("Queue: refresh metadata");
@@ -706,11 +709,11 @@ void LastfmQueue::refreshPendingScrobbleMetadata(const LastfmTrackInfo& track)
     }
 }
 
-void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double playbackSeconds, bool refreshOnSubmit,
-                                        std::time_t startTimestamp)
+std::uint64_t LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double playbackSeconds,
+                                                 bool refreshOnSubmit, std::time_t startTimestamp)
 {
     if (track.artist.empty() || track.title.empty())
-        return;
+        return 0;
 
     QueuedScrobble q;
     q.artist = track.artist;
@@ -731,6 +734,8 @@ void LastfmQueue::queueScrobbleForRetry(const LastfmTrackInfo& track, double pla
     saveCacheLocked();
 
     LFM_DEBUG("Queue: stored scrobble, pending=" << (unsigned)cache_.size());
+
+    return q.id;
 }
 
 void LastfmQueue::enterRateLimitCooldownLocked(std::time_t now, std::time_t cooldownSeconds)
