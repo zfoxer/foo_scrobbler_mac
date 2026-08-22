@@ -25,15 +25,16 @@ LastfmScrobbleResult LastfmClient::updateNowPlaying(const LastfmTrackInfo& track
 }
 
 LastfmScrobbleResult LastfmClient::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
-                                            std::time_t startTimestamp, abort_callback& abort)
+                                            std::time_t startTimestamp, abort_callback& abort,
+                                            LastfmTrackOutcome* outOutcome)
 {
-    return api.scrobble(track, playbackSeconds, startTimestamp, abort);
+    return api.scrobble(track, playbackSeconds, startTimestamp, abort, outOutcome);
 }
 
 LastfmScrobbleResult LastfmClient::scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests,
-                                                 abort_callback& abort)
+                                                 abort_callback& abort, std::vector<LastfmTrackOutcome>* outPerTrack)
 {
-    return api.scrobbleBatch(requests, abort);
+    return api.scrobbleBatch(requests, abort, outPerTrack);
 }
 
 bool LastfmClient::startAuth(std::string& outUrl)

@@ -80,6 +80,7 @@ class LastfmQueue
     {
         std::vector<RetryUpdate> updates;
         bool rateLimited = false;
+        std::time_t cooldownSeconds = 0;
     };
 
     void ensureCacheLoadedLocked() const;

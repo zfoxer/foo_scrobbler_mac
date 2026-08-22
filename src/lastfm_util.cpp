@@ -829,6 +829,11 @@ LastfmApiErrorInfo extractLastfmApiError(const char* body)
             message->asString(info.message);
     }
 
+    const json::Value* accepted = root.at("scrobbles.@attr.accepted");
+    const json::Value* ignored = root.at("scrobbles.@attr.ignored");
+    if (accepted && ignored && accepted->asInt(info.acceptedCount) && ignored->asInt(info.ignoredCount))
+        info.hasScrobbleCounts = true;
+
     return info;
 }
 

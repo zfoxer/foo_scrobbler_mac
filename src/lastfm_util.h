@@ -22,6 +22,11 @@ struct LastfmApiErrorInfo
     bool hasError = false;
     int errorCode = 0;
     std::string message;
+
+    // Present on a track.scrobble reply
+    bool hasScrobbleCounts = false;
+    int acceptedCount = 0;
+    int ignoredCount = 0;
 };
 LastfmApiErrorInfo extractLastfmApiError(const char* body);
 

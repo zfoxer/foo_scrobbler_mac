@@ -8,6 +8,7 @@
 #pragma once
 
 #include <ctime>
+#include <string>
 #include <vector>
 
 #include "lastfm_scrobble_result.h"
@@ -20,11 +21,19 @@ struct LastfmScrobbleRequest
     std::time_t startTimestamp = 0;
 };
 
+struct LastfmTrackOutcome
+{
+    bool accepted = true;
+    int ignoredCode = 0;
+    std::string ignoredText;
+};
+
 class LastfmWebApi
 {
   public:
     LastfmScrobbleResult updateNowPlaying(const LastfmTrackInfo& track, abort_callback& abort);
     LastfmScrobbleResult scrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startTimestamp,
-                                  abort_callback& abort);
-    LastfmScrobbleResult scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests, abort_callback& abort);
+                                  abort_callback& abort, LastfmTrackOutcome* outOutcome = nullptr);
+    LastfmScrobbleResult scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests, abort_callback& abort,
+                                       std::vector<LastfmTrackOutcome>* outPerTrack = nullptr);
 };

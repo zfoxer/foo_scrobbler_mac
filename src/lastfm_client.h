@@ -28,8 +28,9 @@ class LastfmClient final : public ILastfmAuthApi
     // Web API (thin wrappers)
     LastfmScrobbleResult updateNowPlaying(const LastfmTrackInfo& track, abort_callback& abort);
     LastfmScrobbleResult scrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startTimestamp,
-                                  abort_callback& abort);
-    LastfmScrobbleResult scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests, abort_callback& abort);
+                                  abort_callback& abort, LastfmTrackOutcome* outOutcome = nullptr);
+    LastfmScrobbleResult scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests, abort_callback& abort,
+                                       std::vector<LastfmTrackOutcome>* outPerTrack = nullptr);
 
     // ILastfmAuthApi
     bool startAuth(std::string& outUrl) override;
