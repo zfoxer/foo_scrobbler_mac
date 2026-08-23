@@ -7,7 +7,7 @@
 </p>
 
 ### Foo Scrobbler for Mac
-#### Version: 1.5.7 — foo_scrobbler_mac — Released under MIT License
+#### Version: 2.0.0 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Authentication).
@@ -17,8 +17,7 @@ Foo Scrobbler (foo_scrobbler_mac) is a native Last.fm scrobbling plugin for foob
 Supports macOS ≥ 11.5 on both Intel and ARM.  
 
 This is the GitHub site of the [macOS version](https://github.com/zfoxer/foo_scrobbler_mac).  
-For the native Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_win).  
-For the port of Foo Scrobbler to the **fooyin** player [see here](https://github.com/zfoxer/foo_scrobbler_yin).  
+For the Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_win).  
 
 
 ### Key Features
@@ -75,6 +74,14 @@ If you prefer to compile the plugin yourself, see the [Compilation Guide](https:
 <summary><strong>Expand</strong></summary>
 
 <pre>
+2.0.0    2026-08-23
+Replace JSON key scanners with a strict parser written from scratch.  
+Make worker HTTP cancellable so exit doesn't block on a stalled socket.  
+Detect and handle Last.fm per-track scrobble refusals of dispatched batches.  
+Refresh pending metadata by queue entry id.  
+Catch regex errors at match time.
+Set the maximum daily scrobble submission budget to 900 from 2600.  
+
 1.5.7    2026-08-01
 Rework the logic behind the seekbar and scrobble eligibility.  
 Pass musicbrainz_trackid through the TF pipeline.  
