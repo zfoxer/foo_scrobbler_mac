@@ -17,7 +17,8 @@ Foo Scrobbler (foo_scrobbler_mac) is a native Last.fm scrobbling plugin for foob
 Supports macOS ≥ 11.5 on both Intel and ARM.  
 
 This is the GitHub site of the [macOS version](https://github.com/zfoxer/foo_scrobbler_mac).  
-For the Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_win).  
+For the native Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_win).  
+For the port of Foo Scrobbler to the **fooyin** player [see here](https://github.com/zfoxer/foo_scrobbler_yin).  
 
 
 ### Key Features
