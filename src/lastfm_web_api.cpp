@@ -543,7 +543,13 @@ LastfmScrobbleResult LastfmWebApi::scrobbleBatch(const std::vector<LastfmScrobbl
 
     if (outcome.result == LastfmScrobbleResult::SUCCESS)
     {
-        if (requests.size() == 1)
+        if (outcome.ignoredCount > 0)
+        {
+            const std::size_t ignored = std::min<std::size_t>(outcome.ignoredCount, requests.size());
+            LFM_INFO("Scrobble batch partially accepted: " << (unsigned)(requests.size() - ignored) << " of "
+                                                           << (unsigned)requests.size());
+        }
+        else if (requests.size() == 1)
         {
             const LastfmTrackInfo& track = requests.front().track;
             LFM_INFO("Scrobble OK: " << track.artist.c_str() << " - " << track.title.c_str());
