@@ -136,7 +136,8 @@ void LastfmTracker::resetState()
     channel = PlaybackChannel::None;
     currentFooScrobblerTagAllows = true;
     fooScrobblerTagBlockLogged = false;
-    wasSuspended = lastfmIsSuspended();
+    nowPlayingEligible = false;
+    playbackPaused = false;
 
     resetLocalChannelState();
     rules.reset(0.0);
@@ -199,14 +200,36 @@ bool LastfmTracker::refreshFooScrobblerTagAllows()
     return currentFooScrobblerTagAllows;
 }
 
-void LastfmTracker::resendNowPlayingAfterResume()
+bool LastfmTracker::nowPlayingAllowed()
 {
-    refreshFooScrobblerTagAllows();
+    return isPlaying && !playbackPaused && nowPlayingEligible && currentFooScrobblerTagAllows &&
+           !current.artist.empty() && !current.title.empty() && lastfmIsAuthenticated() && !lastfmIsSuspended() &&
+           !lastfm::settings::disableNowPlaying();
+}
 
-    if (!currentFooScrobblerTagAllows || current.artist.empty() || current.title.empty())
+void LastfmTracker::reconcileNowPlaying(NowPlayingSync sync)
+{
+    if (!nowPlayingAllowed())
+    {
+        hideNowPlaying();
+        return;
+    }
+
+    if (nowPlayingActive && sync == NowPlayingSync::IfNeeded)
         return;
 
-    LastfmCore::instance().scrobbler().sendNowPlayingOnly(current);
+    auto& scrobbler = LastfmCore::instance().scrobbler();
+    nowPlayingActive =
+        sync == NowPlayingSync::TrackStart ? scrobbler.onNowPlaying(current) : scrobbler.sendNowPlayingOnly(current);
+}
+
+void LastfmTracker::hideNowPlaying()
+{
+    if (!nowPlayingActive)
+        return;
+
+    nowPlayingActive = false;
+    LastfmCore::instance().scrobbler().removeNowPlayingStatus();
 }
 
 bool LastfmTracker::trackIsExcluded(const LastfmTrackInfo& track, const file_info* externalInfo)
@@ -223,9 +246,6 @@ bool LastfmTracker::currentTrackIsExcluded(const file_info* externalInfo)
 void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
 {
     if (!isPlaying || channel != PlaybackChannel::LocalFile || !currentHandle.is_valid())
-        return;
-
-    if (local.state != LocalScrobbleState::Submitted && local.state != LocalScrobbleState::WaitingForMetadata)
         return;
 
     file_info_impl info;
@@ -256,18 +276,20 @@ void LastfmTracker::refreshCurrentFileMetadata(bool allowDispatch)
     if (!hasRequiredMetadata)
         return;
 
-    if (!allowDispatch || lastfmIsSuspended() || !currentFooScrobblerTagAllows)
+    nowPlayingEligible =
+        !lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) &&
+        !lastfm::exclusion_filters::isExcludedByTitleFormattingFilter(currentHandle, current, &info);
+    if (!nowPlayingEligible)
         return;
 
-    if (lastfm::exclusion_filters::isExcludedByTextOrRegexFilters(current.artist, current.title, current.album) ||
-        lastfm::exclusion_filters::isExcludedByTitleFormattingFilter(currentHandle, current, &info))
+    if (!allowDispatch || lastfmIsSuspended() || !currentFooScrobblerTagAllows)
         return;
 
     auto& scrobbler = LastfmCore::instance().scrobbler();
     if (local.state == LocalScrobbleState::Submitted)
         scrobbler.refreshPendingMetadata(local.queuedId, current);
 
-    scrobbler.sendNowPlayingOnly(current);
+    reconcileNowPlaying(NowPlayingSync::Resend);
 }
 
 void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
@@ -285,18 +307,6 @@ void LastfmTracker::updateFromTrack(const metadb_handle_ptr& track)
         channel == PlaybackChannel::DynamicStream || lastfm::util::fooScrobblerTagAllowsSubmission(info);
 
     fillTrackInfoFromTf(track, current);
-
-    // Do NOT split TITLE for network streams at track-start.
-    // Many streams put station info in TITLE like "Station - something" and we'd spam NP.
-    if (channel != PlaybackChannel::DynamicStream && current.artist.empty() && !current.title.empty())
-    {
-        std::string a, t;
-        if (lastfm::util::parseArtistTitleFromCombined(current.title, a, t))
-        {
-            current.artist = a;
-            current.title = t;
-        }
-    }
 
     current.durationSeconds = info.get_length();
     rules.reset(current.durationSeconds);
@@ -317,6 +327,7 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
     resetState();
     channel = newIsStream ? PlaybackChannel::DynamicStream : PlaybackChannel::LocalFile;
     isPlaying = true;
+    playbackPaused = playback_control::get()->is_paused();
     startWallclock = std::time(nullptr);
 
     updateFromTrack(track);
@@ -352,13 +363,14 @@ void LastfmTracker::on_playback_new_track(metadb_handle_ptr track)
         return;
     }
 
+    nowPlayingEligible = true;
+
     if (lastfmIsSuspended() || !currentFooScrobblerTagAllows)
         return;
 
     LFM_DEBUG("Now playing: " << current.artist.c_str() << " - " << current.title.c_str());
 
-    auto& scrobbler = LastfmCore::instance().scrobbler();
-    scrobbler.onNowPlaying(current);
+    reconcileNowPlaying(NowPlayingSync::TrackStart);
 }
 
 void LastfmTracker::on_playback_time(double time)
@@ -368,10 +380,7 @@ void LastfmTracker::on_playback_time(double time)
     // currentFooScrobblerTagAllows is kept fresh at track start, on tag edits and right before submission.
     const bool suspended = lastfmIsSuspended();
 
-    // Resume from suspension: re-send Now Playing for the current track (NP-only path).
-    if (wasSuspended && !suspended)
-        resendNowPlayingAfterResume();
-    wasSuspended = suspended;
+    reconcileNowPlaying(NowPlayingSync::IfNeeded);
 
     const bool blocked = suspended || !currentFooScrobblerTagAllows;
 
@@ -419,15 +428,19 @@ void LastfmTracker::on_playback_seek(double)
 void LastfmTracker::on_playback_pause(bool paused)
 {
     rules.paused = paused;
+    playbackPaused = paused;
+    reconcileNowPlaying(NowPlayingSync::IfNeeded);
 }
 
-void LastfmTracker::on_playback_stop(play_control::t_stop_reason)
+void LastfmTracker::on_playback_stop(play_control::t_stop_reason reason)
 {
     // A pause at the boundary must not veto an already-eligible scrobble.
     rules.paused = false;
     submitDynamicPendingIfAny();
     submitLocalScrobbleIfNeeded(false);
     auto& scrobbler = LastfmCore::instance().scrobbler();
+    if (reason != play_control::stop_reason_shutting_down && reason != play_control::stop_reason_starting_another)
+        hideNowPlaying();
     scrobbler.retryAsync();
     resetState();
 }
@@ -489,6 +502,7 @@ void LastfmTracker::submitLocalScrobbleIfNeeded(bool allowFilterRecovery)
         if (local.state != LocalScrobbleState::BlockedByExclusionFilters)
             LFM_DEBUG("Scrobble skipped: excluded by filters.");
         local.state = LocalScrobbleState::BlockedByExclusionFilters;
+        nowPlayingEligible = false;
         return;
     }
 
@@ -584,7 +598,8 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     dynamic.currentSegmentInfo.copy(info);
     dynamic.haveCurrentSegmentInfo = true;
 
-    if (currentTrackIsExcluded(&info))
+    nowPlayingEligible = !currentTrackIsExcluded(&info);
+    if (!nowPlayingEligible)
     {
         LFM_DEBUG("Stream dynamic deferred: excluded by filters.");
         dynamic.segmentState = DynamicSegmentState::WaitingForFilterRecovery;
@@ -593,8 +608,6 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
 
     if (lastfmIsSuspended())
         return;
-
-    auto& scrobbler = LastfmCore::instance().scrobbler();
 
     // If we were waiting for dynamic metadata, this is the "start" of the stream track.
     if (wasWaitingForMetadata)
@@ -608,7 +621,7 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
         {
             LFM_DEBUG("Submitting dynamic NP (stream start): " << current.artist.c_str() << " - "
                                                                << current.title.c_str());
-            scrobbler.onNowPlaying(current);
+            reconcileNowPlaying(NowPlayingSync::TrackStart);
         }
         return;
     }
@@ -621,7 +634,7 @@ void LastfmTracker::handleDynamicStreamUpdate(const file_info& info)
     else
     {
         LFM_DEBUG("Submitting dynamic NP: " << current.artist.c_str() << " - " << current.title.c_str());
-        scrobbler.sendNowPlayingOnly(current);
+        reconcileNowPlaying(NowPlayingSync::Resend);
     }
 }
 
@@ -775,6 +788,7 @@ void LastfmTracker::on_playback_edited(metadb_handle_ptr)
 {
     refreshFooScrobblerTagAllows();
     refreshCurrentFileMetadata(true);
+    reconcileNowPlaying(NowPlayingSync::IfNeeded);
 }
 void LastfmTracker::on_volume_change(float)
 {

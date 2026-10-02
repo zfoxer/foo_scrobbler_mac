@@ -46,7 +46,6 @@ class LastfmTracker : public play_callback_static
                                           std::string& album);
     void refreshCurrentFileMetadata(bool allowDispatch);
     bool refreshFooScrobblerTagAllows();
-    void resendNowPlayingAfterResume();
     void maybeCacheDynamicScrobble(bool allowFilterRecovery);
     bool trackIsExcluded(const LastfmTrackInfo& track, const file_info* externalInfo = nullptr);
     bool currentTrackIsExcluded(const file_info* externalInfo = nullptr);
@@ -83,6 +82,13 @@ class LastfmTracker : public play_callback_static
         Cached
     };
 
+    enum class NowPlayingSync
+    {
+        IfNeeded,
+        Resend,
+        TrackStart
+    };
+
     struct ListenClock
     {
         double effectiveSeconds = 0.0;
@@ -117,6 +123,9 @@ class LastfmTracker : public play_callback_static
     };
 
     void updateListeningClock(ListenClock& clock, double time, bool blocked);
+    bool nowPlayingAllowed();
+    void reconcileNowPlaying(NowPlayingSync sync);
+    void hideNowPlaying();
 
     std::time_t startWallclock = 0;
     bool isPlaying = false;
@@ -124,7 +133,9 @@ class LastfmTracker : public play_callback_static
     PlaybackChannel channel = PlaybackChannel::None;
     bool currentFooScrobblerTagAllows = true;
     bool fooScrobblerTagBlockLogged = false;
-    bool wasSuspended = false;
+    bool nowPlayingActive = false;
+    bool nowPlayingEligible = false;
+    bool playbackPaused = false;
 
     LastfmTrackInfo current;
 

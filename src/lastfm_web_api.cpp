@@ -384,7 +384,8 @@ static LastfmScrobbleResult loadScrobbleAuth(ScrobbleAuth& out, const char* logP
     return LastfmScrobbleResult::SUCCESS;
 }
 
-static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBody, abort_callback& abort)
+static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBody, abort_callback& abort,
+                                                      const char* okMessage = "NowPlaying OK.")
 {
     pfc::string8 body;
     std::string httpError;
@@ -399,7 +400,7 @@ static LastfmScrobbleResult postNowPlayingAndClassify(const std::string& formBod
 
     if (outcome.result == LastfmScrobbleResult::SUCCESS)
     {
-        LFM_DEBUG("NowPlaying OK.");
+        LFM_DEBUG(okMessage);
         return LastfmScrobbleResult::SUCCESS;
     }
 
@@ -419,6 +420,22 @@ LastfmScrobbleResult LastfmWebApi::updateNowPlaying(const LastfmTrackInfo& track
 
     const std::string formBody = buildSignedFormBody(params, apiSecret);
     return postNowPlayingAndClassify(formBody, abort);
+}
+
+LastfmScrobbleResult LastfmWebApi::removeNowPlaying(abort_callback& abort)
+{
+    ScrobbleAuth auth;
+    const LastfmScrobbleResult authResult = loadScrobbleAuth(auth, "RemoveNowPlaying");
+    if (authResult != LastfmScrobbleResult::SUCCESS)
+        return authResult;
+
+    std::map<std::string, std::string> params = {
+        {"api_key", auth.apiKey},
+        {"method", "track.removeNowPlaying"},
+        {"sk", auth.state.sessionKey},
+    };
+
+    return postNowPlayingAndClassify(buildSignedFormBody(params, auth.apiSecret), abort, "NowPlaying removed.");
 }
 
 LastfmScrobbleResult LastfmWebApi::scrobble(const LastfmTrackInfo& track, double playbackSeconds,

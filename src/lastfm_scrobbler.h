@@ -26,8 +26,9 @@ class LastfmScrobbler
     ~LastfmScrobbler();
 
     void shutdown();
-    void onNowPlaying(const LastfmTrackInfo& track);
-    void sendNowPlayingOnly(const LastfmTrackInfo& track);
+    bool onNowPlaying(const LastfmTrackInfo& track);
+    bool sendNowPlayingOnly(const LastfmTrackInfo& track);
+    void removeNowPlayingStatus();
     void refreshPendingMetadata(std::uint64_t id, const LastfmTrackInfo& track);
 
     std::uint64_t queueScrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startWallclock,

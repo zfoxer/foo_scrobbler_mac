@@ -32,6 +32,7 @@ class LastfmWebApi
 {
   public:
     LastfmScrobbleResult updateNowPlaying(const LastfmTrackInfo& track, abort_callback& abort);
+    LastfmScrobbleResult removeNowPlaying(abort_callback& abort);
     LastfmScrobbleResult scrobble(const LastfmTrackInfo& track, double playbackSeconds, std::time_t startTimestamp,
                                   abort_callback& abort, LastfmTrackOutcome* outOutcome = nullptr);
     LastfmScrobbleResult scrobbleBatch(const std::vector<LastfmScrobbleRequest>& requests, abort_callback& abort,

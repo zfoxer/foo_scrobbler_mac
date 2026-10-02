@@ -24,6 +24,11 @@ LastfmScrobbleResult LastfmClient::updateNowPlaying(const LastfmTrackInfo& track
     return api.updateNowPlaying(track, abort);
 }
 
+LastfmScrobbleResult LastfmClient::removeNowPlaying(abort_callback& abort)
+{
+    return api.removeNowPlaying(abort);
+}
+
 LastfmScrobbleResult LastfmClient::scrobble(const LastfmTrackInfo& track, double playbackSeconds,
                                             std::time_t startTimestamp, abort_callback& abort,
                                             LastfmTrackOutcome* outOutcome)

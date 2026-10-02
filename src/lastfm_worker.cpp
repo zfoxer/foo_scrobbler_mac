@@ -269,10 +269,18 @@ void LastfmWorker::handleNowPlayingIfReady()
     if (authBlocked_.load())
         return;
 
-    if (!client_.isAuthenticated() || client_.isSuspended())
+    if (!client_.isAuthenticated())
         return;
 
     if (t->artist.empty() || t->title.empty())
+    {
+        const LastfmScrobbleResult removeResult = client_.removeNowPlaying(httpAbort_);
+        if (removeResult == LastfmScrobbleResult::INVALID_SESSION && onInvalidSession_)
+            onInvalidSession_();
+        return;
+    }
+
+    if (client_.isSuspended())
         return;
 
     const LastfmScrobbleResult result = client_.updateNowPlaying(*t, httpAbort_);

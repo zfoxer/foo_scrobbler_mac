@@ -43,18 +43,30 @@ LastfmScrobbler::~LastfmScrobbler()
     shutdown();
 }
 
-void LastfmScrobbler::sendNowPlayingOnly(const LastfmTrackInfo& track)
+bool LastfmScrobbler::sendNowPlayingOnly(const LastfmTrackInfo& track)
+{
+    if (core_api::is_shutting_down() || shuttingDown.load(std::memory_order_acquire))
+        return false;
+
+    if (!client.isAuthenticated() || client.isSuspended())
+        return false;
+
+    if (lastfm::settings::disableNowPlaying())
+        return false;
+
+    worker.postNowPlaying(track);
+    return true;
+}
+
+void LastfmScrobbler::removeNowPlayingStatus()
 {
     if (core_api::is_shutting_down() || shuttingDown.load(std::memory_order_acquire))
         return;
 
-    if (!client.isAuthenticated() || client.isSuspended())
+    if (!client.isAuthenticated())
         return;
 
-    if (lastfm::settings::disableNowPlaying())
-        return;
-
-    worker.postNowPlaying(track);
+    worker.postNowPlaying(LastfmTrackInfo{});
 }
 
 void LastfmScrobbler::dispatchRetryIfDue(const char* reasonTag)
@@ -76,25 +88,26 @@ void LastfmScrobbler::dispatchRetryIfDue(const char* reasonTag)
         worker.postDrain();
 }
 
-void LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
+bool LastfmScrobbler::onNowPlaying(const LastfmTrackInfo& track)
 {
     if (core_api::is_shutting_down() || shuttingDown.load(std::memory_order_acquire))
-        return;
+        return false;
 
     // Hard opt-out: NP disabled by prefs
     if (lastfm::settings::disableNowPlaying())
     {
         LFM_DEBUG("NowPlaying disabled by prefs.");
-        return;
+        return false;
     }
 
     // Retry queue first (if authenticated), then do Now Playing.
     dispatchRetryIfDue("onNowPlaying");
 
     if (!client.isAuthenticated() || client.isSuspended())
-        return;
+        return false;
 
     worker.postNowPlaying(track);
+    return true;
 }
 
 void LastfmScrobbler::refreshPendingMetadata(std::uint64_t id, const LastfmTrackInfo& track)
