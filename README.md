@@ -7,14 +7,14 @@
 </p>
 
 ### Foo Scrobbler for Mac
-#### Version: 2.0.0 — foo_scrobbler_mac — Released under MIT License
+#### Version: 2.0.1 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Authentication).
 
 Foo Scrobbler (foo_scrobbler_mac) is a native Last.fm scrobbling plugin for foobar2000 on macOS. Submits tracks based on precise playback rules, caches scrobbles when offline, and operates silently after one-time authentication. Built using the official foobar plugin API, it focuses on reliability, low overhead, and correct metadata handling. Fully open-source under MIT Licence.
 
-Supports macOS ≥ 11.5 on both Intel and ARM.  
+Supports macOS 11.5+ on both Intel and ARM.  
 
 This is the GitHub site of the [macOS version](https://github.com/zfoxer/foo_scrobbler_mac).  
 For the native Windows version of Foo Scrobbler [see here](https://github.com/zfoxer/foo_scrobbler_win).  
@@ -48,7 +48,7 @@ For the port of Foo Scrobbler to the **fooyin** player [see here](https://github
   Advanced stream metadata handling.  
 
 - **Regex & Title Formatting support**  
-  Title Formatting for input tags & Regular expressions for filtering scrobbles.  
+  Title Formatting for input tags and filtering scrobbles | Regular expressions for filtering scrobbles.  
 
 - **Full console logging**  
   Reports every impactful internal scrobbling action.  
@@ -75,6 +75,11 @@ If you prefer to compile the plugin yourself, see the [Compilation Guide](https:
 <summary><strong>Expand</strong></summary>
 
 <pre>
+2.0.1    2026-10-02
+Extend handling of NowPlaying for Stop/Pause on all use cases.
+Fix console logging of per-scrobble Last.fm refusals within batches.
+Fix parsing of local tracks without Artist field, to avoid NP dispatch.
+
 2.0.0    2026-08-23
 Replace JSON key scanners with a strict parser written from scratch.  
 Make worker HTTP cancellable so exit doesn't block on a stalled socket.  
