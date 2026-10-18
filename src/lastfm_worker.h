@@ -108,7 +108,7 @@ class LastfmWorker
 
     // Coalesced NowPlaying state (latest wins)
     std::optional<LastfmTrackInfo> pendingNowPlaying_;
-    Clock::time_point lastNowPlayingSent_{Clock::time_point::min()};
+    Clock::time_point pendingNowPlayingSince_{};
 
     // Drain pacing & auth gate
     Clock::time_point lastDrain_{Clock::time_point::min()};
