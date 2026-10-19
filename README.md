@@ -1,9 +1,6 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/foo-scrobbler_dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="assets/foo-scrobbler_light.svg">
-    <img alt="Foo Scrobbler" src="assets/foo-scrobbler_light.svg" width="420">
-  </picture>
+  <img alt="Foo Scrobbler" src="assets/foo-scrobbler_light.svg#gh-light-mode-only" width="420">
+  <img alt="Foo Scrobbler" src="assets/foo-scrobbler_dark.svg#gh-dark-mode-only" width="420">
 </p>
 
 ### Foo Scrobbler for Mac
