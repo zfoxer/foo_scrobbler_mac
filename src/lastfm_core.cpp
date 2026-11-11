@@ -14,6 +14,12 @@ LastfmCore& LastfmCore::instance()
 }
 
 LastfmCore::LastfmCore()
-    : m_client(), m_scrobbler(m_client), m_authenticator(m_client) // LastfmClient implements ILastfmAuthApi
+    : m_client(), m_scrobbler(m_client),
+      m_authenticator(m_client, m_scrobbler) // LastfmClient implements ILastfmAuthApi
 {
+}
+
+Authenticator& lastfmAuthenticator()
+{
+    return LastfmCore::instance().authenticator();
 }

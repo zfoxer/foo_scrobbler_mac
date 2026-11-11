@@ -18,6 +18,7 @@
 
 class LastfmClient;
 class LastfmWorker;
+struct LastfmAuthState;
 
 class LastfmScrobbler
 {
@@ -38,6 +39,7 @@ class LastfmScrobbler
     void clearQueue();
     void resetInvalidSessionHandling();
     void onAuthenticationRecovered();
+    void onAuthenticated(const LastfmAuthState& state);
 
   private:
     void handleInvalidSessionOnce();

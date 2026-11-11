@@ -8,6 +8,7 @@
 #import "stdafx.h"
 
 #include "debug.h"
+#include "lastfm_authenticator.h"
 #include "lastfm_settings.h"
 #include "lastfm_state.h"
 
@@ -268,10 +269,46 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
     text += text.empty() ? expr : " " + expr;
     return text;
 }
+
+static NSString* authFlowStatusText(Authenticator::FlowStatus status)
+{
+    switch (status)
+    {
+    case Authenticator::FlowStatus::Starting:
+        return @"Contacting Last.fm...";
+    case Authenticator::FlowStatus::WaitingForBrowser:
+        return @"Allow access in the browser, then complete authentication.";
+    case Authenticator::FlowStatus::Completing:
+        return @"Completing authentication...";
+    case Authenticator::FlowStatus::StartFailed:
+        return @"Failed to start authentication. Please try again.";
+    case Authenticator::FlowStatus::NotGranted:
+        return @"Not authorized yet. Allow access in the browser.";
+    case Authenticator::FlowStatus::Expired:
+        return @"Request expired. Allow access in the new browser page.";
+    case Authenticator::FlowStatus::CompletionFailed:
+        return @"Could not complete authentication. Please try again.";
+    case Authenticator::FlowStatus::Failed:
+        return @"Authentication failed. Please try again.";
+    case Authenticator::FlowStatus::Cleared:
+        return @"Authentication cleared. Pending scrobbles are kept.";
+    case Authenticator::FlowStatus::Idle:
+        break;
+    }
+    return @"User not authenticated.";
+}
+
+static bool authFlowAwaitsCompletion(Authenticator::FlowStatus status)
+{
+    return status == Authenticator::FlowStatus::WaitingForBrowser || status == Authenticator::FlowStatus::NotGranted ||
+           status == Authenticator::FlowStatus::Expired || status == Authenticator::FlowStatus::CompletionFailed ||
+           status == Authenticator::FlowStatus::Completing;
+}
 } // namespace
 
 @interface LastfmPreferencesController : NSViewController <NSTextFieldDelegate>
 @property(nonatomic, strong) NSPopUpButton* consolePopup;
+@property(nonatomic, strong) NSButton* authButton;
 @property(nonatomic, strong) NSTextField* authStatusLabel;
 @property(nonatomic, strong) NSTimer* authStatusTimer;
 @property(nonatomic, strong) NSButton* showPlaybackMenuCheckbox;
@@ -418,6 +455,10 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
 
     [stack addArrangedSubview:makeHeader(@"Authentication")];
 
+    self.authButton = [NSButton buttonWithTitle:@"Authenticate" target:self action:@selector(onAuthButton:)];
+    self.authButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [stack addArrangedSubview:makeControlRow(self.authButton)];
+
     self.authStatusLabel = [NSTextField labelWithString:@""];
     self.authStatusLabel.translatesAutoresizingMaskIntoConstraints = NO;
     self.authStatusLabel.lineBreakMode = NSLineBreakByTruncatingTail;
@@ -544,20 +585,28 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
 
 - (void)refreshAuthStatus
 {
+    const Authenticator& authenticator = lastfmAuthenticator();
     const LastfmAuthState state = lastfmGetAuthState();
+    const Authenticator::FlowStatus flow = authenticator.flowStatus();
     self.authStatusLabel.stringValue =
         state.isAuthenticated
             ? [NSString stringWithFormat:@"Authenticated as %@.", nsString(state.username)]
-            : @"User not authenticated, please authenticate from the Playback menu.";
+            : authFlowStatusText(flow);
 
-    const bool showMenu = lastfm::settings::showPlaybackMenu() || !state.isAuthenticated;
-    self.showPlaybackMenuCheckbox.enabled = state.isAuthenticated;
-    self.showPlaybackMenuCheckbox.state = showMenu ? NSControlStateValueOn : NSControlStateValueOff;
+    if (state.isAuthenticated)
+        self.authButton.title = @"Clear Authentication";
+    else if (authFlowAwaitsCompletion(flow))
+        self.authButton.title = @"Complete Authentication";
+    else
+        self.authButton.title = @"Authenticate";
+    self.authButton.enabled = !authenticator.flowBusy();
 }
 
 - (void)loadSettings
 {
     [self.consolePopup selectItemAtIndex:lastfm::settings::consoleLevel()];
+    self.showPlaybackMenuCheckbox.state =
+        lastfm::settings::showPlaybackMenu() ? NSControlStateValueOn : NSControlStateValueOff;
     [self refreshAuthStatus];
 
     self.disableNowPlayingCheckbox.state =
@@ -584,6 +633,17 @@ static std::string appendTemplateExpr(std::string text, const std::string& expr)
 - (IBAction)onShowPlaybackMenu:(id)sender
 {
     lastfm::settings::setShowPlaybackMenu(self.showPlaybackMenuCheckbox.state == NSControlStateValueOn);
+}
+
+- (IBAction)onAuthButton:(id)sender
+{
+    Authenticator& authenticator = lastfmAuthenticator();
+    if (lastfmIsAuthenticated())
+        authenticator.clearAuthentication();
+    else
+        authenticator.authenticateAsync();
+
+    [self refreshAuthStatus];
 }
 
 - (IBAction)onDisableNowPlaying:(id)sender

@@ -11,13 +11,21 @@
 
 #include "lastfm_state.h"
 
+enum class LastfmSessionResult
+{
+    SUCCESS,
+    NOT_AUTHORIZED,
+    TOKEN_EXPIRED,
+    FAILED
+};
+
 class ILastfmAuthApi
 {
   public:
     virtual ~ILastfmAuthApi() = default;
 
     virtual bool startAuth(std::string& outUrl) = 0;
-    virtual bool completeAuth(LastfmAuthState& outState) = 0;
+    virtual LastfmSessionResult completeAuth(LastfmAuthState& outState) = 0;
     virtual void logout() = 0;
     virtual bool hasPendingToken() const = 0;
 };

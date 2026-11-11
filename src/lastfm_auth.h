@@ -9,7 +9,7 @@
 
 #include <string>
 
-#include "lastfm_state.h"
+#include "lastfm_auth_api.h"
 
 // Starts the browser-based Last.fm auth flow.
 // Fills outAuthUrl with the URL the user should be sent to.
@@ -17,7 +17,7 @@ bool beginAuth(std::string& outAuthUrl);
 
 // Completes auth given a callback URL (ignored in current flow).
 // Fills authState with username + session key on success; caller persists it.
-bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState& authState);
+LastfmSessionResult completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState& authState);
 
 // Clears stored credentials.
 void logout();

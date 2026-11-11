@@ -14,9 +14,7 @@ class LastfmMenu : public mainmenu_commands
   public:
     enum
     {
-        CMD_AUTHENTICATE = 0,
-        CMD_CLEAR_AUTH,
-        CMD_SUSPEND,
+        CMD_SUSPEND = 0,
         CMD_COUNT
     };
 

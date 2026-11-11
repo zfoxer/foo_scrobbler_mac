@@ -151,8 +151,8 @@ void LastfmScrobbler::handleInvalidSessionOnce()
                 return;
             lastfmClearAuthentication();
             popup_message::g_show("Your Last.fm session is no longer valid.\n"
-                                  "Please authenticate again from the Last.fm menu.",
-                                  "Last.fm Scrobbler");
+                                  "Please authenticate again from Preferences > Tools > Foo Scrobbler.",
+                                  "Foo Scrobbler");
         });
 }
 
@@ -171,6 +171,26 @@ void LastfmScrobbler::onAuthenticationRecovered()
     // Lift invalid-session backoff ONLY
     resetInvalidSessionHandling();
     worker.postAuthRecovered();
+}
+
+void LastfmScrobbler::onAuthenticated(const LastfmAuthState& state)
+{
+    const pfc::string8 owner = lastfmGetQueueOwnerUsername();
+
+    if (owner.is_empty())
+    {
+        lastfmSetQueueOwnerUsername(state.username.c_str());
+    }
+    else if (std::string(owner.c_str()) != state.username)
+    {
+        clearQueue();
+        lastfmSetQueueOwnerUsername(state.username.c_str());
+    }
+
+    lastfmSetAuthState(state);
+
+    onAuthenticationRecovered();
+    retryAsync();
 }
 
 void LastfmScrobbler::shutdown()

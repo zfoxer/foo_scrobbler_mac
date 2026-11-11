@@ -84,14 +84,14 @@ bool beginAuth(std::string& outAuthUrl)
 }
 
 // Using the stored token, call auth.getSession
-bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState& authState)
+LastfmSessionResult completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState& authState)
 {
     (void)callbackUrl;
 
     if (lastfmPendingToken.empty())
     {
         LFM_DEBUG("No pending token. Run beginAuth() first.");
-        return false;
+        return LastfmSessionResult::FAILED;
     }
 
     const std::string apiKey = __key();
@@ -100,7 +100,7 @@ bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState
     if (apiKey.empty() || apiSecret.empty())
     {
         LFM_INFO("API key/secret not configured.");
-        return false;
+        return LastfmSessionResult::FAILED;
     }
 
     std::map<std::string, std::string> params = {
@@ -128,7 +128,24 @@ bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState
     if (!lastfm::util::httpGetToString(url, body, httpError))
     {
         LFM_INFO("auth.getSession request failed: " << (httpError.empty() ? "unknown error" : httpError.c_str()));
-        return false;
+        return LastfmSessionResult::FAILED;
+    }
+
+    const lastfm::util::LastfmApiErrorInfo apiError = lastfm::util::extractLastfmApiError(body.c_str());
+    if (apiError.hasError)
+    {
+        LFM_INFO("auth.getSession: Last.fm API error " << apiError.errorCode << (apiError.message.empty() ? "" : ": ")
+                                                       << apiError.message.c_str());
+        switch (apiError.errorCode)
+        {
+        case 14:
+            return LastfmSessionResult::NOT_AUTHORIZED;
+        case 4:
+        case 15:
+            return LastfmSessionResult::TOKEN_EXPIRED;
+        default:
+            return LastfmSessionResult::FAILED;
+        }
     }
 
     std::string name;
@@ -138,12 +155,12 @@ bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState
     if (!lastfm::util::json::findString(body.c_str(), "session.name", name) || name.empty())
     {
         LFM_INFO("auth.getSession: username not found. (response omitted, size=" << body.get_length() << ")");
-        return false;
+        return LastfmSessionResult::FAILED;
     }
     if (!lastfm::util::json::findString(body.c_str(), "session.key", key) || key.empty())
     {
         LFM_INFO("auth.getSession: session key not found. (response omitted, size=" << body.get_length() << ")");
-        return false;
+        return LastfmSessionResult::FAILED;
     }
 
     authState.username = name;
@@ -152,7 +169,7 @@ bool completeAuthFromCallbackUrl(const std::string& callbackUrl, LastfmAuthState
 
     LFM_INFO("Authentication complete. User: " << authState.username.c_str());
     lastfmPendingToken.clear();
-    return true;
+    return LastfmSessionResult::SUCCESS;
 }
 
 void logout()

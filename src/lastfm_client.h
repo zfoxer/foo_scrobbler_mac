@@ -35,7 +35,7 @@ class LastfmClient final : public ILastfmAuthApi
 
     // ILastfmAuthApi
     bool startAuth(std::string& outUrl) override;
-    bool completeAuth(LastfmAuthState& outState) override;
+    LastfmSessionResult completeAuth(LastfmAuthState& outState) override;
     void logout() override;
     bool hasPendingToken() const override;
 
