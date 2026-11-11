@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0F75F3A72A6B1A8C00A45078 /* stdafx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0F75F3932A6B1A8C00A45078 /* stdafx.cpp */; };
 		0F75F3AB2A6B1A8C00A45078 /* shared-apple.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0F75F39A2A6B1A8C00A45078 /* shared-apple.mm */; };
 		0F75F3AC2A6B1A8C00A45078 /* utf8.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0F75F39B2A6B1A8C00A45078 /* utf8.cpp */; };
 		0F75F3AE2A6B1A8C00A45078 /* shared-nix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0F75F39E2A6B1A8C00A45078 /* shared-nix.cpp */; };
@@ -167,7 +166,6 @@
 				0F75F3B02A6B1A8C00A45078 /* audio_math.cpp in Sources */,
 				0F75F3AE2A6B1A8C00A45078 /* shared-nix.cpp in Sources */,
 				0F75F3AB2A6B1A8C00A45078 /* shared-apple.mm in Sources */,
-				0F75F3A72A6B1A8C00A45078 /* stdafx.cpp in Sources */,
 				0F75F3AC2A6B1A8C00A45078 /* utf8.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -232,11 +230,10 @@
 					../..,
 					..,
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 14.5;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = NO;
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -292,11 +289,9 @@
 					../..,
 					..,
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 14.5;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -307,8 +302,8 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 4S876G9VCD;
-				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				ONLY_ACTIVE_ARCH = NO;
+				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
+				LLVM_LTO = NO;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -321,8 +316,9 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 4S876G9VCD;
-				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				ONLY_ACTIVE_ARCH = NO;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
+				LLVM_LTO = YES_THIN;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

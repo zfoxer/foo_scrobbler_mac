@@ -28,7 +28,7 @@
 		0B5110052FC49E3A00A10001 /* lastfm_preferences.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0B5110032FC49E3A00A10001 /* lastfm_preferences.mm */; };
 		0F1FDDC02AA0AE1E00DE8967 /* libfoobar2000_SDK.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDBD2AA0AE1E00DE8967 /* libfoobar2000_SDK.a */; };
 		0F1FDDC12AA0AE1E00DE8967 /* libfoobar2000_SDK_helpers.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDBE2AA0AE1E00DE8967 /* libfoobar2000_SDK_helpers.a */; };
-		0F1FDDC22AA0AE1E00DE8967 /* libpfc-Mac.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDBF2AA0AE1E00DE8967 /* libpfc-Mac.a */; };
+		0F1FDDC22AA0AE1E00DE8967 /* libpfc.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDBF2AA0AE1E00DE8967 /* libpfc.a */; };
 		0F1FDDC82AA0B1F800DE8967 /* libshared.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDC72AA0B1F800DE8967 /* libshared.a */; };
 		0F1FDDDE2AA0B34200DE8967 /* libfoobar2000_component_client.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F1FDDDD2AA0B34200DE8967 /* libfoobar2000_component_client.a */; };
 /* End PBXBuildFile section */
@@ -77,7 +77,7 @@
 		0F1FDDAD2AA0AD9B00DE8967 /* foo_scrobbler_mac.component */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = foo_scrobbler_mac.component; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F1FDDBD2AA0AE1E00DE8967 /* libfoobar2000_SDK.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libfoobar2000_SDK.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F1FDDBE2AA0AE1E00DE8967 /* libfoobar2000_SDK_helpers.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libfoobar2000_SDK_helpers.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		0F1FDDBF2AA0AE1E00DE8967 /* libpfc-Mac.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = "libpfc-Mac.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		0F1FDDBF2AA0AE1E00DE8967 /* libpfc.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libpfc.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F1FDDC72AA0B1F800DE8967 /* libshared.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libshared.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F1FDDC92AA0B1FE00DE8967 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		0F1FDDDD2AA0B34200DE8967 /* libfoobar2000_component_client.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libfoobar2000_component_client.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -97,7 +97,7 @@
 				0F1FDDC82AA0B1F800DE8967 /* libshared.a in Frameworks */,
 				0F1FDDC02AA0AE1E00DE8967 /* libfoobar2000_SDK.a in Frameworks */,
 				0F1FDDC12AA0AE1E00DE8967 /* libfoobar2000_SDK_helpers.a in Frameworks */,
-				0F1FDDC22AA0AE1E00DE8967 /* libpfc-Mac.a in Frameworks */,
+				0F1FDDC22AA0AE1E00DE8967 /* libpfc.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -169,7 +169,7 @@
 				0F1FDDC72AA0B1F800DE8967 /* libshared.a */,
 				0F1FDDBD2AA0AE1E00DE8967 /* libfoobar2000_SDK.a */,
 				0F1FDDBE2AA0AE1E00DE8967 /* libfoobar2000_SDK_helpers.a */,
-				0F1FDDBF2AA0AE1E00DE8967 /* libpfc-Mac.a */,
+				0F1FDDBF2AA0AE1E00DE8967 /* libpfc.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -455,6 +455,7 @@
 				DEVELOPMENT_TEAM = "";
 				GCC_C_LANGUAGE_STANDARD = c17;
 				GCC_PREFIX_HEADER = stdafx.h;
+				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					..,
@@ -468,8 +469,9 @@
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../lib";
 				"LIBRARY_SEARCH_PATHS[arch=*]" = "$(PROJECT_DIR)/../lib";
-				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 1.5.1;
+				LLVM_LTO = NO;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MARKETING_VERSION = 2.0.1;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.foobar2000.foo-scrobbler-mac";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -496,6 +498,7 @@
 				DEVELOPMENT_TEAM = "";
 				GCC_C_LANGUAGE_STANDARD = c17;
 				GCC_PREFIX_HEADER = stdafx.h;
+				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					..,
@@ -509,8 +512,9 @@
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../lib";
 				"LIBRARY_SEARCH_PATHS[arch=*]" = "$(PROJECT_DIR)/../lib";
-				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 1.5.1;
+				LLVM_LTO = YES_THIN;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MARKETING_VERSION = 2.0.1;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.foobar2000.foo-scrobbler-mac";
 				PRODUCT_NAME = "$(TARGET_NAME)";
