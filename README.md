@@ -4,7 +4,7 @@
 </p>
 
 ### Foo Scrobbler for Mac
-#### Version: 2.0.1 — foo_scrobbler_mac — Released under MIT License
+#### Version: 2.0.3 — foo_scrobbler_mac — Released under MIT License
 #### © 2025-2026 by Konstantinos Kyriakopoulos
 
 #### See the detailed [Installation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Installation) and [Last.fm Authentication Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Authentication).
@@ -61,7 +61,7 @@ For the port of Foo Scrobbler to the **fooyin** player [see here](https://github
 
 Install **foo_scrobbler_mac.fb2k-component** from within foobar2000 by pointing to it (that is, add via '+') from the components section.  
 
-Authentication requires only an active Last.fm account. Users grant access once through the Last.fm website with their account, after which Foo Scrobbler runs quietly in the background and submits track information automatically. If authentication is cleared from the menu, the same user —or a different one— must grant access again through browser redirection to the Last.fm website. Foo Scrobbler adds a simple, convenient and non-intrusive last entry under Playback in the menu bar. More options are located in Preferences → Tools → Foo Scrobbler.
+Authentication requires only an active Last.fm account. Users grant access once through the Last.fm website with their account, after which Foo Scrobbler runs quietly in the background and submits track information automatically. If authentication is cleared from Settings pane, the same user —or a different one— must grant access again through browser redirection to the Last.fm website. Options are located in Preferences → Tools → Foo Scrobbler.
 
 If you prefer to compile the plugin yourself, see the [Compilation Guide](https://github.com/zfoxer/foo_scrobbler_mac/wiki/Compilation).
 
@@ -72,6 +72,11 @@ If you prefer to compile the plugin yourself, see the [Compilation Guide](https:
 <summary><strong>Expand</strong></summary>
 
 <pre>
+2.0.3    2026-11-19
+Debounce NP dispatch when rapidly traversing tracks.
+Move the authentication flow to the Settings pane.
+Update to SDK-2026-10-01.
+
 2.0.1    2026-10-02
 Extend handling of NowPlaying for Stop/Pause on all use cases.
 Fix console logging of per-scrobble Last.fm refusals within batches.

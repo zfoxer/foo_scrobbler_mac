@@ -8,7 +8,7 @@
 #import "stdafx.h"
 
 #include "debug.h"
-#include "lastfm_authenticator.h"
+#include "lastfm_core.h"
 #include "lastfm_settings.h"
 #include "lastfm_state.h"
 
@@ -585,7 +585,7 @@ static bool authFlowAwaitsCompletion(Authenticator::FlowStatus status)
 
 - (void)refreshAuthStatus
 {
-    const Authenticator& authenticator = lastfmAuthenticator();
+    const Authenticator& authenticator = LastfmCore::instance().authenticator();
     const LastfmAuthState state = lastfmGetAuthState();
     const Authenticator::FlowStatus flow = authenticator.flowStatus();
     self.authStatusLabel.stringValue =
@@ -637,7 +637,7 @@ static bool authFlowAwaitsCompletion(Authenticator::FlowStatus status)
 
 - (IBAction)onAuthButton:(id)sender
 {
-    Authenticator& authenticator = lastfmAuthenticator();
+    Authenticator& authenticator = LastfmCore::instance().authenticator();
     if (lastfmIsAuthenticated())
         authenticator.clearAuthentication();
     else

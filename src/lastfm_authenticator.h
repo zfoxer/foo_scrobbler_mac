@@ -55,5 +55,3 @@ class Authenticator
     std::atomic<FlowStatus> status{FlowStatus::Idle};
     std::string authUrl;
 };
-
-Authenticator& lastfmAuthenticator();
