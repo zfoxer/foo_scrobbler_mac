@@ -72,9 +72,9 @@ If you prefer to compile the plugin yourself, see the [Compilation Guide](https:
 <summary><strong>Expand</strong></summary>
 
 <pre>
-2.0.3    2026-11-19
+2.0.3    2026-11-12
 Debounce NP dispatch when rapidly traversing tracks.
-Move the authentication flow to the Settings pane.
+Move the authentication flow launch to the Settings pane.
 Update to SDK-2026-10-01.
 
 2.0.1    2026-10-02
